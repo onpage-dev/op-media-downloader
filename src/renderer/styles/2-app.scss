@@ -1,0 +1,204 @@
+@font-face {
+  font-family: 'neue';
+  src: url('../assets/fonts/HelveticaNeue.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'neue';
+  font-weight: bold;
+  src: url('../assets/fonts/HelveticaNeue Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'FiraCode';
+  src: local('FiraCode'), url('../assets/fonts/FiraCode.ttf') format('truetype');
+}
+
+html {
+  font-size: 14.5px;
+  @apply w-full h-full flex flex-col;
+}
+@media (max-width: 1300px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+#app,
+body {
+  @apply flex flex-col flex-grow;
+}
+
+h1 {
+  @apply font-bold;
+  font-size: 2.5rem;
+}
+h2 {
+  @apply font-bold;
+  font-size: 2rem;
+}
+h3 {
+  font-size: 1.5rem;
+  @apply font-bold;
+}
+
+h4 {
+  font-size: 1.2rem;
+  @apply font-bold;
+}
+h5 {
+  @apply font-semibold;
+}
+
+.overlay {
+  @apply left-0 top-0 bottom-0 right-0 absolute;
+}
+
+.full-height-scroll-wfull {
+  @apply flex flex-col grow relative w-full overflow-auto overflow-x-hidden;
+}
+.full-height-scroll {
+  @apply flex flex-col grow relative overflow-auto overflow-x-hidden;
+}
+
+.flex-row-center {
+  @apply flex flex-row items-center;
+}
+.flex-row-center-unit {
+  @apply flex flex-row items-center gap-unit;
+}
+
+.flex-col-center {
+  @apply flex flex-col items-center;
+}
+.flex-col-center-unit {
+  @apply flex flex-col items-center gap-unit;
+}
+
+.link {
+  @apply text-accent underline hover:text-accent-6 cursor-pointer duration-100;
+}
+.sober-link {
+  @apply text-accent hover:text-accent-6 cursor-pointer duration-100;
+}
+.sober-link-danger {
+  @apply hover:text-red cursor-pointer duration-100;
+}
+.sober-link-accent {
+  @apply hover:text-accent cursor-pointer duration-100;
+}
+.sober-link-underline {
+  @apply hover:underline cursor-pointer duration-100 underline-offset-2;
+}
+.link-opacity-light {
+  @apply opacity-90 hover:opacity-100 cursor-pointer duration-100;
+}
+.link-desaturate {
+  @apply hover:saturate-100 cursor-pointer duration-100 saturate-0;
+}
+.link-desaturate-50 {
+  @apply hover:saturate-100 cursor-pointer duration-100 saturate-50;
+}
+.link-opacity {
+  @apply opacity-40 hover:opacity-100 cursor-pointer duration-100;
+}
+.link-opacity-danger {
+  @apply opacity-40 hover:opacity-100 hover:text-red cursor-pointer duration-100;
+}
+
+@import 'floating-vue/dist/style.css';
+.v-popper__popper {
+  pointer-events: none;
+  display: block !important;
+  z-index: 1000000;
+
+  .v-popper__inner {
+    @apply bg-white text-light-inv border-2 border-dark rounded-md shadow-md whitespace-pre-line;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.9rem;
+    max-width: 15rem;
+    text-align: left;
+    max-height: 20rem;
+    overflow: auto;
+  }
+
+  &[aria-hidden='true'] {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.15s, visibility 0.15s;
+  }
+
+  &[aria-hidden='false'] {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.15s;
+  }
+}
+
+.animate-fadein-slow {
+  animation: fadein 400ms;
+}
+
+.op-modal > .op-modal-content {
+  > * {
+    @apply flex-shrink max-w-full;
+  }
+  & > *.modal-size-w-sm {
+    width: 30rem;
+    @media (max-width: 700px) {
+      width: 70vw;
+    }
+  }
+  & > *.modal-size-h-sm {
+    height: 50vh;
+    @media (max-width: 700px) {
+      height: 60vh;
+    }
+  }
+  & > *.modal-size-sm {
+    width: 30rem;
+    height: 50vh;
+    @media (max-width: 700px) {
+      width: 70vw;
+      height: 60vh;
+    }
+  }
+  & > *.modal-size-w-md {
+    width: 60rem;
+    @media (max-width: 700px) {
+      width: 80vw;
+    }
+  }
+  & > *.modal-size-h-md {
+    height: 60vh;
+    @media (max-width: 700px) {
+      height: 70vh;
+    }
+  }
+  & > *.modal-size-md {
+    width: 60rem;
+    height: 80vh;
+    @media (max-width: 1000px) {
+      width: 80vw;
+      height: 80vh;
+    }
+  }
+  & > *.modal-size-w-lg {
+    width: 70rem;
+    @media (max-width: 1100px) {
+      width: 100%;
+    }
+  }
+  & > *.modal-size-h-lg {
+    height: 80vh;
+    @media (max-width: 700px) {
+      height: 80vh;
+    }
+  }
+  & > *.modal-size-lg {
+    width: 70rem;
+    height: 80vh;
+    @media (max-width: 1100px) {
+      width: 90vw;
+      height: 80vh;
+    }
+  }
+}
