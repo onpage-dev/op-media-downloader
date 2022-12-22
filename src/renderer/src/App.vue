@@ -78,10 +78,10 @@ watch(dark_mode, () => {
 <template>
   <div
     id="realapp"
-    class="overlay flex-col bg-wallpaper text-wallpaper-inv dark:bg-darkwallpaper dark:text-darkwallpaper-inv overflow-hidden provide-bg p-unit-half"
+    class="overlay flex-col bg-wallpaper text-wallpaper-inv dark:bg-darkwallpaper dark:text-darkwallpaper-inv overflow-hidden provide-bg"
   >
     <component :is="'style'" v-text="base_style" />
-    <div class="full-height-scroll-wfull gap-unit">
+    <div class="full-height-scroll-wfull h-full gap-unit">
       <OpMenubar :storage="storage" />
       <Home :storage="storage" />
     </div>

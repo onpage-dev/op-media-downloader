@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { toggleUserProperty } from '@renderer/service/utils'
-import { StorageData } from '../../classes/folder-config'
 import { computed, onBeforeMount, ref } from 'vue'
+import { StorageData } from '../../classes/folder-config'
 import OpLogo from './op-logo.vue'
 
 const props = defineProps({
@@ -14,20 +13,20 @@ const is_small = ref(false)
 const dark_mode = computed(() => props.storage.user_properties.dark_mode)
 
 function toggleDarkMode(): void {
-  toggleUserProperty(props.storage, 'dark_mode', !dark_mode.value)
+  props.storage.set('user_properties.dark_mode', !dark_mode.value)
 }
 
 onBeforeMount(() => {
-  is_small.value = window.innerWidth < 1000
+  is_small.value = window.innerWidth < 400
 
   window.addEventListener('resize', () => {
-    is_small.value = window.innerWidth < 1000
+    is_small.value = window.innerWidth < 400
   })
 })
 </script>
 
 <template>
-  <op-card class="z-40" pad="compact" middle :row="true" provide>
+  <op-card class="z-40 m-unit-half" pad="compact" middle :row="true" provide>
     <router-link :to="{ path: '/' }">
       <OpLogo
         :small="is_small"

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
@@ -9,18 +9,26 @@ const store = new Store({
   clearInvalidConfig: true,
 })
 
-ipcMain.on('electron-store-get', async (event, key: string) => {
-  event.returnValue = store.get(key)
+ipcMain.handle('pick-folder-path', async () => {
+  const res = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+  })
+  return res.filePaths
 })
-ipcMain.on('electron-store-set', async (_event, key: string, val: any) => {
+ipcMain.handle('electron-store-set', async (_event, key: string, val: any) => {
+  console.log('trying to set', key, 'as', val)
   store.set(key, val)
+  return store.get(key)
 })
-ipcMain.on('electron-store-has', async (event, key: string) => {
-  event.returnValue = store.has(key)
+ipcMain.handle('electron-store-get', (_event, key: string) => {
+  return store.get(key)
 })
-ipcMain.on('electron-store-delete', async (event, key: string) => {
+ipcMain.handle('electron-store-has', async (_event, key: string) => {
+  return store.has(key)
+})
+ipcMain.handle('electron-store-delete', async (_Event, key: string) => {
   store.delete(key)
-  event.returnValue = !store.has(key)
+  return !store.has(key)
 })
 
 function createWindow(): void {
@@ -30,6 +38,7 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+
     ...(process.platform === 'linux'
       ? {
           icon: path.join(__dirname, '../../build/icon.png'),

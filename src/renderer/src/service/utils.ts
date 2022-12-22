@@ -1,6 +1,4 @@
 import { isNumber, isString } from 'lodash'
-import { StorageData, UserSettings } from 'src/renderer/classes/folder-config'
-import { Ref } from 'vue'
 import { OpCardColor } from '../../classes/color-classes'
 
 export function formattedColor(string: string): OpCardColor {
@@ -25,16 +23,6 @@ export function formattedColor(string: string): OpCardColor {
       }
     },
   }
-}
-
-export function toggleUserProperty(
-  storage: StorageData,
-  key: keyof UserSettings,
-  val: boolean,
-): void {
-  const user_props = storage.user_properties
-  user_props[key] = val
-  storage.user_properties = user_props
 }
 
 const object_id_map = new WeakMap()

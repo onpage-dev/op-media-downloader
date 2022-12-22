@@ -5,19 +5,6 @@ const api = {
   store: {
     electronStoreChanged: (callback): any =>
       ipcRenderer.on('electron-store-changed', callback),
-    get(key: string): any {
-      return ipcRenderer.sendSync('electron-store-get', key)
-    },
-    set(property: string, val: any): any {
-      ipcRenderer.send('electron-store-set', property, val)
-    },
-    has(key: string): boolean {
-      return ipcRenderer.sendSync('electron-store-has', key)
-    },
-    delete(key: string): boolean {
-      return ipcRenderer.sendSync('electron-store-delete', key)
-    },
-    // Other method you want to add like has(), reset(), etc.
   },
 }
 

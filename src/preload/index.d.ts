@@ -5,10 +5,6 @@ declare global {
     api: {
       store: {
         electronStoreChanged: any
-        get: (key: string) => any
-        set: (key: string, val: any) => any
-        has: (key: string) => boolean
-        delete: (key: string) => boolean
       }
     }
   }

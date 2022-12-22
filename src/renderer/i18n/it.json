@@ -1,9 +1,15 @@
 {
   "no_items": "Nessun elemento",
   "search_placeholder": "Cerca...",
+  "cancel": "Annulla",
+  "delete": "Elimina",
+  "save": "Salva",
   "_storage_data": {
     "title": "Progetti",
     "label": "Nome",
-    "add_new_storage": "Aggiungi nuovo progetto"
+    "add_new_storage": "Aggiungi nuovo progetto",
+    "api_token": "Token Api",
+    "folder_path": "Scegli dove salvare i file",
+    "choose_folder": "Scegli cartella"
   }
 }

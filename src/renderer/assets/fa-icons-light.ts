@@ -1,10 +1,26 @@
 import {
   faFolder,
+  faFolderPlus,
   faLoader,
   faMoon,
   faPlus,
+  faSave,
   faSearch,
   faShapes,
   faSun,
+  faX,
+  faXmark,
 } from '@fortawesome/pro-light-svg-icons'
-export default [faFolder, faLoader, faPlus, faSearch, faShapes, faMoon, faSun]
+export default [
+  faFolder,
+  faLoader,
+  faPlus,
+  faSearch,
+  faShapes,
+  faMoon,
+  faSun,
+  faX,
+  faFolderPlus,
+  faXmark,
+  faSave,
+]

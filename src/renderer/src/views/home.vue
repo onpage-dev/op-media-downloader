@@ -10,7 +10,5 @@ defineProps({
 </script>
 
 <template>
-  <div class="flex flex-row gap-unit">
-    <StorageDataList :storage-data="storage" />
-  </div>
+  <StorageDataList :storage="storage" />
 </template>

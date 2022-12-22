@@ -1,63 +1,96 @@
+import { forEach } from 'lodash'
 import { OpFileRaw } from 'onpage-js'
-import { reactive, Ref } from 'vue'
-import { Store } from './store'
+import { reactive } from 'vue'
 
 export interface UserSettings {
   dark_mode?: boolean
 }
 export interface StorageDataJson {
   user_properties: UserSettings
-  storage_data: FolderConfig[]
+  storage_data: { [key: string]: FolderConfig }
 }
 export class StorageData {
-  store: Store
   json: StorageDataJson = reactive({
+    storage_data: {},
     user_properties: {},
-    storage_data: [],
   })
+  config_services?: FolderConfigService[]
+
   constructor() {
-    this.store = reactive(window.api.store)
     this.watchStore()
     this.initStorage()
   }
 
-  initStorage(): void {
-    if (!this.store.has('storage_data')) {
-      this.store.set('storage_data', [])
+  async initStorage(): Promise<void> {
+    const has_storage_data = await this.has('storage_data')
+    if (!has_storage_data) {
+      await this.set('storage_data', {})
     }
-    if (!this.store.has('user_properties')) {
-      this.store.set('user_properties', { dark_mode: false })
+    const has_user_properties = await this.has('user_properties')
+    if (!has_user_properties) {
+      await this.set('user_properties', { dark_mode: false })
     }
 
-    this.json.user_properties = this.store.get('user_properties')
-    this.json.storage_data = this.store.get('storage_data')
+    this.json.user_properties = await this.get('user_properties')
+    this.json.storage_data = await this.get('storage_data')
+  }
+  get user_properties(): UserSettings {
+    return this.json.user_properties
+  }
+  get storage_data(): { [key: string]: FolderConfig } {
+    return this.json.storage_data
+  }
+
+  async set<T>(key: string, val: T): Promise<T> {
+    const res: T = await window.electron.ipcRenderer.invoke(
+      'electron-store-set',
+      key,
+      val,
+    )
+    return res
+  }
+  async delete(key: string): Promise<boolean> {
+    const res: boolean = await window.electron.ipcRenderer.invoke(
+      'electron-store-delete',
+      key,
+    )
+    return res
+  }
+  async get<T>(key: string): Promise<T> {
+    const res = await window.electron.ipcRenderer.invoke(
+      'electron-store-get',
+      key,
+    )
+    return res
+  }
+  async has(key: string): Promise<boolean> {
+    const res: boolean = await window.electron.ipcRenderer.invoke(
+      'electron-store-has',
+      key,
+    )
+    return res
+  }
+
+  async setConfig(f: FolderConfig): Promise<void> {
+    console.log('saving', f)
+    const selector = `storage_data.${f.api_token}`
+    await this.set(`${selector}.label`, f.label)
+    await this.set(`${selector}.api_token`, f.api_token)
+    await this.set(`${selector}.folder_path`, f.folder_path)
   }
 
   watchStore(): void {
     window.api.store.electronStoreChanged(
       (_event: any, new_val: StorageDataJson): void => {
-        console.log('store_changed')
+        console.log('store_changed', new_val)
         Object.assign(this.json, new_val)
+
+        this.config_services = []
+        forEach(this.storage_data, val => {
+          this.config_services?.push(new FolderConfigService(val))
+        })
       },
     )
-  }
-
-  get config_services(): FolderConfigService[] {
-    return this.configs.map(config => new FolderConfigService(config))
-  }
-
-  get user_properties(): UserSettings {
-    return this.json.user_properties
-  }
-  set user_properties(val: UserSettings) {
-    this.store.set('user_properties', val)
-  }
-
-  get configs(): FolderConfig[] {
-    return this.json.storage_data
-  }
-  set configs(val: FolderConfig[]) {
-    this.store.set('storage_data', val)
   }
 }
 
@@ -93,13 +126,4 @@ interface SyncResult {
   local_files: OpFileRaw[]
   start_time: string
   end_time: string
-}
-function ref(store: {
-  electronStoreChanged: () => (event: any, val: any) => void
-  get: (key: string) => any
-  set: (key: string, val: any) => any
-  has: (key: string) => boolean
-  delete: (key: string) => boolean
-}): Store {
-  throw new Error('Function not implemented.')
 }
