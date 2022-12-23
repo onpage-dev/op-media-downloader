@@ -85,18 +85,14 @@ function deleteConfig(f: FolderConfig): void {
         @click="emit('select', config)"
       >
         <div
-          class="flex-row-center absolute right-unit top-unit opacity-0 group-hover:opacity-100 duration-100"
+          class="flex-row-center-unit absolute right-unit top-unit opacity-0 group-hover:opacity-100 duration-100"
         >
-          <op-circle-btn size="8" @click.stop="openForm(config)">
+          <div class="sober-link-accent" @click.stop="openForm(config)">
             <op-icon icon="pen-to-square" />
-          </op-circle-btn>
-          <op-circle-btn
-            size="8"
-            class="sober-link-danger"
-            @click.stop="deleteConfig(config)"
-          >
+          </div>
+          <div class="sober-link-danger" @click.stop="deleteConfig(config)">
             <op-icon icon="trash-can" />
-          </op-circle-btn>
+          </div>
         </div>
         <div>{{ config.label }}</div>
         <div class="text-sm font-mono opacity-50">{{ config.api_token }}</div>

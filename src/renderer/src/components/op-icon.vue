@@ -3,8 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import { computed, PropType } from 'vue'
 
 import { library } from '@fortawesome/fontawesome-svg-core'
-import lightIcons from '../../assets/fa-icons-light'
-library.add([...lightIcons] as any)
+import regularIcons from '../../assets/fa-icons'
+library.add([...regularIcons] as any)
 
 const FA_ICON_TYPES = ['solid', 'regular', 'light', 'thin', 'brand'] as const
 type FaIconType = typeof FA_ICON_TYPES[number]
@@ -19,7 +19,7 @@ const props = defineProps({
   },
   type: {
     type: String as PropType<FaIconType>,
-    default: 'light',
+    default: 'solid',
   },
   beat: {
     type: Boolean,

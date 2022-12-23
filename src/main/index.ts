@@ -40,6 +40,7 @@ ipcMain.on('downloadFile', (event, data) => {
     fs.mkdirSync(dataPath)
   }
 
+  console.log('downloading', data.name)
   const url = data.url
   axios({
     method: 'GET',

@@ -58,7 +58,7 @@
       style="background: inherit; border-radius: inherit"
       class="overlay flex-col-center justify-center"
     >
-      <OpIcon icon="loader" spin />
+      <OpIcon icon="spinner" spin />
     </div>
   </component>
 </template>

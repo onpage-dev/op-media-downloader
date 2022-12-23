@@ -434,10 +434,10 @@
   dependencies:
     "@fortawesome/fontawesome-common-types" "6.2.1"
 
-"@fortawesome/pro-light-svg-icons@^6.2.1":
+"@fortawesome/free-solid-svg-icons@^6.2.1":
   version "6.2.1"
-  resolved "https://npm.fontawesome.com/@fortawesome/pro-light-svg-icons/-/6.2.1/pro-light-svg-icons-6.2.1.tgz#8ba3d1f41a3638641fc46db52fb42dbdf30de18e"
-  integrity sha512-QTs61d6jAnYhjXuaRUTexv+KQuxzkwG5jjOGBQOGOnOoGZgho6AEU/a5r2Awgv5o+It50C/LduPnboA31P1NUQ==
+  resolved "https://npm.fontawesome.com/@fortawesome/free-solid-svg-icons/-/6.2.1/free-solid-svg-icons-6.2.1.tgz#2290ea5adcf1537cbd0c43de6feb38af02141d27"
+  integrity sha512-oKuqrP5jbfEPJWTij4sM+/RvgX+RMFwx3QZCZcK9PrBDgxC35zuc7AOFsyMjMd/PIFPeB2JxyqDr5zs/DZFPPw==
   dependencies:
     "@fortawesome/fontawesome-common-types" "6.2.1"
 

@@ -189,11 +189,12 @@ export class FolderConfigService {
     )
   }
   getCurrentDate(): string {
-    return dayjs.utc().format('YYYY-MM-DD HH:mm:ss')
+    return dayjs().format('YYYY-MM-DD HH:mm:ss')
   }
   // load remote files then download the missing ones
   // finally update the index inside storage_data
   async syncFiles(): Promise<void> {
+    this.download_loaders.clear()
     const current_sync_info: Partial<SyncResult> = {
       start_time: this.getCurrentDate(),
       local_files: this.formatLocalFiles(),
