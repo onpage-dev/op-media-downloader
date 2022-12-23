@@ -219,7 +219,8 @@ export class FolderConfigService {
       window.electron.ipcRenderer.send('downloadFile', {
         url: file.link(),
         directory: this.folder_path,
-        filename: file.name,
+        token: file.token,
+        name: file.name,
       })
 
       // Already Exists

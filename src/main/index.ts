@@ -22,13 +22,22 @@ ipcMain.on('loadFiles', (event, path) => {
   event.sender.send('loadedFiles', files)
 })
 ipcMain.on('downloadFile', (event, data) => {
-  const filePath = path.normalize(`${data.directory}/${data.filename}`)
+  const dataPath = path.normalize(`${data.directory}/data`)
+  const filePath = path.normalize(`${dataPath}/${data.token}`)
   if (fs.existsSync(filePath)) {
+    fs.link(
+      filePath,
+      path.normalize(`${data.directory}/${data.name}`),
+      () => {},
+    )
     return event.sender.send('fileAlreadyExists')
   }
 
   if (!fs.existsSync(data.directory)) {
     fs.mkdirSync(data.directory)
+  }
+  if (!fs.existsSync(dataPath)) {
+    fs.mkdirSync(dataPath)
   }
 
   const url = data.url
@@ -52,6 +61,11 @@ ipcMain.on('downloadFile', (event, data) => {
       })
       response.data.on('end', () => {
         event.sender.send('downloadEnd')
+        fs.link(
+          filePath,
+          path.normalize(`${data.directory}/${data.name}`),
+          () => {},
+        )
       })
       response.data.on('error', error => {
         event.sender.send('downloadError', error)
