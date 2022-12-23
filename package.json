@@ -35,7 +35,7 @@
     "lodash": "^4.17.21",
     "mitt": "^3.0.0",
     "nodejs-file-downloader": "^4.10.3",
-    "onpage-js": "^1.1.18"
+    "onpage-js": "^1"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",

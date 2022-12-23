@@ -1,22 +1,74 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import * as path from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import axios from 'axios'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import Store from 'electron-store'
+import fs from 'fs'
+import path from 'path'
 
 const store = new Store({
   name: 'op-media-downloader-config',
   watch: true,
   clearInvalidConfig: true,
 })
+ipcMain.on('openPath', (_event, p) => {
+  shell.openPath(path.normalize(p))
+})
+ipcMain.on('loadFiles', (event, path) => {
+  if (!fs.existsSync(path)) {
+    fs.mkdirSync(path)
+  }
+  const files = fs.readdirSync(path)
+  console.log(files)
+  event.sender.send('loadedFiles', files)
+})
+ipcMain.on('downloadFile', (event, data) => {
+  const filePath = path.normalize(`${data.directory}/${data.filename}`)
+  if (fs.existsSync(filePath)) {
+    return event.sender.send('fileAlreadyExists')
+  }
 
+  if (!fs.existsSync(data.directory)) {
+    fs.mkdirSync(data.directory)
+  }
+
+  const url = data.url
+  axios({
+    method: 'GET',
+    url,
+    responseType: 'stream',
+  })
+    .then(response => {
+      response.data.pipe(fs.createWriteStream(filePath))
+
+      const totalSize = response.headers['content-length']
+      let downloaded = 0
+
+      response.data.on('data', data => {
+        downloaded += Buffer.byteLength(data)
+        event.sender.send('downloadProgress', {
+          total: totalSize,
+          loaded: downloaded,
+        })
+      })
+      response.data.on('end', () => {
+        event.sender.send('downloadEnd')
+      })
+      response.data.on('error', error => {
+        event.sender.send('downloadError', error)
+      })
+    })
+    .catch(error => {
+      event.sender.send('downloadError', error)
+    })
+})
 ipcMain.handle('pick-folder-path', async () => {
   const res = await dialog.showOpenDialog({
     properties: ['openDirectory'],
   })
-  return res.filePaths
+  return path.normalize(res.filePaths[0])
 })
 ipcMain.handle('electron-store-set', async (_event, key: string, val: any) => {
-  console.log('trying to set', key, 'as', val)
+  console.log('setting', key, 'as', val)
   store.set(key, val)
   return store.get(key)
 })

@@ -4,12 +4,21 @@
   "cancel": "Annulla",
   "delete": "Elimina",
   "save": "Salva",
+  "loading": "Caricamento...",
   "_storage_data": {
     "title": "Progetti",
     "label": "Nome",
     "add_new_storage": "Aggiungi nuovo progetto",
+    "edit_storage": "Modifica \"{label}\"",
     "api_token": "Token Api",
     "folder_path": "Scegli dove salvare i file",
     "choose_folder": "Scegli cartella"
+  },
+  "_storage_files": {
+    "title": "File",
+    "select_project": "Seleziona un progetto per iniziare",
+    "start_sync": "Sincronizza",
+    "reveal_in_explorer": "Apri cartella",
+    "local_files": "File scaricati"
   }
 }

@@ -26,7 +26,7 @@ onBeforeMount(() => {
 </script>
 
 <template>
-  <op-card class="z-40 m-unit-half" pad="compact" middle :row="true" provide>
+  <op-card class="z-40 m-unit mb-0" pad="compact" middle :row="true" provide>
     <router-link :to="{ path: '/' }">
       <OpLogo
         :small="is_small"

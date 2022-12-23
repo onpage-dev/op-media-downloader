@@ -40,5 +40,5 @@ api_token: string
 folder_path: string
 last_sync?: SyncResult
 current_status?: SyncResult
-async sync() { ... }
+async syncFiles() { ... }
 }

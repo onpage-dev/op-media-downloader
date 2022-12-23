@@ -1,15 +1,20 @@
 import {
+  faArrowsRotate,
+  faFile,
   faFolder,
   faFolderPlus,
   faLoader,
   faMoon,
+  faPenToSquare,
   faPlus,
   faSave,
   faSearch,
   faShapes,
   faSun,
+  faTrashCan,
   faX,
   faXmark,
+  faFolderOpen,
 } from '@fortawesome/pro-light-svg-icons'
 export default [
   faFolder,
@@ -23,4 +28,9 @@ export default [
   faFolderPlus,
   faXmark,
   faSave,
+  faTrashCan,
+  faPenToSquare,
+  faArrowsRotate,
+  faFile,
+  faFolderOpen,
 ]

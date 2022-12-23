@@ -3,7 +3,7 @@ const emit = defineEmits(['close'])
 </script>
 <template>
   <div
-    class="animate-fadein-slow absolute h-full w-full z-50 bg-darkwallpaper bg-opacity-50 flex-col-center justify-center"
+    class="animate-fadein-slow overlay z-50 bg-overlay flex-col-center justify-center"
     @click="emit('close')"
   >
     <div class="flex flex-col gap-unit op-modal">

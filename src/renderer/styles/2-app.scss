@@ -49,14 +49,17 @@ h5 {
 }
 
 .overlay {
-  @apply left-0 top-0 bottom-0 right-0 absolute;
+  @apply absolute left-0 top-0 bottom-0 right-0;
+}
+.bg-overlay {
+  @apply bg-black bg-opacity-70;
 }
 
 .full-height-scroll-wfull {
-  @apply flex flex-col grow relative w-full overflow-auto overflow-x-hidden;
+  @apply flex flex-col flex-grow relative w-full overflow-auto overflow-x-hidden;
 }
 .full-height-scroll {
-  @apply flex flex-col grow relative overflow-auto overflow-x-hidden;
+  @apply flex flex-col flex-grow relative overflow-auto overflow-x-hidden;
 }
 
 .flex-row-center {
@@ -200,5 +203,81 @@ h5 {
       width: 90vw;
       height: 80vh;
     }
+  }
+}
+
+.op-active-card-backdrop {
+  background-image: radial-gradient(
+    rgba(var(--color-wallpaper), 0.8),
+    rgba(var(--color-wallpaper), 0.8)
+  );
+  &:hover {
+    background-image: radial-gradient(
+      rgba(var(--color-wallpaper), 0.7),
+      rgba(var(--color-wallpaper), 0.7)
+    );
+  }
+}
+.dark .op-active-card-backdrop {
+  background-image: radial-gradient(
+    rgba(var(--color-darkwallpaper), 0.8),
+    rgba(var(--color-darkwallpaper), 0.8)
+  );
+  &:hover {
+    background-image: radial-gradient(
+      rgba(var(--color-darkwallpaper), 0.7),
+      rgba(var(--color-darkwallpaper), 0.7)
+    );
+  }
+}
+
+.dark .op-active-card-backdrop {
+  backdrop-filter: none;
+}
+
+.ellipses,
+.ellipses * {
+  overflow: hidden !important;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+  min-width: 0;
+}
+
+::-webkit-scrollbar {
+  width: 0.4rem;
+  height: 0.4rem;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  @apply hover:bg-wallpaper-2;
+  border-radius: 1rem;
+}
+/* Handle */
+::-webkit-scrollbar-thumb {
+  @apply bg-wallpaper-10 cursor-pointer;
+  --tw-bg-opacity: 0.4;
+  border-radius: 1rem;
+}
+/* Handle on Hover*/
+::-webkit-scrollbar-thumb:hover {
+  --tw-bg-opacity: 1;
+}
+
+.dark {
+  /* Track */
+  ::-webkit-scrollbar-track {
+    @apply hover:bg-dbox-4;
+    border-radius: 1rem;
+  }
+  /* Handle */
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dbox-2 cursor-pointer;
+    --tw-bg-opacity: 0.4;
+    border-radius: 1rem;
+  }
+  /* Handle on Hover*/
+  ::-webkit-scrollbar-thumb:hover {
+    --tw-bg-opacity: 1;
   }
 }

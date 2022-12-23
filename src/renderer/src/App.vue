@@ -7,7 +7,7 @@ import { themes } from './service/theme-service'
 import Home from './views/home.vue'
 
 const storage = ref(new StorageData()) as Ref<StorageData>
-const theme = ref(themes[0])
+const theme = ref(themes[1])
 
 const dark_mode = computed(() => storage.value.user_properties.dark_mode)
 
@@ -78,10 +78,10 @@ watch(dark_mode, () => {
 <template>
   <div
     id="realapp"
-    class="overlay flex-col bg-wallpaper text-wallpaper-inv dark:bg-darkwallpaper dark:text-darkwallpaper-inv overflow-hidden provide-bg"
+    class="full-height-scroll-wfull relative h-full bg-wallpaper dark:bg-darkwallpaper provide-bg"
   >
     <component :is="'style'" v-text="base_style" />
-    <div class="full-height-scroll-wfull h-full gap-unit">
+    <div class="full-height-scroll-wfull gap-unit relative">
       <OpMenubar :storage="storage" />
       <Home :storage="storage" />
     </div>

@@ -26,7 +26,8 @@ function chooseFolder(): void {
   if (!local_form.value) return
   window.electron.ipcRenderer.invoke('pick-folder-path').then(res => {
     console.log('selected folder path', res)
-    local_form.value!.folder_path = res[0]?.replace(/[\\/]+/g, '/')
+    local_form.value!.folder_path = res
+    // [0]?.replace(/[\\/]+/g, '/')
   })
 }
 async function save(f?: Partial<FolderConfig>): Promise<void> {
@@ -45,7 +46,13 @@ onBeforeMount(() => {
     class="modal-size-w-sm full-height-scroll gap-unit-double"
     @submit.prevent="save(local_form)"
   >
-    <h4>{{ i18n.t('_storage_data.add_new_storage') }}</h4>
+    <h4>
+      {{
+        form.api_token
+          ? i18n.t('_storage_data.edit_storage', { label: form.label })
+          : i18n.t('_storage_data.add_new_storage')
+      }}
+    </h4>
 
     <div class="full-height-scroll gap-unit">
       <div class="flex flex-col">

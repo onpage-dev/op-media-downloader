@@ -53,7 +53,7 @@ export default {
           color: 'box dbox',
           bcolor: '-10 -8',
           shadow: 'sm',
-          pad: 'compact',
+          pad: 'py-unit-half px-unit-double',
           radius: 'full',
           middle: true,
           row: true,
