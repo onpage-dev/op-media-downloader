@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { FolderConfig, StorageData } from '../../../classes/folder-config'
-import { onBeforeMount, PropType, Ref, ref } from 'vue'
 import { cloneDeep } from 'lodash'
+import { onBeforeMount, PropType, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { FolderConfig, StorageData } from '../../../classes/folder-config'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -27,12 +27,12 @@ function chooseFolder(): void {
   window.electron.ipcRenderer.invoke('pick-folder-path').then(res => {
     console.log('selected folder path', res)
     local_form.value!.folder_path = res
-    // [0]?.replace(/[\\/]+/g, '/')
   })
 }
-async function save(f?: Partial<FolderConfig>): Promise<void> {
-  if (!f) return
-  await props.storage.setConfig(f as FolderConfig)
+async function save(): Promise<void> {
+  if (!local_form.value) return
+
+  await props.storage.setConfig(local_form.value as FolderConfig)
   emit('close')
 }
 
@@ -44,7 +44,7 @@ onBeforeMount(() => {
   <form
     v-if="local_form"
     class="modal-size-w-sm full-height-scroll gap-unit-double"
-    @submit.prevent="save(local_form)"
+    @submit.prevent="save()"
   >
     <h4>
       {{

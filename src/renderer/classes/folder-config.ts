@@ -1,7 +1,9 @@
-import { flatMap, forEach, uniqBy } from 'lodash'
+import dayjs from 'dayjs'
+import { cloneDeep, flatMap, forEach, uniqBy } from 'lodash'
 import { Api, FieldID, OpFile, OpFileRaw, Resource, Schema } from 'onpage-js'
 import { reactive } from 'vue'
-
+import utc from 'dayjs/plugin/utc'
+dayjs.extend(utc)
 export interface UserSettings {
   dark_mode?: boolean
 }
@@ -73,11 +75,8 @@ export class StorageData {
   }
 
   async setConfig(f: FolderConfig): Promise<void> {
-    console.log('saving', f)
     const selector = `storage_data.${f.api_token}`
-    await this.set(`${selector}.label`, f.label)
-    await this.set(`${selector}.api_token`, f.api_token)
-    await this.set(`${selector}.folder_path`, f.folder_path)
+    await this.set(selector, cloneDeep(f))
   }
 
   updateConfigServicesMap(): void {
@@ -109,7 +108,6 @@ export interface FolderConfig {
   api_token: string
   folder_path: string
   last_sync?: SyncResult
-  current_status?: SyncResult
 }
 export class FolderConfigService {
   api: Api
@@ -136,17 +134,27 @@ export class FolderConfigService {
   get label(): string {
     return this.json.label
   }
+  set label(val: string) {
+    this.json.label = val
+  }
   get api_token(): string {
     return this.json.api_token
+  }
+  set api_token(val: string) {
+    this.json.api_token = val
   }
   get folder_path(): string {
     return this.json.folder_path
   }
+  set folder_path(val: string) {
+    this.json.folder_path = val
+  }
   get last_sync(): SyncResult | undefined {
     return this.json.last_sync
   }
-  get current_status(): SyncResult | undefined {
-    return this.json.current_status
+  set last_sync(val: SyncResult | undefined) {
+    if (!val) delete this.json.last_sync
+    this.json.last_sync = val
   }
   get all_files_raw(): OpFileRaw[] {
     return flatMap(Array.from(this.images_raw), ([, val]) => val)
@@ -165,17 +173,39 @@ export class FolderConfigService {
   get is_loading(): boolean {
     return Array.from(this.loaders.values()).includes(true)
   }
-
+  getConfig(): FolderConfig {
+    return {
+      label: this.label,
+      api_token: this.api_token,
+      folder_path: this.folder_path,
+      last_sync: this.last_sync,
+    }
+  }
+  formatLocalFiles(): OpFileRaw[] {
+    return cloneDeep(
+      this.all_files
+        .filter(file => this.local_file_tokens.includes(file.name))
+        .map(file => file.serialize()) ?? [],
+    )
+  }
+  getCurrentDate(): string {
+    return dayjs.utc().format('YYYY-MM-DD HH:mm:ss')
+  }
   // load remote files then download the missing ones
   // finally update the index inside storage_data
   async syncFiles(): Promise<void> {
+    const current_sync_info: Partial<SyncResult> = {
+      start_time: this.getCurrentDate(),
+      local_files: this.formatLocalFiles(),
+    }
     await this.loadRemoteFiles()
-
-    this.all_files.forEach(file => this.downloadFile(file))
+    this.all_files.forEach(file => this.downloadFile(file, current_sync_info))
   }
-
   // Start download of a file
-  downloadFile(file: OpFile): Promise<any> {
+  downloadFile(
+    file: OpFile,
+    current_sync_info: Partial<SyncResult>,
+  ): Promise<any> {
     const _this = reactive(this)
 
     return new Promise((resolve, reject) => {
@@ -197,6 +227,7 @@ export class FolderConfigService {
         clear_listeners()
         const loader = _this.download_loaders.get(file.token)!
         loader.downloading = false
+        this.saveLastSync(current_sync_info)
       })
 
       // On Progress
@@ -216,6 +247,7 @@ export class FolderConfigService {
 
         const loader = _this.download_loaders.get(file.token)!
         loader.downloading = false
+        this.saveLastSync(current_sync_info)
       })
 
       // On Error
@@ -225,10 +257,22 @@ export class FolderConfigService {
 
         const loader = _this.download_loaders.get(file.token)!
         loader.downloading = false
+        this.saveLastSync(current_sync_info)
       })
     })
   }
+  saveLastSync(current_sync_info: Partial<SyncResult>): void {
+    if (!this.is_downloading) {
+      setTimeout(() => {
+        current_sync_info.end_time = this.getCurrentDate()
+        current_sync_info.remote_files = this.all_files_raw ?? []
 
+        const config = this.getConfig()
+        config.last_sync = current_sync_info as SyncResult
+        this.storage_data.setConfig(config)
+      }, 1000)
+    }
+  }
   // Load all files of the project
   async loadRemoteFiles(): Promise<void> {
     if (!this.schema) return
@@ -256,7 +300,6 @@ export class FolderConfigService {
       console.log(e)
     }
   }
-
   // Gets all the tokens that are downloaded inside folder path
   loadLocalFiles(): void {
     window.electron.ipcRenderer.send('loadFiles', this.folder_path)
@@ -266,7 +309,6 @@ export class FolderConfigService {
       window.electron.ipcRenderer.removeAllListeners('loadedFiles')
     })
   }
-
   async refresh(): Promise<void> {
     if (!this.schema) {
       this.schema = reactive(await this.api.loadSchema()) as Schema
