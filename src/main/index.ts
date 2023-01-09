@@ -16,9 +16,13 @@ ipcMain.on('openPath', (_event, p) => {
   console.log(`[openPath] triggered for path ${p}`)
   shell.openPath(path.normalize(p))
 })
-ipcMain.on('deleteFolder', (_event, p) => {
-  console.log(`[deleteFolder] triggered for path ${p}`)
-  fsPromises.rm(path.normalize(p), { recursive: true })
+ipcMain.on('deleteFolder', async (_event, p) => {
+  try {
+    console.log(`[deleteFolder] triggered for path ${p}`)
+    await fsPromises.rm(path.normalize(p), { recursive: true })
+  } catch (error) {
+    console.log(error)
+  }
 })
 ipcMain.on('loadFiles', (event, path) => {
   console.log(`[loadFiles] triggered for path ${path}`)

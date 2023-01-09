@@ -45,7 +45,7 @@ const filtered_storage_data = computed(() => {
 function openForm(f?: FolderConfigJson): void {
   form.value = f ?? {}
 }
-function abortDelete(): void {
+function clearDelete(): void {
   deleting.value = undefined
   delete_downloaded.value = false
 }
@@ -55,6 +55,7 @@ function deleteConfig(): void {
   if (delete_downloaded.value) {
     window.electron.ipcRenderer.send('deleteFolder', deleting.value.folder_path)
   }
+  clearDelete()
   emit('select', undefined)
 }
 </script>
@@ -69,7 +70,7 @@ function deleteConfig(): void {
   </OpModal>
 
   <!-- Delete Modal -->
-  <OpModal v-if="deleting" @close="abortDelete()">
+  <OpModal v-if="deleting" @close="clearDelete()">
     <div class="modal-size-w-sm full-height-scroll gap-unit-double">
       <h4>
         {{ i18n.t('_storage_data.delete_storage', { label: deleting.label }) }}
@@ -82,7 +83,7 @@ function deleteConfig(): void {
         </div>
       </div>
       <div class="flex-row-center-unit justify-center">
-        <op-btn color="inherit" @click="abortDelete()">
+        <op-btn color="inherit" @click="clearDelete()">
           <op-icon icon="xmark" />
           {{ i18n.t('cancel') }}
         </op-btn>
