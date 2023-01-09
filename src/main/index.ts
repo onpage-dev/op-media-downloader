@@ -17,10 +17,10 @@ ipcMain.on('openPath', (_event, p) => {
   console.log(`[openPath] triggered for path ${p}`)
   shell.openPath(path.normalize(p))
 })
-ipcMain.on('deleteFolder', async (_event, p) => {
+ipcMain.on('deleteFolder', async (_event, path: string) => {
   try {
-    console.log(`[deleteFolder] triggered for path ${p}`)
-    await fsPromises.rm(path.normalize(p), { recursive: true })
+    console.log(`[deleteFolder] triggered for path ${path}`)
+    await fsPromises.rm(path.normalize(path), { recursive: true })
   } catch (error) {
     console.log(error)
   }
@@ -70,21 +70,12 @@ ipcMain.on(
     })
   },
 )
-ipcMain.on('loadFiles', (event, path) => {
-  console.log(`[loadFiles] triggered for path ${path}`)
 
-  if (!fs.existsSync(path)) {
-    fs.mkdirSync(path)
-  }
-  const files = fs.readdirSync(path)
-
-  console.log(`[loadFiles] loaded ${files.length} files`)
-  event.sender.send('loadedFiles', files)
-})
 ipcMain.on(
   'downloadFiles',
   async (
     event,
+    config_id,
     data: {
       files: { url: string; token: string; name: string }[]
       directory: string
@@ -124,13 +115,13 @@ ipcMain.on(
         to_download.splice(to_download_idx, 1)
       }
 
-      event.sender.send('downloadProgress', data.loader)
+      event.sender.send('downloadProgress', config_id, data.loader)
       if (!to_download.length) {
         console.log(` - downloaded: ${data.loader.downloaded}`)
         console.log(` - failed: ${data.loader.failed}`)
         console.log(` - already_exists: ${data.loader.already_exists}`)
         console.log('[downloadFiles] sync over')
-        event.sender.send('downloadEnd')
+        event.sender.send('downloadEnd', config_id)
       }
     }
 

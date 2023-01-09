@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { SyncLoader } from '../../../classes/folder-config'
+import { SyncProgressInfo } from '../../../classes/folder-config'
 import { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 const emit = defineEmits<{
@@ -11,7 +11,7 @@ const emit = defineEmits<{
 const i18n = useI18n()
 defineProps({
   loader: {
-    type: Object as PropType<Partial<SyncLoader>>,
+    type: Object as PropType<Partial<SyncProgressInfo>>,
   },
   selected: {
     type: String as PropType<

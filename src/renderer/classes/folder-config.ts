@@ -1,31 +1,29 @@
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import { cloneDeep, flatMap, uniqBy } from 'lodash'
+import { Emitter } from 'mitt'
 import { Api, FieldID, OpFile, OpFileRaw, Resource, Schema } from 'onpage-js'
 import { reactive } from 'vue'
-import { LocalStoreData } from './store'
+import { ConfigEvents, LocalStoreData } from './store'
 dayjs.extend(utc)
 
-interface SyncResult {
-  start_time: string
+interface SyncResult extends SyncProgressInfo {
   end_time: string
-  downloaded: number
-  failed: number
-  already_exists: number
-  total: number
 }
 export interface CondensedOpFile {
   url: string
   token: string
   name: string
 }
-export interface SyncLoader {
+export interface SyncProgressInfo {
+  start_time: string
   downloading: boolean
   total: number
   downloaded: number
   failed: number
   already_exists: number
 }
+
 export interface FolderConfigJson {
   id: string
   label: string
@@ -37,13 +35,7 @@ export class FolderConfig {
   api: Api
   schema?: Schema
   loaders: Map<FieldID, boolean> = reactive(new Map())
-  sync_loader: SyncLoader = reactive({
-    downloading: false,
-    total: 0,
-    downloaded: 0,
-    failed: 0,
-    already_exists: 0,
-  })
+  sync_loader?: SyncProgressInfo
 
   images_raw: Map<FieldID, OpFileRaw[]> = reactive(new Map())
   images: Map<FieldID, OpFile[]> = reactive(new Map())
@@ -52,8 +44,13 @@ export class FolderConfig {
   constructor(
     public local_store_data: LocalStoreData,
     public json: FolderConfigJson,
+    public bus: Emitter<any>,
   ) {
     this.api = reactive(new Api('app', this.api_token)) as Api
+
+    // On Progress
+    this.bus.on('downloadProgress', this.onDownloadProgress)
+
     void this.refresh()
   }
   get images_raw_array(): OpFileRaw[] {
@@ -80,6 +77,9 @@ export class FolderConfig {
   get id(): string {
     return this.json.id
   }
+  set id(id: string) {
+    this.json.id = id
+  }
   get folder_path(): string {
     return this.json.folder_path
   }
@@ -95,12 +95,11 @@ export class FolderConfig {
   }
 
   get is_downloading(): boolean {
-    return this.sync_loader.downloading
+    return this.sync_loader?.downloading ?? false
   }
   get is_loading(): boolean {
     return (
-      Array.from(this.loaders.values()).includes(true) ||
-      this.sync_loader.downloading
+      Array.from(this.loaders.values()).includes(true) || this.is_downloading
     )
   }
   getConfig(): FolderConfigJson {
@@ -117,6 +116,7 @@ export class FolderConfig {
   }
   resetSyncLoader(): void {
     this.sync_loader = {
+      start_time: this.getCurrentDate(),
       downloading: true,
       total: 0,
       downloaded: 0,
@@ -160,45 +160,15 @@ export class FolderConfig {
   // finally update the index inside local_store_data
   syncFiles(): void {
     this.resetSyncLoader()
-
-    const current_sync_info: Partial<SyncResult> = {
-      start_time: this.getCurrentDate(),
-    }
-    this.downloadFiles(current_sync_info)
+    this.downloadFiles()
   }
 
-  downloadFiles(current_sync_info: Partial<SyncResult>): void {
-    if (!this.unique_images_array.length) return
+  onDownloadProgress(data: ConfigEvents['downloadProgress']): void {
+    if (data.config_id != this.id) return
+    this.sync_loader = data.progressEvent
 
-    const clear_listeners = (): void => {
-      window.electron.ipcRenderer.removeAllListeners('downloadEnd')
-      window.electron.ipcRenderer.removeAllListeners('downloadProgress')
-    }
-
-    window.electron.ipcRenderer.send(
-      'downloadFiles',
-      cloneDeep({
-        files: this.unique_images_array.map(file => ({
-          url: file.link(),
-          token: file.token,
-          name: file.name,
-        })),
-        directory: this.folder_path,
-        loader: this.sync_loader,
-      }),
-    )
-
-    // On Progress
-    window.electron.ipcRenderer.on(
-      'downloadProgress',
-      (_event, progressEvent: SyncLoader) => {
-        this.sync_loader = progressEvent
-      },
-    )
-
-    // On End
-    window.electron.ipcRenderer.on('downloadEnd', () => {
-      clear_listeners()
+    if (data.is_complete) {
+      console.log('download ended', data.config_id)
       this.sync_loader.downloading = false
 
       // Delete local files that are not present on remote anymore
@@ -209,19 +179,45 @@ export class FolderConfig {
       )
 
       // Save sync
-      this.saveLastSync(current_sync_info)
-    })
+      this.saveLastSync(data.progressEvent)
+    }
   }
 
-  saveLastSync(current_sync_info: Partial<SyncResult>): void {
-    current_sync_info.end_time = this.getCurrentDate()
-    current_sync_info.downloaded = this.sync_loader.downloaded
-    current_sync_info.failed = this.sync_loader.failed
-    current_sync_info.already_exists = this.sync_loader.already_exists
-    current_sync_info.total = this.sync_loader.total
+  // removeEventListeners(): void {
+  //   this.bus.off('downloadProgress', this.onDownloadProgress)
+  // }
+
+  downloadFiles(): void {
+    if (!this.unique_images_array.length) return
+
+    window.electron.ipcRenderer.send(
+      'downloadFiles',
+      this.id,
+      cloneDeep({
+        files: this.unique_images_array.map(file => ({
+          url: file.link(),
+          token: file.token,
+          name: file.name,
+        })),
+        directory: this.folder_path,
+        loader: this.sync_loader,
+      }),
+    )
+  }
+
+  saveLastSync(progress: SyncProgressInfo): void {
+    const info: SyncResult = {
+      end_time: this.getCurrentDate(),
+      downloaded: progress.downloaded,
+      downloading: progress.downloading,
+      start_time: progress.start_time,
+      failed: progress.failed,
+      already_exists: progress.already_exists,
+      total: progress.total,
+    }
 
     const config = this.getConfig()
-    config.last_sync = current_sync_info as SyncResult
+    config.last_sync = info
     this.local_store_data.setConfig(config).then(() => this.loadLocalFiles())
   }
 

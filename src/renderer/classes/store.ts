@@ -1,6 +1,21 @@
+import { IpcRendererEvent } from '@electron-toolkit/preload'
 import { cloneDeep, forEach } from 'lodash'
+import { Emitter } from 'mitt'
 import { reactive } from 'vue'
-import { FolderConfigJson, FolderConfig } from './folder-config'
+import {
+  FolderConfig,
+  FolderConfigJson,
+  SyncProgressInfo,
+} from './folder-config'
+
+export type ConfigEvents = {
+  downloadProgress: {
+    event: IpcRendererEvent
+    config_id: string
+    progressEvent: SyncProgressInfo
+    is_complete: boolean
+  }
+}
 
 export interface Store {
   electronStoreChanged: any
@@ -25,7 +40,7 @@ export class LocalStoreData {
   })
   config_services: Map<string, FolderConfig> = new Map()
 
-  constructor() {
+  constructor(public bus: Emitter<ConfigEvents>) {
     this.watchStore()
     this.initStorage()
   }
@@ -88,11 +103,11 @@ export class LocalStoreData {
 
   updateConfigServicesMap(): void {
     forEach(this.storage_data, val => {
-      if (this.config_services.has(val.api_token)) {
-        const config = this.config_services.get(val.api_token)!
+      if (this.config_services.has(val.id)) {
+        const config = this.config_services.get(val.id)!
         Object.assign(config, val)
       } else {
-        this.config_services.set(val.api_token, new FolderConfig(this, val))
+        this.config_services.set(val.id, new FolderConfig(this, val, this.bus))
       }
     })
   }

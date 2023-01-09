@@ -23,7 +23,8 @@ const selected_local_store_data: Ref<FolderConfigJson | undefined> =
     />
     <StorageFilesIndex
       :local-store-data="localStoreData"
-      :config="selected_local_store_data"
+      :config_id="selected_local_store_data?.id"
     />
   </div>
+  {{ [selected_local_store_data?.id] }}
 </template>

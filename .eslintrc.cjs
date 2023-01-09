@@ -21,6 +21,8 @@ module.exports = {
       'error',
       { 'ts-ignore': 'allow-with-description' },
     ],
+    'vue/prop-name-casing': 'off',
+
     '@typescript-eslint/explicit-function-return-type': 'error',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-empty-function': [

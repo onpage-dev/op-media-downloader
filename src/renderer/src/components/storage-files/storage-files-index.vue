@@ -7,9 +7,8 @@ import fr from 'dayjs/locale/fr'
 import it from 'dayjs/locale/it'
 import ru from 'dayjs/locale/ru'
 import zh from 'dayjs/locale/zh'
-import { computed, onBeforeMount, PropType, watch } from 'vue'
+import { computed, onBeforeMount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FolderConfigJson } from '../../../classes/folder-config'
 import { LocalStoreData } from '../../../classes/store'
 import SyncLoaderStatus from './sync-loader-status.vue'
 
@@ -19,17 +18,18 @@ const props = defineProps({
     type: LocalStoreData,
     required: true,
   },
-  config: {
-    type: Object as PropType<FolderConfigJson>,
+  config_id: {
+    type: String,
   },
 })
 
 const config_service = computed(() => {
-  if (!props.config) return
-  return props.localStoreData.config_services.get(props.config.api_token)
+  if (!props.config_id) return
+  return props.localStoreData.config_services.get(props.config_id)
 })
+
 const is_downloading = computed(() => {
-  return !!config_service.value?.sync_loader.downloading
+  return config_service.value?.is_downloading || false
 })
 
 function openPath(file_name?: string): void {
@@ -79,7 +79,7 @@ onBeforeMount(() => setLocale())
   <div class="full-height-scroll-wfull gap-unit mr-unit mb-unit">
     <!-- Select config msg -->
     <div
-      v-if="!config"
+      v-if="!config_service"
       class="full-height-scroll gap-unit-double items-center justify-center text-2xl opacity-30"
     >
       <op-icon icon="shapes" size="2x" />
@@ -123,7 +123,7 @@ onBeforeMount(() => setLocale())
       <!-- Content -->
       <div class="full-height-scroll gap-unit pr-unit-half">
         <!-- Sync on going  -->
-        <op-card v-if="config_service.sync_loader.downloading" middle row>
+        <op-card v-if="config_service.is_downloading" middle row>
           <SyncLoaderStatus :loader="config_service.sync_loader" />
         </op-card>
 

@@ -1,12 +1,34 @@
 <script setup lang="ts">
+import { IpcRendererEvent } from '@electron-toolkit/preload'
 import { forEach } from 'lodash'
+import mitt, { Emitter } from 'mitt'
 import { computed, onBeforeMount, Ref, ref, watch } from 'vue'
-import { LocalStoreData } from '../classes/store'
+import { SyncProgressInfo } from '../classes/folder-config'
+import { LocalStoreData, ConfigEvents } from '../classes/store'
 import OpMenubar from './components/op-menubar.vue'
 import { themes } from './service/theme-service'
 import Home from './views/home.vue'
 
-const local_store_data = ref(new LocalStoreData()) as Ref<LocalStoreData>
+const bus: Emitter<ConfigEvents> = mitt<ConfigEvents>()
+
+window.electron.ipcRenderer.on(
+  'downloadProgress',
+  (
+    event: IpcRendererEvent,
+    config_id: string,
+    progressEvent: SyncProgressInfo,
+    is_complete: boolean,
+  ) => {
+    bus.emit('downloadProgress', {
+      event,
+      config_id,
+      progressEvent,
+      is_complete,
+    })
+  },
+)
+
+const local_store_data = ref(new LocalStoreData(bus)) as Ref<LocalStoreData>
 const theme = ref(themes[1])
 
 const dark_mode = computed(
