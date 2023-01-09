@@ -1,7 +1,4 @@
 <script lang="ts" setup>
-import { computed, onBeforeMount, PropType, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { FolderConfig, StorageData } from '../../../classes/folder-config'
 import dayjs from 'dayjs'
 import de from 'dayjs/locale/de'
 import en from 'dayjs/locale/en'
@@ -10,37 +7,31 @@ import fr from 'dayjs/locale/fr'
 import it from 'dayjs/locale/it'
 import ru from 'dayjs/locale/ru'
 import zh from 'dayjs/locale/zh'
+import { computed, onBeforeMount, PropType, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { FolderConfigJson } from '../../../classes/folder-config'
+import { LocalStoreData } from '../../../classes/store'
+import SyncLoaderStatus from './sync-loader-status.vue'
 
 const i18n = useI18n()
 const props = defineProps({
-  storage: {
-    type: StorageData,
+  localStoreData: {
+    type: LocalStoreData,
     required: true,
   },
   config: {
-    type: Object as PropType<FolderConfig>,
+    type: Object as PropType<FolderConfigJson>,
   },
 })
 
 const config_service = computed(() => {
   if (!props.config) return
-  return props.storage.config_services.get(props.config.api_token)
+  return props.localStoreData.config_services.get(props.config.api_token)
 })
-const local_file_tokens = computed(
-  () => config_service.value?.local_file_tokens,
-)
-const total_files_to_download = computed(
-  () => config_service.value?.all_files_raw.length,
-)
-const downloaded_files = computed(() =>
-  Array.from(config_service.value?.download_loaders ?? [])
-    .map(([, val]) => val)
-    .filter(val => !val.downloading),
-)
+const is_downloading = computed(() => {
+  return !!config_service.value?.sync_loader.downloading
+})
 
-async function doSync(): Promise<void> {
-  await config_service.value?.syncFiles()
-}
 function openPath(file_name?: string): void {
   window.electron.ipcRenderer.send(
     'openPath',
@@ -76,14 +67,12 @@ function setLocale(): void {
 }
 
 watch(
-  () => config_service.value?.is_downloading,
-  new_val => {
-    if (!new_val) {
-      config_service.value?.loadLocalFiles()
-    }
+  () => config_service.value?.api_token,
+  async () => {
+    await config_service.value?.loadRemoteFiles()
   },
+  { immediate: true },
 )
-
 onBeforeMount(() => setLocale())
 </script>
 <template>
@@ -97,7 +86,7 @@ onBeforeMount(() => setLocale())
       {{ i18n.t('_storage_files.select_project') }}
     </div>
 
-    <template v-else>
+    <template v-else-if="config_service">
       <!-- Title -->
       <h4 class="flex-row-center-unit">
         <op-icon icon="folder" class="text-accent" />
@@ -106,38 +95,47 @@ onBeforeMount(() => setLocale())
 
       <!-- Action btns -->
       <div class="flex-row-center gap-unit text-base pr-unit-half">
-        <op-clickable-tag @click="openPath()">
+        <!-- Open folder -->
+        <op-clickable-tag class="min-w-0" @click="openPath()">
           <op-icon icon="folder-open" />
-          {{ i18n.t('_storage_files.reveal_in_explorer') }}
+
+          <div class="ellipses">
+            {{ i18n.t('_storage_files.reveal_in_explorer') }}
+          </div>
         </op-clickable-tag>
 
+        <!-- Start sync -->
         <op-clickable-tag
-          class="ml-auto"
+          class="ml-auto min-w-0"
           :class="{
-            'opacity-50': config_service?.is_downloading,
+            'opacity-50': config_service.is_loading,
           }"
-          :disabled="config_service?.is_downloading"
-          @click="!config_service?.is_downloading && doSync()"
+          :disabled="config_service.is_loading"
+          @click="!config_service?.is_loading && config_service?.syncFiles()"
         >
-          <op-icon
-            icon="arrows-rotate"
-            :spin="!!config_service?.is_downloading"
-          />
-          {{ i18n.t('_storage_files.start_sync') }}
+          <op-icon icon="arrows-rotate" :spin="is_downloading" />
+          <div class="ellipses">
+            {{ i18n.t('_storage_files.start_sync') }}
+          </div>
         </op-clickable-tag>
       </div>
 
       <!-- Content -->
       <div class="full-height-scroll gap-unit pr-unit-half">
-        <div v-if="config_service?.is_downloading">
-          {{ downloaded_files }}/{{ total_files_to_download }}
-        </div>
-        <!-- No elements or loading -->
+        <!-- Sync on going  -->
+        <op-card v-if="config_service.sync_loader.downloading" middle row>
+          <SyncLoaderStatus :loader="config_service.sync_loader" />
+        </op-card>
+
+        <!-- Loading or No elements -->
         <div
-          v-if="config_service?.is_loading || !local_file_tokens?.length"
+          v-else-if="
+            config_service.is_loading ||
+            !config_service.local_file_tokens.length
+          "
           class="full-height-scroll gap-unit-double items-center justify-center py-unit-double italic opacity-50 text-2xl"
         >
-          <template v-if="config_service?.is_loading">
+          <template v-if="config_service.is_loading">
             <op-icon icon="arrows-rotate" spin />
             {{ i18n.t('loading') }}
           </template>
@@ -146,8 +144,9 @@ onBeforeMount(() => setLocale())
             {{ i18n.t('no_items') }}
           </template>
         </div>
-        <!-- FilesList -->
-        <template v-else-if="config_service">
+
+        <!-- Files List -->
+        <template v-else>
           <op-card
             v-if="config_service.last_sync"
             class="flex flex-col gap-unit"
@@ -168,15 +167,8 @@ onBeforeMount(() => setLocale())
                 )
               }}
             </div>
-            <div class="flex-row-center-unit">
-              <op-icon icon="computer" />
-              {{ config_service.last_sync.local_files.length }}
-              {{ i18n.t('_storage_files.local_files') }}
-            </div>
-            <div class="flex-row-center-unit">
-              <op-icon icon="server" />
-              {{ config_service.last_sync.remote_files.length }}
-              {{ i18n.t('_storage_files.remote_file') }}
+            <div class="flex-row-center-unit flex-wrap text-sm">
+              <SyncLoaderStatus :loader="config_service.last_sync" />
             </div>
           </op-card>
         </template>

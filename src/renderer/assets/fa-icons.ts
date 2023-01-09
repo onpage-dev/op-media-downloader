@@ -18,6 +18,11 @@ import {
   faXmark,
   faComputer,
   faServer,
+  faCloudArrowDown,
+  faDownload,
+  faBug,
+  faExclamation,
+  faHashtag,
 } from '@fortawesome/free-solid-svg-icons'
 export default [
   faFolder,
@@ -26,6 +31,7 @@ export default [
   faSearch,
   faShapes,
   faMoon,
+  faCloudArrowDown,
   faSun,
   faX,
   faFolderPlus,
@@ -39,4 +45,8 @@ export default [
   faArrowsRotate,
   faFile,
   faFolderOpen,
+  faDownload,
+  faBug,
+  faExclamation,
+  faHashtag,
 ]

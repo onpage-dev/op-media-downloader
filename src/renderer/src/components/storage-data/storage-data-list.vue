@@ -2,29 +2,30 @@
 import { each } from 'lodash'
 import { computed, PropType, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FolderConfig, StorageData } from '../../../classes/folder-config'
+import { FolderConfigJson } from '../../../classes/folder-config'
+import { LocalStoreData } from '../../../classes/store'
 import OpModal from '../op-modal.vue'
-import StorageDataForm from './storage-data-form.vue'
+import LocalStoreDataForm from './storage-data-form.vue'
 
 const i18n = useI18n()
 const emit = defineEmits<{
-  (e: 'select', value?: FolderConfig): void
+  (e: 'select', value?: FolderConfigJson): void
 }>()
 const props = defineProps({
-  storage: {
-    type: StorageData,
+  localStoreData: {
+    type: LocalStoreData,
     required: true,
   },
   selected: {
-    type: Object as PropType<FolderConfig>,
+    type: Object as PropType<FolderConfigJson>,
   },
 })
-const form: Ref<Partial<FolderConfig> | undefined> = ref(undefined)
+const form: Ref<Partial<FolderConfigJson> | undefined> = ref(undefined)
 const search_query: Ref<string | undefined> = ref(undefined)
 
-const storage_data = computed(() => props.storage.storage_data)
+const storage_data = computed(() => props.localStoreData.storage_data)
 const filtered_storage_data = computed(() => {
-  const res: { [key: string]: FolderConfig } = {}
+  const res: { [key: string]: FolderConfigJson } = {}
   each(storage_data.value, (config, key) => {
     if (
       search_query.value &&
@@ -38,20 +39,20 @@ const filtered_storage_data = computed(() => {
   })
   return res
 })
-function openForm(f?: FolderConfig): void {
+function openForm(f?: FolderConfigJson): void {
   form.value = f ?? {}
 }
-function deleteConfig(f: FolderConfig): void {
-  props.storage.delete(`storage_data.${f.api_token}`)
+function deleteConfig(f: FolderConfigJson): void {
+  props.localStoreData.delete(`storage_data.${f.api_token}`)
   emit('select', undefined)
 }
 </script>
 <template>
   <!-- Modal -->
   <OpModal v-if="form" @close="form = undefined">
-    <StorageDataForm
+    <LocalStoreDataForm
       :form="form"
-      :storage="storage"
+      :local-store-data="localStoreData"
       @close="form = undefined"
     />
   </OpModal>

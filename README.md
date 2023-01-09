@@ -23,8 +23,8 @@ il fatto di averli come link ci consente di salvare il file una volta sola (altr
 
 dati da salvare:
 
-StorageData {
-configs: FolderConfig[]
+LocalStoreData {
+configs: FolderConfigJson[]
 }
 
 interface SyncResult {
@@ -34,7 +34,7 @@ start_time: string
 end_time: string
 }
 
-class FolderConfig {
+class FolderConfigJson {
 label: string (input utente)
 api_token: string
 folder_path: string

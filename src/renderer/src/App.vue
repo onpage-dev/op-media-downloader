@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { forEach } from 'lodash'
 import { computed, onBeforeMount, Ref, ref, watch } from 'vue'
-import { StorageData } from '../classes/folder-config'
+import { LocalStoreData } from '../classes/store'
 import OpMenubar from './components/op-menubar.vue'
 import { themes } from './service/theme-service'
 import Home from './views/home.vue'
 
-const storage = ref(new StorageData()) as Ref<StorageData>
+const local_store_data = ref(new LocalStoreData()) as Ref<LocalStoreData>
 const theme = ref(themes[1])
 
-const dark_mode = computed(() => storage.value.user_properties.dark_mode)
+const dark_mode = computed(
+  () => local_store_data.value.user_properties.dark_mode,
+)
 
 const base_style = computed(() => {
   const ret = [] as string[]
@@ -82,8 +84,8 @@ watch(dark_mode, () => {
   >
     <component :is="'style'" v-text="base_style" />
     <div class="full-height-scroll-wfull gap-unit relative">
-      <OpMenubar :storage="storage" />
-      <Home :storage="storage" />
+      <OpMenubar :local-store-data="local_store_data" />
+      <Home :local-store-data="local_store_data" />
     </div>
   </div>
 </template>

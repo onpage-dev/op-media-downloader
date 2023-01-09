@@ -2,25 +2,26 @@
 import { cloneDeep } from 'lodash'
 import { onBeforeMount, PropType, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FolderConfig, StorageData } from '../../../classes/folder-config'
+import { FolderConfigJson } from '../../../classes/folder-config'
+import { LocalStoreData } from '../../../classes/store'
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'save', value: FolderConfig): void
+  (e: 'save', value: FolderConfigJson): void
 }>()
 const i18n = useI18n()
 const props = defineProps({
   form: {
-    type: Object as PropType<Partial<FolderConfig>>,
+    type: Object as PropType<Partial<FolderConfigJson>>,
     required: true,
   },
-  storage: {
-    type: StorageData,
+  localStoreData: {
+    type: LocalStoreData,
     required: true,
   },
 })
 
-const local_form: Ref<Partial<FolderConfig> | undefined> = ref(undefined)
+const local_form: Ref<Partial<FolderConfigJson> | undefined> = ref(undefined)
 
 function chooseFolder(): void {
   if (!local_form.value) return
@@ -32,7 +33,7 @@ function chooseFolder(): void {
 async function save(): Promise<void> {
   if (!local_form.value) return
 
-  await props.storage.setConfig(local_form.value as FolderConfig)
+  await props.localStoreData.setConfig(local_form.value as FolderConfigJson)
   emit('close')
 }
 

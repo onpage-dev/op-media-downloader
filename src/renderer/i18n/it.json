@@ -22,6 +22,11 @@
     "reveal_in_explorer": "Apri cartella",
     "local_files": "File scaricati",
     "local_file": "File locali",
-    "remote_file": "File in rete"
+    "remote_file": "File in rete",
+    "fetch_remote_files": "Aggiorna file in rete",
+    "downloaded": "Scaricati",
+    "failed": "Falliti",
+    "already_present": "Già presenti",
+    "total": "Totali"
   }
 }

@@ -3,6 +3,7 @@ import axios from 'axios'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
+import { cloneDeep } from 'lodash'
 import path from 'path'
 
 const store = new Store({
@@ -11,71 +12,123 @@ const store = new Store({
   clearInvalidConfig: true,
 })
 ipcMain.on('openPath', (_event, p) => {
+  console.log(`[openPath] triggered for path ${p}`)
   shell.openPath(path.normalize(p))
 })
 ipcMain.on('loadFiles', (event, path) => {
+  console.log(`[loadFiles] triggered for path ${path}`)
+
   if (!fs.existsSync(path)) {
     fs.mkdirSync(path)
   }
   const files = fs.readdirSync(path)
-  console.log(files)
+
+  console.log(`[loadFiles] loaded ${files.length} files`)
   event.sender.send('loadedFiles', files)
 })
-ipcMain.on('downloadFile', (event, data) => {
-  const dataPath = path.normalize(`${data.directory}/data`)
-  const filePath = path.normalize(`${dataPath}/${data.token}`)
-  if (fs.existsSync(filePath)) {
-    fs.link(
-      filePath,
-      path.normalize(`${data.directory}/${data.name}`),
-      () => {},
-    )
-    return event.sender.send('fileAlreadyExists')
-  }
+ipcMain.on(
+  'downloadFiles',
+  (
+    event,
+    data: {
+      files: { url: string; token: string; name: string }[]
+      directory: string
+      loader: {
+        downloading: boolean
+        total: { url: string; token: string; name: string }[]
+        already_exists: { url: string; token: string; name: string }[]
+        downloaded: { url: string; token: string; name: string }[]
+        failed: { url: string; token: string; name: string }[]
+      }
+    },
+  ) => {
+    console.log(`[downloadFiles] triggered for folder ${data.directory}`)
 
-  if (!fs.existsSync(data.directory)) {
-    fs.mkdirSync(data.directory)
-  }
-  if (!fs.existsSync(dataPath)) {
-    fs.mkdirSync(dataPath)
-  }
+    data.loader.total = cloneDeep(data.files)
+    const to_download = cloneDeep(data.files).map(file => file.token)
 
-  console.log('downloading', data.name)
-  const url = data.url
-  axios({
-    method: 'GET',
-    url,
-    responseType: 'stream',
-  })
-    .then(response => {
-      response.data.pipe(fs.createWriteStream(filePath))
+    const download_file = (file: {
+      url: string
+      token: string
+      name: string
+    }): void => {
+      const dataPath = path.normalize(`${data.directory}/data`)
+      const filePath = path.normalize(`${dataPath}/${file.token}`)
 
-      const totalSize = response.headers['content-length']
-      let downloaded = 0
-
-      response.data.on('data', data => {
-        downloaded += Buffer.byteLength(data)
-        event.sender.send('downloadProgress', {
-          total: totalSize,
-          loaded: downloaded,
-        })
-      })
-      response.data.on('end', () => {
-        event.sender.send('downloadEnd')
+      if (fs.existsSync(filePath)) {
         fs.link(
           filePath,
-          path.normalize(`${data.directory}/${data.name}`),
+          path.normalize(`${data.directory}/${file.name}`),
           () => {},
         )
+        data.loader.already_exists.push(file)
+        emit_progress(file)
+        return
+      }
+      if (!fs.existsSync(data.directory)) {
+        fs.mkdirSync(data.directory)
+      }
+      if (!fs.existsSync(dataPath)) {
+        fs.mkdirSync(dataPath)
+      }
+
+      const url = file.url
+      axios({
+        method: 'GET',
+        url,
+        responseType: 'stream',
       })
-      response.data.on('error', error => {
-        event.sender.send('downloadError', error)
-      })
-    })
-    .catch(error => {
-      event.sender.send('downloadError', error)
-    })
-})
+        .then(response => {
+          response.data.pipe(fs.createWriteStream(filePath))
+
+          response.data.on('end', () => {
+            data.loader.downloaded.push(file)
+            fs.link(
+              filePath,
+              path.normalize(`${data.directory}/${file.name}`),
+              () => {},
+            )
+            emit_progress(file)
+          })
+
+          response.data.on('error', error => {
+            console.log(error)
+            data.loader.failed.push(file)
+            emit_progress(file)
+          })
+        })
+        .catch(() => {
+          if (data.loader.failed.findIndex(f => f.token == file.token) <= 0) {
+            data.loader.failed.push(file)
+          }
+          emit_progress(file)
+        })
+    }
+
+    const emit_progress = (file: {
+      url: string
+      token: string
+      name: string
+    }): void => {
+      const to_download_idx = to_download.indexOf(file.token)
+      if (to_download_idx >= 0) {
+        to_download.splice(to_download_idx, 1)
+      }
+
+      event.sender.send('downloadProgress', data.loader)
+      if (!to_download.length) {
+        console.log(` - downloaded: ${data.loader.downloaded.length}`)
+        console.log(` - failed: ${data.loader.failed.length}`)
+        console.log(` - already_exists: ${data.loader.already_exists.length}`)
+        console.log('[downloadFiles] sync over')
+        event.sender.send('downloadEnd')
+      }
+    }
+
+    console.log(`[downloadFiles] sync ${to_download.length} files`)
+    data.files.forEach(file => download_file(file))
+  },
+)
 ipcMain.handle('pick-folder-path', async () => {
   const res = await dialog.showOpenDialog({
     properties: ['openDirectory'],
@@ -83,7 +136,7 @@ ipcMain.handle('pick-folder-path', async () => {
   return path.normalize(res.filePaths[0])
 })
 ipcMain.handle('electron-store-set', async (_event, key: string, val: any) => {
-  console.log('setting', key, 'as', val)
+  console.log('[electron-store-set] setting', key, 'as', val)
   store.set(key, val)
   return store.get(key)
 })
