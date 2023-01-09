@@ -10,6 +10,8 @@
     "label": "Nome",
     "add_new_storage": "Aggiungi nuovo progetto",
     "edit_storage": "Modifica \"{label}\"",
+    "delete_storage": "Sei sicuro di voler eliminare \"{label}\"?",
+    "delete_local_files": "Elimina anche i file scaricati localmente",
     "api_token": "Token Api",
     "folder_path": "Scegli dove salvare i file",
     "choose_folder": "Scegli cartella"

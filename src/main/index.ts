@@ -3,6 +3,7 @@ import axios from 'axios'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
+import fsPromises from 'fs/promises'
 import { cloneDeep } from 'lodash'
 import path from 'path'
 
@@ -14,6 +15,10 @@ const store = new Store({
 ipcMain.on('openPath', (_event, p) => {
   console.log(`[openPath] triggered for path ${p}`)
   shell.openPath(path.normalize(p))
+})
+ipcMain.on('deleteFolder', (_event, p) => {
+  console.log(`[deleteFolder] triggered for path ${p}`)
+  fsPromises.rm(path.normalize(p), { recursive: true })
 })
 ipcMain.on('loadFiles', (event, path) => {
   console.log(`[loadFiles] triggered for path ${path}`)

@@ -4,6 +4,7 @@ import { computed, PropType, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FolderConfigJson } from '../../../classes/folder-config'
 import { LocalStoreData } from '../../../classes/store'
+import OpCheck from '../op-check.vue'
 import OpModal from '../op-modal.vue'
 import LocalStoreDataForm from './storage-data-form.vue'
 
@@ -20,6 +21,8 @@ const props = defineProps({
     type: Object as PropType<FolderConfigJson>,
   },
 })
+const deleting: Ref<FolderConfigJson | undefined> = ref(undefined)
+const delete_downloaded = ref(false)
 const form: Ref<Partial<FolderConfigJson> | undefined> = ref(undefined)
 const search_query: Ref<string | undefined> = ref(undefined)
 
@@ -42,13 +45,21 @@ const filtered_storage_data = computed(() => {
 function openForm(f?: FolderConfigJson): void {
   form.value = f ?? {}
 }
-function deleteConfig(f: FolderConfigJson): void {
-  props.localStoreData.delete(`storage_data.${f.api_token}`)
+function abortDelete(): void {
+  deleting.value = undefined
+  delete_downloaded.value = false
+}
+function deleteConfig(): void {
+  if (!deleting.value) return
+  props.localStoreData.delete(`storage_data.${deleting.value.api_token}`)
+  if (delete_downloaded.value) {
+    window.electron.ipcRenderer.send('deleteFolder', deleting.value.folder_path)
+  }
   emit('select', undefined)
 }
 </script>
 <template>
-  <!-- Modal -->
+  <!-- Form Modal -->
   <OpModal v-if="form" @close="form = undefined">
     <LocalStoreDataForm
       :form="form"
@@ -56,6 +67,33 @@ function deleteConfig(f: FolderConfigJson): void {
       @close="form = undefined"
     />
   </OpModal>
+
+  <!-- Delete Modal -->
+  <OpModal v-if="deleting" @close="abortDelete()">
+    <div class="modal-size-w-sm full-height-scroll gap-unit-double">
+      <h4>
+        {{ i18n.t('_storage_data.delete_storage', { label: deleting.label }) }}
+      </h4>
+      <div class="full-height-scroll gap-unit">
+        <div class="bg-red bg-opacity-20 p-unit rounded-md">
+          <OpCheck v-model="delete_downloaded" color="red">
+            {{ i18n.t('_storage_data.delete_local_files') }}
+          </OpCheck>
+        </div>
+      </div>
+      <div class="flex-row-center-unit justify-center">
+        <op-btn color="inherit" @click="abortDelete()">
+          <op-icon icon="xmark" />
+          {{ i18n.t('cancel') }}
+        </op-btn>
+        <op-btn color="red" @click="deleteConfig()">
+          <op-icon icon="trash-can" />
+          {{ i18n.t('delete') }}
+        </op-btn>
+      </div>
+    </div>
+  </OpModal>
+
   <div class="full-height-scroll m-unit mt-0 gap-unit" style="min-width: 20rem">
     <!-- Title -->
     <h4 class="flex-row-center-unit">
@@ -91,7 +129,7 @@ function deleteConfig(f: FolderConfigJson): void {
           <div class="sober-link-accent" @click.stop="openForm(config)">
             <op-icon icon="pen-to-square" />
           </div>
-          <div class="sober-link-danger" @click.stop="deleteConfig(config)">
+          <div class="sober-link-danger" @click.stop="deleting = config">
             <op-icon icon="trash-can" />
           </div>
         </div>
