@@ -83,82 +83,36 @@ ipcMain.on('loadFiles', (event, path) => {
 })
 ipcMain.on(
   'downloadFiles',
-  (
+  async (
     event,
     data: {
       files: { url: string; token: string; name: string }[]
       directory: string
       loader: {
         downloading: boolean
-        total: { url: string; token: string; name: string }[]
-        already_exists: { url: string; token: string; name: string }[]
-        downloaded: { url: string; token: string; name: string }[]
-        failed: { url: string; token: string; name: string }[]
+        total: number
+        already_exists: number
+        downloaded: number
+        failed: number
       }
     },
   ) => {
     console.log(`[downloadFiles] triggered for folder ${data.directory}`)
 
-    data.loader.total = cloneDeep(data.files)
+    data.loader.total = data.files.length
     const to_download = cloneDeep(data.files).map(file => file.token)
+    const dataPath = path.normalize(`${data.directory}/data`)
 
-    const download_file = (file: {
-      url: string
-      token: string
-      name: string
-    }): void => {
-      const dataPath = path.normalize(`${data.directory}/data`)
-      const filePath = path.normalize(`${dataPath}/${file.token}`)
-
-      if (fs.existsSync(filePath)) {
-        fs.link(
-          filePath,
-          path.normalize(`${data.directory}/${file.name}`),
-          () => {},
-        )
-        data.loader.already_exists.push(file)
-        emit_progress(file)
-        return
-      }
-      if (!fs.existsSync(data.directory)) {
-        fs.mkdirSync(data.directory)
-      }
-      if (!fs.existsSync(dataPath)) {
-        fs.mkdirSync(dataPath)
-      }
-
-      const url = file.url
-      axios({
-        method: 'GET',
-        url,
-        responseType: 'stream',
-      })
-        .then(response => {
-          response.data.pipe(fs.createWriteStream(filePath))
-
-          response.data.on('end', () => {
-            data.loader.downloaded.push(file)
-            fs.link(
-              filePath,
-              path.normalize(`${data.directory}/${file.name}`),
-              () => {},
-            )
-            emit_progress(file)
-          })
-
-          response.data.on('error', error => {
-            console.log(error)
-            data.loader.failed.push(file)
-            emit_progress(file)
-          })
-        })
-        .catch(() => {
-          if (data.loader.failed.findIndex(f => f.token == file.token) <= 0) {
-            data.loader.failed.push(file)
-          }
-          emit_progress(file)
-        })
+    // Create the base folder directory
+    if (!fs.existsSync(data.directory)) {
+      fs.mkdirSync(data.directory)
     }
+    // Create the data directory
+    if (!fs.existsSync(dataPath)) {
+      fs.mkdirSync(dataPath)
+    }
+
+    const existing_files = fs.readdirSync(dataPath)
 
     const emit_progress = (file: {
       url: string
@@ -172,16 +126,59 @@ ipcMain.on(
 
       event.sender.send('downloadProgress', data.loader)
       if (!to_download.length) {
-        console.log(` - downloaded: ${data.loader.downloaded.length}`)
-        console.log(` - failed: ${data.loader.failed.length}`)
-        console.log(` - already_exists: ${data.loader.already_exists.length}`)
+        console.log(` - downloaded: ${data.loader.downloaded}`)
+        console.log(` - failed: ${data.loader.failed}`)
+        console.log(` - already_exists: ${data.loader.already_exists}`)
         console.log('[downloadFiles] sync over')
         event.sender.send('downloadEnd')
       }
     }
 
+    const download_file = async (file: {
+      url: string
+      token: string
+      name: string
+    }): Promise<void> => {
+      console.log(
+        '[download] Start file download',
+        file.token,
+        process.memoryUsage().heapUsed / 1024 / 1024 / 1024 + ' GB',
+      )
+
+      // Create the file path
+      const filePath = path.normalize(`${dataPath}/${file.token}`)
+      const linkPath = path.normalize(`${data.directory}/${file.name}`)
+
+      // Check if the file already exists
+      if (existing_files.includes(file.token)) {
+        console.log('[download] File exists', file.token)
+        fs.link(filePath, linkPath, () => {})
+        data.loader.already_exists++
+        emit_progress(file)
+        return
+      }
+
+      // Download the file
+      try {
+        console.log('[download] Streaming url to file', file.token)
+        await downloadUrlToFile(file.url, filePath)
+        console.log('[download] stream complete', file.token)
+
+        // Link the file and return
+        fs.link(filePath, linkPath, () => {})
+        data.loader.downloaded++
+        emit_progress(file)
+      } catch (error) {
+        console.log('[download] cannot download file:', error)
+        data.loader.failed++
+        emit_progress(file)
+      }
+    }
+
     console.log(`[downloadFiles] sync ${to_download.length} files`)
-    data.files.forEach(file => download_file(file))
+    for (const file of data.files) {
+      await download_file(file)
+    }
   },
 )
 ipcMain.handle('pick-folder-path', async () => {
@@ -281,3 +278,22 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
+
+async function downloadUrlToFile(url: string, path: string): Promise<void> {
+  const response = await axios({
+    method: 'GET',
+    url,
+    responseType: 'stream',
+  })
+  response.data.pipe(fs.createWriteStream(path))
+
+  return new Promise((resolve, reject) => {
+    response.data.on('end', () => {
+      resolve()
+    })
+
+    response.data.on('error', (error: any) => {
+      reject(error)
+    })
+  })
+}

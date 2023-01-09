@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { cloneDeep } from 'lodash'
+import { cloneDeep, uniqueId } from 'lodash'
 import { onBeforeMount, PropType, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FolderConfigJson } from '../../../classes/folder-config'
@@ -32,7 +32,7 @@ function chooseFolder(): void {
 }
 async function save(): Promise<void> {
   if (!local_form.value) return
-
+  if (!local_form.value.id) local_form.value.id = uniqueId('cnf_')
   await props.localStoreData.setConfig(local_form.value as FolderConfigJson)
   emit('close')
 }

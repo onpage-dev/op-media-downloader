@@ -33,7 +33,7 @@ defineProps({
     >
       <op-icon icon="download" class="text-green" />
       {{ i18n.t('_storage_files.downloaded') }}
-      {{ loader.downloaded?.length ?? 0 }}
+      {{ loader.downloaded ?? 0 }}
     </div>
     <div
       :class="{
@@ -45,7 +45,7 @@ defineProps({
     >
       <op-icon icon="bug" class="text-red" />
       {{ i18n.t('_storage_files.failed') }}
-      {{ loader.failed?.length ?? 0 }}
+      {{ loader.failed ?? 0 }}
     </div>
     <div
       :class="{
@@ -58,7 +58,7 @@ defineProps({
       <op-icon icon="exclamation" class="text-orange" />
       {{ i18n.t('_storage_files.already_present') }}
 
-      {{ loader.already_exists?.length ?? 0 }}
+      {{ loader.already_exists ?? 0 }}
     </div>
     <div
       :class="{
@@ -70,7 +70,7 @@ defineProps({
     >
       <op-icon icon="hashtag" />
       {{ i18n.t('_storage_files.total') }}
-      {{ loader.total?.length ?? 0 }}
+      {{ loader.total ?? 0 }}
     </div>
   </template>
 </template>

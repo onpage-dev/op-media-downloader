@@ -9,10 +9,10 @@ dayjs.extend(utc)
 interface SyncResult {
   start_time: string
   end_time: string
-  downloaded: CondensedOpFile[]
-  failed: CondensedOpFile[]
-  already_exists: CondensedOpFile[]
-  total: CondensedOpFile[]
+  downloaded: number
+  failed: number
+  already_exists: number
+  total: number
 }
 export interface CondensedOpFile {
   url: string
@@ -21,12 +21,13 @@ export interface CondensedOpFile {
 }
 export interface SyncLoader {
   downloading: boolean
-  total: CondensedOpFile[]
-  downloaded: CondensedOpFile[]
-  failed: CondensedOpFile[]
-  already_exists: CondensedOpFile[]
+  total: number
+  downloaded: number
+  failed: number
+  already_exists: number
 }
 export interface FolderConfigJson {
+  id: string
   label: string
   api_token: string
   folder_path: string
@@ -38,10 +39,10 @@ export class FolderConfig {
   loaders: Map<FieldID, boolean> = reactive(new Map())
   sync_loader: SyncLoader = reactive({
     downloading: false,
-    total: [],
-    downloaded: [],
-    failed: [],
-    already_exists: [],
+    total: 0,
+    downloaded: 0,
+    failed: 0,
+    already_exists: 0,
   })
 
   images_raw: Map<FieldID, OpFileRaw[]> = reactive(new Map())
@@ -76,6 +77,9 @@ export class FolderConfig {
   set api_token(val: string) {
     this.json.api_token = val
   }
+  get id(): string {
+    return this.json.id
+  }
   get folder_path(): string {
     return this.json.folder_path
   }
@@ -101,6 +105,7 @@ export class FolderConfig {
   }
   getConfig(): FolderConfigJson {
     return {
+      id: this.id,
       label: this.label,
       api_token: this.api_token,
       folder_path: this.folder_path,
@@ -113,10 +118,10 @@ export class FolderConfig {
   resetSyncLoader(): void {
     this.sync_loader = {
       downloading: true,
-      total: [],
-      downloaded: [],
-      failed: [],
-      already_exists: [],
+      total: 0,
+      downloaded: 0,
+      failed: 0,
+      already_exists: 0,
     }
   }
 
@@ -188,7 +193,6 @@ export class FolderConfig {
       'downloadProgress',
       (_event, progressEvent: SyncLoader) => {
         this.sync_loader = progressEvent
-        console.log(progressEvent)
       },
     )
 

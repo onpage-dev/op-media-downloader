@@ -27,14 +27,12 @@ onBeforeMount(() => {
 
 <template>
   <op-card class="z-40 m-unit mb-0" pad="compact" middle :row="true" provide>
-    <router-link :to="{ path: '/' }">
-      <OpLogo
-        :small="is_small"
-        :dark="dark_mode"
-        class="w-auto object-contain my-unit flex-shrink-0"
-        style="height: 1.5rem"
-      />
-    </router-link>
+    <OpLogo
+      :small="is_small"
+      :dark="dark_mode"
+      class="w-auto object-contain my-unit flex-shrink-0"
+      style="height: 1.5rem"
+    />
 
     <div class="flex-row-center-unit ml-auto">
       <op-circle-btn @click="toggleDarkMode()">
