@@ -5,6 +5,7 @@ import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
 import { cloneDeep } from 'lodash'
+import { OpFileRaw } from 'onpage-js'
 import path from 'path'
 
 const store = new Store({
@@ -24,6 +25,51 @@ ipcMain.on('deleteFolder', async (_event, p) => {
     console.log(error)
   }
 })
+ipcMain.on(
+  'deleteRemovedFilesFromRemote',
+  (_event, remote_files: OpFileRaw[], directory: string) => {
+    console.log(
+      `[deleteRemovedFilesFromRemote] triggered for path ${directory}`,
+    )
+    const links_path = path.normalize(directory)
+    const data_path = path.normalize(`${directory}/data`)
+    const tokens_to_delete = fs
+      .readdirSync(data_path)
+      .filter(token => !remote_files.find(f => f.token == token))
+    console.log(
+      `[deleteRemovedFilesFromRemote] ${tokens_to_delete.length} tokens to remove`,
+    )
+
+    const links_to_delete = fs
+      .readdirSync(links_path)
+      .filter(
+        name => name !== 'data' && !remote_files.find(f => f.name == name),
+      )
+    console.log(
+      `[deleteRemovedFilesFromRemote] ${links_to_delete.length} links to remove`,
+    )
+
+    tokens_to_delete.forEach((token: string) => {
+      try {
+        const p = path.normalize(`${directory}/data/${token}`)
+        fs.unlinkSync(p)
+      } catch (error) {
+        console.log(`Error deleting ${token}`)
+        console.log(error)
+      }
+    })
+
+    links_to_delete.forEach((name: string) => {
+      try {
+        const p = path.normalize(`${directory}/${name}`)
+        fs.unlinkSync(p)
+      } catch (error) {
+        console.log(`Error deleting ${name}`)
+        console.log(error)
+      }
+    })
+  },
+)
 ipcMain.on('loadFiles', (event, path) => {
   console.log(`[loadFiles] triggered for path ${path}`)
 

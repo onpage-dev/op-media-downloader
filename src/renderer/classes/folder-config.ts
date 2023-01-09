@@ -55,7 +55,15 @@ export class FolderConfig {
     this.api = reactive(new Api('app', this.api_token)) as Api
     void this.refresh()
   }
-
+  get images_raw_array(): OpFileRaw[] {
+    return flatMap(Array.from(this.images_raw), ([, val]) => val)
+  }
+  get images_array(): OpFile[] {
+    return flatMap(Array.from(this.images), ([, val]) => val)
+  }
+  get unique_images_array(): OpFile[] {
+    return uniqBy(this.images_array, (file: OpFile) => file.token)
+  }
   get label(): string {
     return this.json.label
   }
@@ -81,18 +89,7 @@ export class FolderConfig {
     if (!val) delete this.json.last_sync
     this.json.last_sync = val
   }
-  get all_files_raw(): OpFileRaw[] {
-    return uniqBy(
-      flatMap(Array.from(this.images_raw), ([, val]) => val),
-      (file: OpFileRaw) => file.token,
-    )
-  }
-  get all_files(): OpFile[] {
-    return uniqBy(
-      flatMap(Array.from(this.images), ([, val]) => val),
-      (file: OpFile) => file.token,
-    )
-  }
+
   get is_downloading(): boolean {
     return this.sync_loader.downloading
   }
@@ -166,7 +163,7 @@ export class FolderConfig {
   }
 
   downloadFiles(current_sync_info: Partial<SyncResult>): void {
-    if (!this.all_files.length) return
+    if (!this.unique_images_array.length) return
 
     const clear_listeners = (): void => {
       window.electron.ipcRenderer.removeAllListeners('downloadEnd')
@@ -176,7 +173,7 @@ export class FolderConfig {
     window.electron.ipcRenderer.send(
       'downloadFiles',
       cloneDeep({
-        files: this.all_files.map(file => ({
+        files: this.unique_images_array.map(file => ({
           url: file.link(),
           token: file.token,
           name: file.name,
@@ -199,6 +196,15 @@ export class FolderConfig {
     window.electron.ipcRenderer.on('downloadEnd', () => {
       clear_listeners()
       this.sync_loader.downloading = false
+
+      // Delete local files that are not present on remote anymore
+      window.electron.ipcRenderer.send(
+        'deleteRemovedFilesFromRemote',
+        cloneDeep(this.images_raw_array),
+        this.folder_path,
+      )
+
+      // Save sync
       this.saveLastSync(current_sync_info)
     })
   }
