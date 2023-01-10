@@ -1,5 +1,5 @@
 import { IpcRendererEvent } from '@electron-toolkit/preload'
-import { cloneDeep, forEach } from 'lodash'
+import { cloneDeep, forEach, uniqBy } from 'lodash'
 import { reactive } from 'vue'
 import {
   FolderConfig,
@@ -25,6 +25,7 @@ export interface Store {
 
 export interface UserSettings {
   dark_mode?: boolean
+  simultaneous_downloads?: number
 }
 
 export interface StorageServiceJson {
@@ -49,13 +50,29 @@ export class StorageService {
     window.electron.ipcRenderer.on(
       'downloadProgress',
       (
-        event: IpcRendererEvent,
+        _event: IpcRendererEvent,
         config_id: string,
         progressEvent: SyncProgressInfo,
       ) => {
         const c = this.configs.get(config_id)
         if (!c) return
         c.onDownloadProgress(progressEvent)
+      },
+    )
+
+    // missing tokens to download
+    window.electron.ipcRenderer.on(
+      'missingTokensToDownload',
+      (
+        _event: IpcRendererEvent,
+        config_id: string,
+        missing_tokens: string[],
+      ) => {
+        const c = this.configs.get(config_id)
+        if (!c) return
+        c.images_to_download = c.uniq_images_raw_array.filter(image =>
+          missing_tokens.includes(image.token),
+        )
       },
     )
   }
@@ -124,17 +141,22 @@ export class StorageService {
       .filter(key => !keys_to_update.includes(key))
       .forEach(key => this.configs.delete(key))
 
+    const init_new_config = (val: FolderConfigJson): void => {
+      const config = reactive(new FolderConfig(this, val)) as FolderConfig
+      config.refresh()
+      this.configs.set(val.id, config)
+    }
     // Now Update or add configs
     forEach(this.storage_data, val => {
       if (this.configs.has(val.id)) {
         const config = this.configs.get(val.id)!
         if (val.api_token !== config.api_token) {
-          this.configs.set(val.id, new FolderConfig(this, val))
+          init_new_config(val)
         } else {
           Object.assign(config, val)
         }
       } else {
-        this.configs.set(val.id, new FolderConfig(this, val))
+        init_new_config(val)
       }
     })
   }

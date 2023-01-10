@@ -25,7 +25,14 @@ function syncOrLoad(): void {
   if (props.config.images_raw_by_token.size) {
     props.config?.downloadFiles()
   } else {
-    props.config.loadRemoteFiles()
+    props.config.loadRemoteFiles().then(() => {
+      window.electron.ipcRenderer.send(
+        'checkMissingTokens',
+        props.config.id,
+        Array.from(props.config.images_raw_by_token.keys()),
+        props.config.folder_path,
+      )
+    })
   }
 }
 function openPath(file_name?: string): void {
@@ -103,6 +110,7 @@ onBeforeMount(() => setLocale())
 
         <!-- Update -->
         <op-btn
+          v-if="!config.failed_schema_load"
           class="min-w-0"
           :class="{
             'opacity-50': config.is_loading,
@@ -121,11 +129,30 @@ onBeforeMount(() => setLocale())
             />
             <span v-if="config.images_raw_by_token.size" class="pl-unit">
               {{ i18n.t('_storage_files.download') }}
-              {{ config.images_raw_by_token.size }}
+              +{{ config.images_to_download.length }}
             </span>
             <span v-else class="pl-unit">
               {{ i18n.t('_storage_files.start_sync') }}
             </span>
+          </span>
+        </op-btn>
+        <op-btn
+          v-else
+          v-tooltip="i18n.t('schema_load_failed_msg')"
+          color="inherit"
+          :class="{
+            'opacity-50': config.is_loading,
+          }"
+          :disabled="config.is_loading"
+          :loading="config.is_loading"
+          acolor="orange"
+          active
+          pad="compact"
+          @click="config.refresh()"
+        >
+          <span>
+            <op-icon icon="triangle-exclamation" class="text-orange" />
+            {{ i18n.t('failed_to_load_schema') }}
           </span>
         </op-btn>
       </div>

@@ -4,7 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
-import { cloneDeep } from 'lodash'
+import { cloneDeep, uniqBy } from 'lodash'
 import { OpFileRaw } from 'onpage-js'
 import path from 'path'
 import { processQueue } from './utils'
@@ -23,6 +23,27 @@ const store = new Store({
   watch: true,
   clearInvalidConfig: true,
 })
+ipcMain.on(
+  'checkMissingTokens',
+  (event, config_id: string, remote_tokens: string[], directory: string) => {
+    console.log(`[checkMissingTokens] triggered for path ${directory}`)
+
+    generateMissingFolder(directory)
+    const local_tokens = fs.readdirSync(getDataPath(directory))
+
+    if (!local_tokens.length) {
+      event.sender.send('missingTokensToDownload', config_id, remote_tokens)
+      return
+    }
+
+    const difference = remote_tokens.filter(
+      token => !local_tokens.includes(token),
+    )
+    console.log(`${difference.length} tokens missing`)
+    console.log(difference)
+    event.sender.send('missingTokensToDownload', config_id, difference)
+  },
+)
 ipcMain.on('openPath', (_event, path_to_open) => {
   console.log(`[openPath] triggered for path ${path_to_open}`)
   shell.openPath(path.normalize(path_to_open))
@@ -42,7 +63,7 @@ ipcMain.on(
       `[deleteRemovedFilesFromRemote] triggered for path ${directory}`,
     )
     const links_path = path.normalize(directory)
-    const data_path = path.normalize(`${directory}/data`)
+    const data_path = getDataPath(directory)
     const tokens_to_delete = fs
       .readdirSync(data_path)
       .filter(token => !remote_files.find(f => f.token == token))
@@ -96,16 +117,8 @@ ipcMain.on(
 
     data.loader.total = data.files.length
     const to_download = cloneDeep(data.files).map(file => file.token)
-    const dataPath = path.normalize(`${data.directory}/data`)
-
-    // Create the base folder directory
-    if (!fs.existsSync(data.directory)) {
-      fs.mkdirSync(data.directory)
-    }
-    // Create the data directory
-    if (!fs.existsSync(dataPath)) {
-      fs.mkdirSync(dataPath)
-    }
+    const dataPath = getDataPath(data.directory)
+    generateMissingFolder(data.directory)
 
     const existing_files = fs.readdirSync(dataPath)
 
@@ -153,9 +166,11 @@ ipcMain.on(
     }
 
     console.log(`[downloadFiles] sync ${to_download.length} files`)
+    const concurrentCount =
+      Number(store.get('user_properties.simultaneous_downloads')) || 1
     await processQueue(
       data.files.map(file => (): Promise<void> => download_file(file)),
-      2,
+      concurrentCount,
     )
 
     data.loader.downloading = false
@@ -187,6 +202,20 @@ ipcMain.handle('electron-store-delete', async (_Event, key: string) => {
   store.delete(key)
   return !store.has(key)
 })
+
+function generateMissingFolder(directory: string): void {
+  const main_path = path.normalize(directory)
+  const data_path = path.normalize(`${directory}/data`)
+  if (!fs.existsSync(main_path)) {
+    fs.mkdirSync(main_path)
+  }
+  if (!fs.existsSync(data_path)) {
+    fs.mkdirSync(data_path)
+  }
+}
+function getDataPath(directory: string): string {
+  return path.normalize(`${directory}/data`)
+}
 
 function createWindow(): void {
   // Create the browser window.

@@ -34,26 +34,24 @@ export interface FolderConfigJson {
 export class FolderConfig {
   api: Api
   schema?: Schema
+  loading_schema: boolean = false
+  failed_schema_load?: boolean
   loaders: Map<FieldID, boolean> = reactive(new Map())
   current_sync?: SyncProgressInfo
 
-  images_raw: Map<FieldID, readonly OpFileRaw[]> = reactive(new Map())
   images_raw_by_token: Map<string, OpFileRaw[]> = reactive(new Map())
   local_file_tokens: string[] = reactive([])
+  images_to_download: OpFileRaw[] = reactive([])
 
   constructor(public storage: StorageService, public json: FolderConfigJson) {
     this.api = reactive(new Api('app', this.api_token)) as Api
+  }
 
-    void this.refresh()
-  }
   get images_raw_array(): OpFileRaw[] {
-    return flatMap(Array.from(this.images_raw), ([, val]) => val)
+    return flatMap(Array.from(this.images_raw_by_token.values()))
   }
-  get images_array(): OpFileRaw[] {
-    return flatMap(Array.from(this.images_raw), ([, val]) => val)
-  }
-  get unique_images_array(): OpFileRaw[] {
-    return uniqBy(this.images_array, file => file.name)
+  get uniq_images_raw_array(): OpFileRaw[] {
+    return uniqBy(this.images_raw_array, file => file.name)
   }
   get label(): string {
     return this.json.label
@@ -91,7 +89,7 @@ export class FolderConfig {
     return this.current_sync?.downloading ?? false
   }
   get is_loading(): boolean {
-    return !!this.loaders.size || this.is_downloading
+    return this.loading_schema || !!this.loaders.size || this.is_downloading
   }
   getConfig(): FolderConfigJson {
     return {
@@ -107,12 +105,13 @@ export class FolderConfig {
   }
   resetRemoteFiles(): void {
     this.images_raw_by_token.clear()
-    this.images_raw.clear()
   }
   // Load all files of the project
   async loadRemoteFiles(): Promise<void> {
     console.log('[loadRemoteFiles] check schema')
-    if (!this.schema) return
+    if (!this.schema) {
+      return
+    }
     this.resetRemoteFiles()
     console.log('[loadRemoteFiles] triggered')
 
@@ -132,11 +131,10 @@ export class FolderConfig {
           }
         }
 
-        this.images_raw.set(field.id, Object.freeze(images))
-        images.forEach(i => {
-          const bytoken = this.images_raw_by_token.get(i.token)
-          if (!bytoken) this.images_raw_by_token.set(i.token, [i])
-          else bytoken.push(i)
+        images.forEach(image => {
+          const bytoken = this.images_raw_by_token.get(image.token)
+          if (!bytoken) this.images_raw_by_token.set(image.token, [image])
+          else bytoken.push(image)
         })
         this.loaders.delete(field.id)
       }
@@ -146,6 +144,7 @@ export class FolderConfig {
   // Download remote missing files
   async syncFiles(): Promise<void> {
     await this.loadRemoteFiles()
+
     this.downloadFiles()
   }
 
@@ -164,7 +163,7 @@ export class FolderConfig {
       // Delete local files that are not present on remote anymore
       window.electron.ipcRenderer.send(
         'deleteRemovedFilesFromRemote',
-        cloneDeep(this.images_raw_array),
+        cloneDeep(this.uniq_images_raw_array),
         this.folder_path,
       )
 
@@ -175,7 +174,7 @@ export class FolderConfig {
 
   downloadFiles(): void {
     console.log('[downloader] start')
-    if (!this.unique_images_array.length)
+    if (!this.uniq_images_raw_array.length)
       return console.log('[downloader] no images')
     if (this.is_downloading)
       return console.log('[downloader] already downloading')
@@ -192,7 +191,7 @@ export class FolderConfig {
       'downloadFiles',
       this.id,
       cloneDeep({
-        files: this.unique_images_array.map(file => ({
+        files: this.uniq_images_raw_array.map(file => ({
           url: OpFile.fromRaw(file).link(),
           token: file.token,
           name: file.name,
@@ -221,7 +220,15 @@ export class FolderConfig {
 
   async refresh(): Promise<void> {
     if (!this.schema) {
-      this.schema = reactive(await this.api.loadSchema()) as Schema
+      try {
+        this.loading_schema = true
+        this.schema = reactive(await this.api.loadSchema()) as Schema
+        this.failed_schema_load = false
+      } catch (error) {
+        this.failed_schema_load = true
+      } finally {
+        this.loading_schema = false
+      }
     }
   }
 }

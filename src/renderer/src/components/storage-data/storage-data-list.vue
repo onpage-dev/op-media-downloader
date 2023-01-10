@@ -38,6 +38,7 @@ const filtered_configs = computed(() => {
   }
   return ret
 })
+
 function openForm(f?: FolderConfigJson): void {
   form.value = f ?? {
     api_token: '',
@@ -106,16 +107,18 @@ function deleteConfig(): void {
     style="width: 50rem"
   >
     <!-- Search and add btn -->
-    <div class="flex flex-row gap-unit pr-unit-half">
-      <op-clickable-card
-        radius="full"
-        pad="compact"
-        col
-        @click="show_user_settings = true"
-      >
-        <op-icon icon="gear" />
-      </op-clickable-card>
-      <op-search v-model="search_query" grow />
+    <div class="flex-row-center gap-unit pr-unit-half">
+      <div class="flex-row-center grow">
+        <op-btn
+          color="inherit"
+          pad="p-unit"
+          col
+          @click="show_user_settings = true"
+        >
+          <op-icon icon="gear" size="lg" />
+        </op-btn>
+        <op-search v-model="search_query" grow />
+      </div>
 
       <op-clickable-card radius="full" row middle @click="openForm()">
         <op-icon icon="plus" />

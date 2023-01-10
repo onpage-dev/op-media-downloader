@@ -1,6 +1,8 @@
 {
   "no_items": "Nessun elemento",
   "search_placeholder": "Cerca...",
+  "simultaneous_downloads": "Download contemporanei",
+  "min_1": "min. 1",
   "edit": "Modifica",
   "cancel": "Annulla",
   "delete": "Elimina",
@@ -8,6 +10,8 @@
   "loading": "Caricamento...",
   "user_settings": "Opzioni applicazione",
   "dark_mode": "Tema scuro",
+  "failed_to_load_schema": "Caricamento fallito",
+  "schema_load_failed_msg": "Caricamento del progetto fallito, verifica che il token sia corretto o che la connessione sia presente.",
   "_storage_data": {
     "title": "Progetti",
     "label": "Nome",
