@@ -7,21 +7,30 @@ import fsPromises from 'fs/promises'
 import { cloneDeep } from 'lodash'
 import { OpFileRaw } from 'onpage-js'
 import path from 'path'
-import { processQueue, sleep } from './utils'
+import { processQueue } from './utils'
+
+export interface SyncProgressInfo {
+  start_time: string
+  downloading: boolean
+  total: number
+  downloaded: number
+  failed: number
+  already_exists: number
+}
 
 const store = new Store({
   name: 'op-media-downloader-config',
   watch: true,
   clearInvalidConfig: true,
 })
-ipcMain.on('openPath', (_event, p) => {
-  console.log(`[openPath] triggered for path ${p}`)
-  shell.openPath(path.normalize(p))
+ipcMain.on('openPath', (_event, path_to_open) => {
+  console.log(`[openPath] triggered for path ${path_to_open}`)
+  shell.openPath(path.normalize(path_to_open))
 })
-ipcMain.on('deleteFolder', async (_event, path: string) => {
+ipcMain.on('deleteFolder', async (_event, folder_path: string) => {
   try {
-    console.log(`[deleteFolder] triggered for path ${path}`)
-    await fsPromises.rm(path.normalize(path), { recursive: true })
+    console.log(`[deleteFolder] triggered for path ${folder_path}`)
+    await fsPromises.rm(path.normalize(folder_path), { recursive: true })
   } catch (error) {
     console.log(error)
   }
@@ -71,16 +80,6 @@ ipcMain.on(
     })
   },
 )
-
-export interface SyncProgressInfo {
-  start_time: string
-  downloading: boolean
-  total: number
-  downloaded: number
-  failed: number
-  already_exists: number
-}
-
 ipcMain.on(
   'downloadFiles',
   async (
@@ -167,7 +166,6 @@ ipcMain.on(
     console.log('[downloadFiles] sync over')
   },
 )
-
 ipcMain.handle('pick-folder-path', async () => {
   const res = await dialog.showOpenDialog({
     properties: ['openDirectory'],
@@ -194,7 +192,9 @@ function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
+    minWidth: 800,
     height: 670,
+    minHeight: 400,
     show: false,
     autoHideMenuBar: true,
 

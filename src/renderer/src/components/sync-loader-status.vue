@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { PropType, Ref } from 'vue'
+import { SyncProgressInfo } from '@classes/folder-config'
+import { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SyncProgressInfo } from '../../../classes/folder-config'
 const emit = defineEmits<{
   (
     e: 'select',
@@ -47,19 +47,6 @@ defineProps({
       {{ i18n.t('_storage_files.failed') }}
       {{ loader.failed ?? 0 }}
     </div>
-    <!-- <div
-      :class="{
-        'cursor-pointer': clickable,
-        'ring-1 ring-orange': selected == 'already_present',
-      }"
-      class="select-none flex-1 flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-orange bg-opacity-20"
-      @click="clickable && emit('select', 'already_present')"
-    >
-      <op-icon icon="exclamation" class="text-orange" />
-      {{ i18n.t('_storage_files.already_present') }}
-
-      {{ loader.already_exists ?? 0 }}
-    </div> -->
     <div
       :class="{
         'cursor-pointer': clickable,

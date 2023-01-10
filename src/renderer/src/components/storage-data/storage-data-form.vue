@@ -1,9 +1,9 @@
 <script lang="ts" setup>
+import { FolderConfigJson } from '@classes/folder-config'
+import { StorageService } from '@classes/store'
 import { cloneDeep } from 'lodash'
 import { PropType, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FolderConfigJson } from '../../../classes/folder-config'
-import { StorageService } from '../../../classes/store'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -104,5 +104,4 @@ async function save(): Promise<void> {
       </op-submit>
     </div>
   </form>
-  {{ [local_form] }}
 </template>

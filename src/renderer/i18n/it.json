@@ -1,14 +1,17 @@
 {
   "no_items": "Nessun elemento",
   "search_placeholder": "Cerca...",
+  "edit": "Modifica",
   "cancel": "Annulla",
   "delete": "Elimina",
   "save": "Salva",
   "loading": "Caricamento...",
+  "user_settings": "Opzioni applicazione",
+  "dark_mode": "Tema scuro",
   "_storage_data": {
     "title": "Progetti",
     "label": "Nome",
-    "add_new_storage": "Aggiungi nuovo progetto",
+    "add_new_storage": "Aggiungi progetto",
     "edit_storage": "Modifica \"{label}\"",
     "delete_storage": "Sei sicuro di voler eliminare \"{label}\"?",
     "delete_local_files": "Elimina anche i file scaricati localmente",

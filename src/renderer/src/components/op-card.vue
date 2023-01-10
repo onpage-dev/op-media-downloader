@@ -64,9 +64,9 @@
 </template>
 
 <script lang="ts">
+import { OpCardColor } from '@classes/color-classes'
 import { formattedColor } from '@renderer/service/utils'
 import { debounce, forEach, isArray, isNumber, isString } from 'lodash'
-import { OpCardColor } from '../../classes/color-classes'
 import { computed, defineComponent, inject, PropType } from 'vue'
 import OpIcon from './op-icon.vue'
 

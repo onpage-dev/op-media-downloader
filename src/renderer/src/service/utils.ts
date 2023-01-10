@@ -1,5 +1,5 @@
+import { OpCardColor } from '@classes/color-classes'
 import { isNumber, isString } from 'lodash'
-import { OpCardColor } from '../../classes/color-classes'
 
 export function formattedColor(string: string): OpCardColor {
   const exploded = string.split('-')
@@ -35,4 +35,3 @@ export function id(object: object): any {
 export function sleep(millis: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, millis))
 }
-

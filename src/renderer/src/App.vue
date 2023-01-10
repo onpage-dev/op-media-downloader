@@ -1,16 +1,15 @@
 <script setup lang="ts">
+import { StorageService } from '@classes/store'
 import { forEach } from 'lodash'
 import { computed, onBeforeMount, Ref, ref, watch } from 'vue'
-import { StorageService } from '../classes/store'
 import OpMenubar from './components/op-menubar.vue'
 import { themes } from './service/theme-service'
-import Home from './views/home.vue'
+import StorageDataList from './components/storage-data/storage-data-list.vue'
 
 const storage = ref(new StorageService()) as Ref<StorageService>
 const theme = ref(themes[1])
 
 const dark_mode = computed(() => storage.value.user_properties.dark_mode)
-
 const base_style = computed(() => {
   const ret = [] as string[]
   const variants = ['', 'focus', 'hover']
@@ -61,6 +60,11 @@ function setBaseColor(
   if (!element) element = document.documentElement
   element!.style.setProperty(`--color-${name}`.replace('-DEFAULT', ''), color)
 }
+
+watch(dark_mode, () => {
+  toggleDarkMode()
+})
+
 onBeforeMount(() => {
   toggleDarkMode()
   forEach(theme.value.colors, (color, name) => {
@@ -68,10 +72,6 @@ onBeforeMount(() => {
       setBaseColor(name + '-' + attr, color)
     })
   })
-})
-
-watch(dark_mode, () => {
-  toggleDarkMode()
 })
 </script>
 
@@ -81,9 +81,11 @@ watch(dark_mode, () => {
     class="full-height-scroll-wfull relative h-full bg-wallpaper dark:bg-darkwallpaper provide-bg"
   >
     <component :is="'style'" v-text="base_style" />
-    <div class="full-height-scroll-wfull gap-unit relative">
+    <div
+      class="full-height-scroll-wfull overflow-auto items-center gap-unit relative"
+    >
       <OpMenubar :storage="storage" />
-      <Home :storage="storage" />
+      <StorageDataList :storage="storage" />
     </div>
   </div>
 </template>

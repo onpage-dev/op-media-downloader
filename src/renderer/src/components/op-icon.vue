@@ -30,7 +30,7 @@ const props = defineProps({
   fade: {
     type: Boolean,
   },
-  fixedWidth: {
+  fixed_width: {
     type: Boolean,
   },
   flash: {
@@ -42,7 +42,7 @@ const props = defineProps({
   mask: {
     type: [Object, Array, String],
   },
-  listItem: {
+  list_item: {
     type: Boolean,
   },
   pull: {
@@ -54,7 +54,7 @@ const props = defineProps({
   rotation: {
     type: [String, Number] as PropType<90 | 180 | 270 | '90' | '180' | '270'>,
   },
-  swapOpacity: {
+  swap_opacity: {
     type: Boolean,
   },
   size: {
@@ -77,10 +77,10 @@ const props = defineProps({
   spin: {
     type: Boolean,
   },
-  spinPulse: {
+  spin_pulse: {
     type: Boolean,
   },
-  spinReverse: {
+  spin_reverse: {
     type: Boolean,
   },
   transform: {
@@ -101,7 +101,7 @@ const props = defineProps({
   shake: {
     type: Boolean,
   },
-  beatFade: {
+  beat_fade: {
     type: Boolean,
   },
 })
@@ -120,26 +120,26 @@ const real_icon = computed((): FaIcon => [type_to_code[props.type], props.icon])
     :beat="beat"
     :border="border"
     :fade="fade"
-    :fixed-width="fixedWidth"
+    :fixed-width="fixed_width"
     :flash="flash"
     :flip="flip"
     :icon="real_icon"
     :mask="mask"
-    :list-item="listItem"
+    :list-item="list_item"
     :pull="pull"
     :pulse="pulse"
     :rotation="rotation"
-    :swap-opacity="swapOpacity"
+    :swap-opacity="swap_opacity"
     :size="size"
     :spin="spin"
-    :spin-pulse="spinPulse"
-    :spin-reverse="spinReverse"
+    :spin-pulse="spin_pulse"
+    :spin-reverse="spin_reverse"
     :transform="transform"
     :symbol="symbol"
     :title="title"
     :inverse="inverse"
     :bounce="bounce"
     :shake="shake"
-    :beat-fade="beatFade"
+    :beat-fade="beat_fade"
   />
 </template>

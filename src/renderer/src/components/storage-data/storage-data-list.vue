@@ -1,12 +1,13 @@
 <script lang="ts" setup>
+import { FolderConfigJson } from '@classes/folder-config'
+import { StorageService } from '@classes/store'
 import { v4 as uuidv4 } from 'uuid'
 
 import { computed, PropType, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FolderConfigJson } from '../../../classes/folder-config'
-import { StorageService as StorageService } from '../../../classes/store'
 import OpCheck from '../op-check.vue'
 import OpModal from '../op-modal.vue'
+import UserSettings from '../user-settings.vue'
 import StorageServiceForm from './storage-data-form.vue'
 import StorageServiceItem from './storage-data-item.vue'
 
@@ -23,6 +24,7 @@ const props = defineProps({
     type: Object as PropType<FolderConfigJson>,
   },
 })
+const show_user_settings = ref(false)
 const deleting: Ref<FolderConfigJson | undefined> = ref(undefined)
 const delete_downloaded = ref(false)
 const form: Ref<FolderConfigJson | undefined> = ref(undefined)
@@ -50,7 +52,7 @@ function clearDelete(): void {
 }
 function deleteConfig(): void {
   if (!deleting.value) return
-  props.storage.delete(`storage_data.${deleting.value.api_token}`)
+  props.storage.delete(`storage_data.${deleting.value.id}`)
   if (delete_downloaded.value) {
     window.electron.ipcRenderer.send('deleteFolder', deleting.value.folder_path)
   }
@@ -66,6 +68,11 @@ function deleteConfig(): void {
       :storage="storage"
       @close="form = undefined"
     />
+  </OpModal>
+
+  <!-- user Settings -->
+  <OpModal v-if="show_user_settings" @close="show_user_settings = false">
+    <UserSettings :storage="storage" @close="show_user_settings = false" />
   </OpModal>
 
   <!-- Delete Modal -->
@@ -94,29 +101,30 @@ function deleteConfig(): void {
     </div>
   </OpModal>
 
-  <div class="full-height-scroll m-unit mt-0 gap-unit" style="min-width: 20rem">
-    <!-- Title -->
-    <h4 class="flex-row-center-unit">
-      <op-icon icon="shapes" class="text-accent" />
-      {{ i18n.t('_storage_data.title') }}
-    </h4>
-
+  <div
+    class="full-height-scroll m-unit mt-0 gap-unit-double"
+    style="width: 50rem"
+  >
     <!-- Search and add btn -->
-    <div class="flex-row-center pr-unit-half">
-      <op-search v-model="search_query" grow />
-      <op-circle-btn
-        v-tooltip="i18n.t('_storage_data.add_new_storage')"
-        size="10"
-        @click="openForm()"
+    <div class="flex flex-row gap-unit pr-unit-half">
+      <op-clickable-card
+        radius="full"
+        pad="compact"
+        col
+        @click="show_user_settings = true"
       >
-        <op-icon icon="plus" size="lg" />
-      </op-circle-btn>
+        <op-icon icon="gear" />
+      </op-clickable-card>
+      <op-search v-model="search_query" grow />
+
+      <op-clickable-card radius="full" row middle @click="openForm()">
+        <op-icon icon="plus" />
+        {{ i18n.t('_storage_data.add_new_storage') }}
+      </op-clickable-card>
     </div>
 
     <!-- Items List -->
-    <div
-      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 p-6"
-    >
+    <div class="full-height-scroll pr-unit-half gap-unit">
       <div v-for="config in filtered_configs" :key="config.id">
         <StorageServiceItem
           :config="config"
@@ -126,7 +134,7 @@ function deleteConfig(): void {
       </div>
       <div
         v-if="!filtered_configs.length"
-        class="flex-col-center italic opacity-50 py-unit"
+        class="flex-col-center italic opacity-20 py-unit text-2xl"
       >
         {{ i18n.t('no_items') }}
       </div>

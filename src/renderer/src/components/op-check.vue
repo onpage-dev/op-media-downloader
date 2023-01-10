@@ -61,7 +61,7 @@ const props = defineProps({
     type: String,
     default: 'check',
   },
-  onlyCheck: {
+  only_check: {
     type: Boolean,
   },
 })
@@ -70,7 +70,7 @@ const classes = computed(() => {
   let classes = ''
 
   classes += props.disabled ? ' cursor-disabled ' : ' cursor-pointer '
-  classes += props.onlyCheck ? '' : 'flex-row-center-unit'
+  classes += props.only_check ? '' : 'flex-row-center-unit'
   return classes
 })
 const checked = computed(() => {

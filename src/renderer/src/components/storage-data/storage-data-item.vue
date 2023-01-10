@@ -1,8 +1,19 @@
 <script lang="ts" setup>
-import { PropType } from 'vue'
-import { FolderConfig } from '../../../classes/folder-config'
-import SyncLoaderStatus from '../storage-files/sync-loader-status.vue'
+import { FolderConfig } from '@classes/folder-config'
+import dayjs from 'dayjs'
+import de from 'dayjs/locale/de'
+import en from 'dayjs/locale/en'
+import es from 'dayjs/locale/es'
+import fr from 'dayjs/locale/fr'
+import it from 'dayjs/locale/it'
+import ru from 'dayjs/locale/ru'
+import zh from 'dayjs/locale/zh'
+import { onBeforeMount, PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
+import SyncLoaderStatus from '../sync-loader-status.vue'
 
+const i18n = useI18n()
+defineEmits(['edit', 'delete'])
 const props = defineProps({
   config: {
     type: Object as PropType<FolderConfig>,
@@ -17,52 +28,129 @@ function syncOrLoad(): void {
     props.config.loadRemoteFiles()
   }
 }
+function openPath(file_name?: string): void {
+  window.electron.ipcRenderer.send(
+    'openPath',
+    `${props.config.folder_path}${file_name ? '/' + file_name : ''}`,
+  )
+}
+function setLocale(): void {
+  switch (i18n.locale.value) {
+    case 'de':
+      dayjs.locale(de)
+      break
+    case 'en':
+      dayjs.locale(en)
+      break
+    case 'es':
+      dayjs.locale(es)
+      break
+    case 'fr':
+      dayjs.locale(fr)
+      break
+    case 'it':
+      dayjs.locale(it)
+      break
+    case 'ru':
+      dayjs.locale(ru)
+      break
+    case 'zh':
+      dayjs.locale(zh)
+      break
+    default:
+      dayjs.locale(it)
+  }
+}
+onBeforeMount(() => setLocale())
 </script>
 <template>
-  <div class="flex flex-col gap-unit">
-    <op-card class="text-left relative group" col>
-      <div
-        class="flex-row-center-unit absolute right-unit top-unit opacity-0 group-hover:opacity-100 duration-100"
-      >
-        <div class="sober-link-accent" @click.stop="$emit('edit')">
+  <op-card class="gap-unit" provide>
+    <!-- Header and btns -->
+    <div class="flex-row-center-unit" col>
+      <h5>{{ config.label }}</h5>
+      <div class="flex flex-row ml-auto">
+        <!-- Edit -->
+        <op-btn
+          v-tooltip="i18n.t('edit')"
+          class="link-opacity"
+          color="inherit"
+          pad="compact"
+          @click="$emit('edit')"
+        >
           <op-icon icon="pen-to-square" />
-        </div>
-        <div class="sober-link-danger" @click.stop="$emit('delete')">
-          <op-icon icon="trash-can" />
-        </div>
+        </op-btn>
+
+        <!-- Delete -->
+        <op-btn
+          v-tooltip="i18n.t('delete')"
+          class="link-opacity group"
+          color="inherit"
+          pad="compact"
+          @click="$emit('delete')"
+        >
+          <op-icon icon="trash-can" class="group-hover:text-red duration-100" />
+        </op-btn>
+
+        <op-btn
+          v-tooltip="i18n.t('_storage_files.reveal_in_explorer')"
+          class="min-w-0"
+          color="inherit"
+          pad="compact"
+          @click="openPath()"
+        >
+          <op-icon icon="folder-open" />
+        </op-btn>
+
+        <!-- Update -->
+        <op-btn
+          class="min-w-0"
+          :class="{
+            'opacity-50': config.is_loading,
+          }"
+          color="inherit"
+          pad="compact"
+          :disabled="config.is_loading"
+          :loading="config.is_loading"
+          @click="syncOrLoad"
+        >
+          <span>
+            <op-icon
+              :icon="
+                config.images_raw_by_token.size ? 'download' : 'arrows-rotate'
+              "
+            />
+            <span v-if="config.images_raw_by_token.size" class="pl-unit">
+              {{ i18n.t('_storage_files.download') }}
+              {{ config.images_raw_by_token.size }}
+            </span>
+            <span v-else class="pl-unit">
+              {{ i18n.t('_storage_files.start_sync') }}
+            </span>
+          </span>
+        </op-btn>
       </div>
-      <div>{{ config.label }}</div>
-      <div class="text-sm font-mono opacity-50">{{ config.api_token }}</div>
-      <div class="text-sm font-mono opacity-50 ellipses">
-        {{ config.folder_path }}
-      </div>
-    </op-card>
+    </div>
     <div
       v-if="config.current_sync || config.last_sync"
-      class="flex-nowrap flex-row-center-unit text-sm"
+      class="flex flex-col gap-unit"
     >
-      <SyncLoaderStatus :loader="config.current_sync ?? config.last_sync" />
+      <!-- Last Sync info -->
+      <div
+        v-if="config.last_sync"
+        class="flex-row-center-unit justify-between text-sm"
+      >
+        <b>{{ i18n.t('_storage_files.last_sync') }}</b>
+        <span class="opacity-50">
+          <op-icon icon="calendar" />
+          {{ dayjs(config.last_sync.start_time).format('DD MMM YYYY HH:mm') }}
+          -
+          {{ dayjs(config.last_sync.end_time).format('DD MMM YYYY HH:mm') }}
+        </span>
+      </div>
+
+      <div class="flex-nowrap flex-row-center-unit text-sm">
+        <SyncLoaderStatus :loader="config.current_sync ?? config.last_sync" />
+      </div>
     </div>
-    <!-- Update -->
-    <op-clickable-tag
-      class="ml-auto min-w-0"
-      :class="{
-        'opacity-50': config.is_loading,
-      }"
-      :disabled="config.is_loading"
-      :loading="config.is_loading"
-      @click="syncOrLoad"
-    >
-      <op-icon
-        :icon="config.images_raw_by_token.size ? 'download' : 'arrows-rotate'"
-      />
-      <div v-if="config.images_raw_by_token.size">
-        {{ $t('_storage_files.download') }}
-        +{{ config.images_raw_by_token.size }}
-      </div>
-      <div v-else>
-        {{ $t('_storage_files.start_sync') }}
-      </div>
-    </op-clickable-tag>
-  </div>
+  </op-card>
 </template>

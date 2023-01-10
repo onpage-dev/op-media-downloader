@@ -3,7 +3,6 @@ import { sleep } from '@renderer/service/utils'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import { cloneDeep, flatMap, throttle, uniqBy } from 'lodash'
-import { Emitter } from 'mitt'
 import { Api, FieldID, OpFile, OpFileRaw, Schema } from 'onpage-js'
 import { reactive } from 'vue'
 import { ConfigEvents, StorageService } from './store'
@@ -47,7 +46,6 @@ export class FolderConfig {
     this.api = reactive(new Api('app', this.api_token)) as Api
 
     // On Progress
-
     window.electron.ipcRenderer.on(
       'downloadProgress',
       (
@@ -163,7 +161,6 @@ export class FolderConfig {
   }
 
   // Download remote missing files
-  // finally update the index inside local_store_data
   async syncFiles(): Promise<void> {
     await this.loadRemoteFiles()
     this.downloadFiles()
@@ -173,7 +170,6 @@ export class FolderConfig {
     console.log('[downloader] set debounced', data)
     if (!self.current_sync) return
     Object.assign(self.current_sync, data)
-    // this.current_sync = data
   }, 500)
 
   onDownloadProgress(data: ConfigEvents['downloadProgress']): void {
@@ -195,10 +191,6 @@ export class FolderConfig {
       this.saveLastSync(data.progressEvent)
     }
   }
-
-  // removeEventListeners(): void {
-  //   this.bus.off('downloadProgress', this.onDownloadProgress)
-  // }
 
   downloadFiles(): void {
     console.log('[downloader] start')

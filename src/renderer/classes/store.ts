@@ -1,6 +1,5 @@
 import { IpcRendererEvent } from '@electron-toolkit/preload'
 import { cloneDeep, forEach } from 'lodash'
-import { Emitter } from 'mitt'
 import { reactive } from 'vue'
 import {
   FolderConfig,
@@ -96,15 +95,27 @@ export class StorageService {
   }
 
   async setConfig(f: FolderConfigJson): Promise<void> {
-    const selector = `storage_data.${f.api_token}`
+    const selector = `storage_data.${f.id}`
     await this.set(selector, cloneDeep(f))
   }
 
   updateConfigServicesMap(): void {
+    const keys_to_update = Object.keys(this.storage_data)
+
+    // Delete removed configs
+    Array.from(this.configs.keys())
+      .filter(key => !keys_to_update.includes(key))
+      .forEach(key => this.configs.delete(key))
+
+    // Now Update or add configs
     forEach(this.storage_data, val => {
       if (this.configs.has(val.id)) {
         const config = this.configs.get(val.id)!
-        Object.assign(config, val)
+        if (val.api_token !== config.api_token) {
+          this.configs.set(val.id, new FolderConfig(this, val))
+        } else {
+          Object.assign(config, val)
+        }
       } else {
         this.configs.set(val.id, new FolderConfig(this, val))
       }

@@ -21,8 +21,6 @@ module.exports = {
       'error',
       { 'ts-ignore': 'allow-with-description' },
     ],
-    'vue/prop-name-casing': 'off',
-
     '@typescript-eslint/explicit-function-return-type': 'error',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-empty-function': [
@@ -36,7 +34,7 @@ module.exports = {
     'vue/no-v-text-v-html-on-component': 'off',
     'vue/require-default-prop': 'off',
     'vue/multi-word-component-names': 'off',
-    'no-unused-vars': 'warn',
+    'vue/prop-name-casing': ['off'],
     '@typescript-eslint/no-unused-vars': 'warn',
   },
   overrides: [
@@ -44,6 +42,13 @@ module.exports = {
       files: ['*.js'],
       rules: {
         '@typescript-eslint/explicit-function-return-type': 'off',
+      },
+    },
+    {
+      files: ['*.vue'],
+      rules: {
+        'no-unused-vars': 'off',
+        '@typescript-eslint/no-unused-vars': 'warn',
       },
     },
   ],
