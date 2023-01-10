@@ -53,7 +53,9 @@ export class StorageService {
         config_id: string,
         progressEvent: SyncProgressInfo,
       ) => {
-        this.configs.get(config_id)?.onDownloadProgress(progressEvent)
+        const c = this.configs.get(config_id)
+        if (!c) return
+        c.onDownloadProgress(progressEvent)
       },
     )
   }

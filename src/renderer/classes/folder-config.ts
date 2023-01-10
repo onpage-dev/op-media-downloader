@@ -1,4 +1,3 @@
-import { IpcRendererEvent } from '@electron-toolkit/preload'
 import { sleep } from '@renderer/service/utils'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
@@ -159,13 +158,9 @@ export class FolderConfig {
   onDownloadProgress(
     progressEvent: ConfigEvents['downloadProgress']['progressEvent'],
   ): void {
-    if (data.config_id != this.id) return
-
     this.setCurrentSyncDebounced(this, progressEvent)
 
     if (!progressEvent.downloading) {
-      console.log('download ended', data.config_id)
-
       // Delete local files that are not present on remote anymore
       window.electron.ipcRenderer.send(
         'deleteRemovedFilesFromRemote',
