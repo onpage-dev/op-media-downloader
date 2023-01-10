@@ -13,7 +13,6 @@ export type ConfigEvents = {
     event: IpcRendererEvent
     config_id: string
     progressEvent: SyncProgressInfo
-    is_complete: boolean
   }
 }
 
@@ -29,18 +28,18 @@ export interface UserSettings {
   dark_mode?: boolean
 }
 
-export interface LocalStoreDataJson {
+export interface StorageServiceJson {
   user_properties: UserSettings
   storage_data: { [key: string]: FolderConfigJson }
 }
-export class LocalStoreData {
-  json: LocalStoreDataJson = reactive({
+export class StorageService {
+  json: StorageServiceJson = reactive({
     storage_data: {},
     user_properties: {},
   })
-  config_services: Map<string, FolderConfig> = new Map()
+  configs: Map<string, FolderConfig> = reactive(new Map())
 
-  constructor(public bus: Emitter<ConfigEvents>) {
+  constructor() {
     this.watchStore()
     this.initStorage()
   }
@@ -103,17 +102,17 @@ export class LocalStoreData {
 
   updateConfigServicesMap(): void {
     forEach(this.storage_data, val => {
-      if (this.config_services.has(val.id)) {
-        const config = this.config_services.get(val.id)!
+      if (this.configs.has(val.id)) {
+        const config = this.configs.get(val.id)!
         Object.assign(config, val)
       } else {
-        this.config_services.set(val.id, new FolderConfig(this, val, this.bus))
+        this.configs.set(val.id, new FolderConfig(this, val))
       }
     })
   }
   watchStore(): void {
     window.api.store.electronStoreChanged(
-      (_event: any, new_val: LocalStoreDataJson): void => {
+      (_event: any, new_val: StorageServiceJson): void => {
         console.log('store_changed', new_val)
         Object.assign(this.json, new_val)
         this.updateConfigServicesMap()

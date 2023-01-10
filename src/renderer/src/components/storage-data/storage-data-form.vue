@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { cloneDeep, uniqueId } from 'lodash'
-import { onBeforeMount, PropType, Ref, ref } from 'vue'
+import { cloneDeep } from 'lodash'
+import { PropType, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FolderConfigJson } from '../../../classes/folder-config'
-import { LocalStoreData } from '../../../classes/store'
+import { StorageService } from '../../../classes/store'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -12,34 +12,29 @@ const emit = defineEmits<{
 const i18n = useI18n()
 const props = defineProps({
   form: {
-    type: Object as PropType<Partial<FolderConfigJson>>,
+    type: Object as PropType<FolderConfigJson>,
     required: true,
   },
-  localStoreData: {
-    type: LocalStoreData,
+  storage: {
+    type: StorageService,
     required: true,
   },
 })
 
-const local_form: Ref<Partial<FolderConfigJson> | undefined> = ref(undefined)
+const local_form = reactive(cloneDeep(props.form))
 
 function chooseFolder(): void {
-  if (!local_form.value) return
+  if (!local_form) return
   window.electron.ipcRenderer.invoke('pick-folder-path').then(res => {
     console.log('selected folder path', res)
-    local_form.value!.folder_path = res
+    local_form!.folder_path = res
   })
 }
 async function save(): Promise<void> {
-  if (!local_form.value) return
-  if (!local_form.value.id) local_form.value.id = uniqueId('cnf_')
-  await props.localStoreData.setConfig(local_form.value as FolderConfigJson)
+  if (!local_form) return
+  await props.storage.setConfig(local_form)
   emit('close')
 }
-
-onBeforeMount(() => {
-  local_form.value = cloneDeep(props.form)
-})
 </script>
 <template>
   <form
@@ -109,4 +104,5 @@ onBeforeMount(() => {
       </op-submit>
     </div>
   </form>
+  {{ [local_form] }}
 </template>

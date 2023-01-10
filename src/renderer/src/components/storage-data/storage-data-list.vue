@@ -1,20 +1,22 @@
 <script lang="ts" setup>
-import { each } from 'lodash'
+import { v4 as uuidv4 } from 'uuid'
+
 import { computed, PropType, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FolderConfigJson } from '../../../classes/folder-config'
-import { LocalStoreData } from '../../../classes/store'
+import { StorageService as StorageService } from '../../../classes/store'
 import OpCheck from '../op-check.vue'
 import OpModal from '../op-modal.vue'
-import LocalStoreDataForm from './storage-data-form.vue'
+import StorageServiceForm from './storage-data-form.vue'
+import StorageServiceItem from './storage-data-item.vue'
 
 const i18n = useI18n()
 const emit = defineEmits<{
   (e: 'select', value?: FolderConfigJson): void
 }>()
 const props = defineProps({
-  localStoreData: {
-    type: LocalStoreData,
+  storage: {
+    type: StorageService,
     required: true,
   },
   selected: {
@@ -23,27 +25,24 @@ const props = defineProps({
 })
 const deleting: Ref<FolderConfigJson | undefined> = ref(undefined)
 const delete_downloaded = ref(false)
-const form: Ref<Partial<FolderConfigJson> | undefined> = ref(undefined)
+const form: Ref<FolderConfigJson | undefined> = ref(undefined)
 const search_query: Ref<string | undefined> = ref(undefined)
 
-const storage_data = computed(() => props.localStoreData.storage_data)
-const filtered_storage_data = computed(() => {
-  const res: { [key: string]: FolderConfigJson } = {}
-  each(storage_data.value, (config, key) => {
-    if (
-      search_query.value &&
-      !config.label
-        .toLocaleLowerCase()
-        .includes(search_query.value.toLocaleLowerCase())
-    ) {
-      return
-    }
-    res[key] = config
-  })
-  return res
+const filtered_configs = computed(() => {
+  let ret = [...props.storage.configs.values()]
+  const q = search_query.value
+  if (q) {
+    ret = ret.filter(x => x.label.toLocaleLowerCase().includes(q))
+  }
+  return ret
 })
 function openForm(f?: FolderConfigJson): void {
-  form.value = f ?? {}
+  form.value = f ?? {
+    api_token: '',
+    folder_path: '',
+    id: uuidv4(),
+    label: '',
+  }
 }
 function clearDelete(): void {
   deleting.value = undefined
@@ -51,7 +50,7 @@ function clearDelete(): void {
 }
 function deleteConfig(): void {
   if (!deleting.value) return
-  props.localStoreData.delete(`storage_data.${deleting.value.api_token}`)
+  props.storage.delete(`storage_data.${deleting.value.api_token}`)
   if (delete_downloaded.value) {
     window.electron.ipcRenderer.send('deleteFolder', deleting.value.folder_path)
   }
@@ -62,9 +61,9 @@ function deleteConfig(): void {
 <template>
   <!-- Form Modal -->
   <OpModal v-if="form" @close="form = undefined">
-    <LocalStoreDataForm
+    <StorageServiceForm
       :form="form"
-      :local-store-data="localStoreData"
+      :storage="storage"
       @close="form = undefined"
     />
   </OpModal>
@@ -115,33 +114,18 @@ function deleteConfig(): void {
     </div>
 
     <!-- Items List -->
-    <div class="full-height-scroll gap-unit-half pr-unit-half">
-      <op-clickable-card
-        v-for="(config, key) in filtered_storage_data"
-        :key="key"
-        class="text-left relative group"
-        col
-        :active="selected?.api_token == key"
-        @click="emit('select', config)"
-      >
-        <div
-          class="flex-row-center-unit absolute right-unit top-unit opacity-0 group-hover:opacity-100 duration-100"
-        >
-          <div class="sober-link-accent" @click.stop="openForm(config)">
-            <op-icon icon="pen-to-square" />
-          </div>
-          <div class="sober-link-danger" @click.stop="deleting = config">
-            <op-icon icon="trash-can" />
-          </div>
-        </div>
-        <div>{{ config.label }}</div>
-        <div class="text-sm font-mono opacity-50">{{ config.api_token }}</div>
-        <div class="text-sm font-mono opacity-50 ellipses">
-          {{ config.folder_path }}
-        </div>
-      </op-clickable-card>
+    <div
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 p-6"
+    >
+      <div v-for="config in filtered_configs" :key="config.id">
+        <StorageServiceItem
+          :config="config"
+          @edit="openForm(config.getConfig())"
+          @delete="deleting = config"
+        />
+      </div>
       <div
-        v-if="storage_data && !Object.keys(filtered_storage_data).length"
+        v-if="!filtered_configs.length"
         class="flex-col-center italic opacity-50 py-unit"
       >
         {{ i18n.t('no_items') }}

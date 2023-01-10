@@ -1,39 +1,15 @@
 <script setup lang="ts">
-import { IpcRendererEvent } from '@electron-toolkit/preload'
 import { forEach } from 'lodash'
-import mitt, { Emitter } from 'mitt'
 import { computed, onBeforeMount, Ref, ref, watch } from 'vue'
-import { SyncProgressInfo } from '../classes/folder-config'
-import { LocalStoreData, ConfigEvents } from '../classes/store'
+import { StorageService } from '../classes/store'
 import OpMenubar from './components/op-menubar.vue'
 import { themes } from './service/theme-service'
 import Home from './views/home.vue'
 
-const bus: Emitter<ConfigEvents> = mitt<ConfigEvents>()
-
-window.electron.ipcRenderer.on(
-  'downloadProgress',
-  (
-    event: IpcRendererEvent,
-    config_id: string,
-    progressEvent: SyncProgressInfo,
-    is_complete: boolean,
-  ) => {
-    bus.emit('downloadProgress', {
-      event,
-      config_id,
-      progressEvent,
-      is_complete,
-    })
-  },
-)
-
-const local_store_data = ref(new LocalStoreData(bus)) as Ref<LocalStoreData>
+const storage = ref(new StorageService()) as Ref<StorageService>
 const theme = ref(themes[1])
 
-const dark_mode = computed(
-  () => local_store_data.value.user_properties.dark_mode,
-)
+const dark_mode = computed(() => storage.value.user_properties.dark_mode)
 
 const base_style = computed(() => {
   const ret = [] as string[]
@@ -106,8 +82,8 @@ watch(dark_mode, () => {
   >
     <component :is="'style'" v-text="base_style" />
     <div class="full-height-scroll-wfull gap-unit relative">
-      <OpMenubar :local-store-data="local_store_data" />
-      <Home :local-store-data="local_store_data" />
+      <OpMenubar :storage="storage" />
+      <Home :storage="storage" />
     </div>
   </div>
 </template>

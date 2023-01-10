@@ -7,6 +7,7 @@ import fsPromises from 'fs/promises'
 import { cloneDeep } from 'lodash'
 import { OpFileRaw } from 'onpage-js'
 import path from 'path'
+import { processQueue, sleep } from './utils'
 
 const store = new Store({
   name: 'op-media-downloader-config',
@@ -71,6 +72,15 @@ ipcMain.on(
   },
 )
 
+export interface SyncProgressInfo {
+  start_time: string
+  downloading: boolean
+  total: number
+  downloaded: number
+  failed: number
+  already_exists: number
+}
+
 ipcMain.on(
   'downloadFiles',
   async (
@@ -79,16 +89,11 @@ ipcMain.on(
     data: {
       files: { url: string; token: string; name: string }[]
       directory: string
-      loader: {
-        downloading: boolean
-        total: number
-        already_exists: number
-        downloaded: number
-        failed: number
-      }
+      loader: SyncProgressInfo
     },
   ) => {
     console.log(`[downloadFiles] triggered for folder ${data.directory}`)
+    data.loader.downloading = true
 
     data.loader.total = data.files.length
     const to_download = cloneDeep(data.files).map(file => file.token)
@@ -105,24 +110,8 @@ ipcMain.on(
 
     const existing_files = fs.readdirSync(dataPath)
 
-    const emit_progress = (file: {
-      url: string
-      token: string
-      name: string
-    }): void => {
-      const to_download_idx = to_download.indexOf(file.token)
-      if (to_download_idx >= 0) {
-        to_download.splice(to_download_idx, 1)
-      }
-
+    const emit_progress = (): void => {
       event.sender.send('downloadProgress', config_id, data.loader)
-      if (!to_download.length) {
-        console.log(` - downloaded: ${data.loader.downloaded}`)
-        console.log(` - failed: ${data.loader.failed}`)
-        console.log(` - already_exists: ${data.loader.already_exists}`)
-        console.log('[downloadFiles] sync over')
-        event.sender.send('downloadEnd', config_id)
-      }
     }
 
     const download_file = async (file: {
@@ -140,12 +129,10 @@ ipcMain.on(
       const filePath = path.normalize(`${dataPath}/${file.token}`)
       const linkPath = path.normalize(`${data.directory}/${file.name}`)
 
-      // Check if the file already exists
       if (existing_files.includes(file.token)) {
-        console.log('[download] File exists', file.token)
+        console.log('[download] File exists')
         fs.link(filePath, linkPath, () => {})
         data.loader.already_exists++
-        emit_progress(file)
         return
       }
 
@@ -158,20 +145,29 @@ ipcMain.on(
         // Link the file and return
         fs.link(filePath, linkPath, () => {})
         data.loader.downloaded++
-        emit_progress(file)
       } catch (error) {
         console.log('[download] cannot download file:', error)
         data.loader.failed++
-        emit_progress(file)
+      } finally {
+        emit_progress()
       }
     }
 
     console.log(`[downloadFiles] sync ${to_download.length} files`)
-    for (const file of data.files) {
-      await download_file(file)
-    }
+    await processQueue(
+      data.files.map(file => (): Promise<void> => download_file(file)),
+      2,
+    )
+
+    data.loader.downloading = false
+    event.sender.send('downloadProgress', config_id, data.loader)
+    console.log(` - downloaded: ${data.loader.downloaded}`)
+    console.log(` - failed: ${data.loader.failed}`)
+    console.log(` - already_exists: ${data.loader.already_exists}`)
+    console.log('[downloadFiles] sync over')
   },
 )
+
 ipcMain.handle('pick-folder-path', async () => {
   const res = await dialog.showOpenDialog({
     properties: ['openDirectory'],

@@ -31,3 +31,8 @@ export function id(object: object): any {
   if (!object_id_map.has(object)) object_id_map.set(object, ++objectCount)
   return object_id_map.get(object)
 }
+
+export function sleep(millis: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, millis))
+}
+

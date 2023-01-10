@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { SyncProgressInfo } from '../../../classes/folder-config'
-import { PropType } from 'vue'
+import { PropType, Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { SyncProgressInfo } from '../../../classes/folder-config'
 const emit = defineEmits<{
   (
     e: 'select',
@@ -11,7 +11,7 @@ const emit = defineEmits<{
 const i18n = useI18n()
 defineProps({
   loader: {
-    type: Object as PropType<Partial<SyncProgressInfo>>,
+    type: Object as PropType<SyncProgressInfo>,
   },
   selected: {
     type: String as PropType<
@@ -28,44 +28,44 @@ defineProps({
         'cursor-pointer': clickable,
         'ring-1 ring-green': selected == 'downloaded',
       }"
-      class="select-none flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-green bg-opacity-20"
+      class="select-none flex-1 flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-green bg-opacity-20"
       @click="clickable && emit('select', 'downloaded')"
     >
       <op-icon icon="download" class="text-green" />
       {{ i18n.t('_storage_files.downloaded') }}
-      {{ loader.downloaded ?? 0 }}
+      {{ loader.downloaded + loader.already_exists }}
     </div>
     <div
       :class="{
         'cursor-pointer': clickable,
         'ring-1 ring-red': selected == 'failed',
       }"
-      class="select-none flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-red bg-opacity-20"
+      class="select-none flex-1 flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-red bg-opacity-20"
       @click="clickable && emit('select', 'failed')"
     >
       <op-icon icon="bug" class="text-red" />
       {{ i18n.t('_storage_files.failed') }}
       {{ loader.failed ?? 0 }}
     </div>
-    <div
+    <!-- <div
       :class="{
         'cursor-pointer': clickable,
         'ring-1 ring-orange': selected == 'already_present',
       }"
-      class="select-none flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-orange bg-opacity-20"
+      class="select-none flex-1 flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-orange bg-opacity-20"
       @click="clickable && emit('select', 'already_present')"
     >
       <op-icon icon="exclamation" class="text-orange" />
       {{ i18n.t('_storage_files.already_present') }}
 
       {{ loader.already_exists ?? 0 }}
-    </div>
+    </div> -->
     <div
       :class="{
         'cursor-pointer': clickable,
-        'ring-1 ring-darkwallpaper dark:ring-wallpaper': selected == 'total',
+        'ring-1 ring-blue dark:ring-wallpaper': selected == 'total',
       }"
-      class="select-none flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-darkwallpaper dark:bg-wallpaper bg-opacity-20 dark:bg-opacity-20"
+      class="select-none flex-1 flex-row-center gap-unit-half whitespace-nowrap rounded-md px-unit py-unit-half bg-blue dark:bg-wallpaper bg-opacity-20 dark:bg-opacity-20"
       @click="clickable && emit('select', 'total')"
     >
       <op-icon icon="hashtag" />

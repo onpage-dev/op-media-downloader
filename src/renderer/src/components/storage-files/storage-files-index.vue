@@ -9,13 +9,13 @@ import ru from 'dayjs/locale/ru'
 import zh from 'dayjs/locale/zh'
 import { computed, onBeforeMount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { LocalStoreData } from '../../../classes/store'
+import { StorageService } from '../../../classes/store'
 import SyncLoaderStatus from './sync-loader-status.vue'
 
 const i18n = useI18n()
 const props = defineProps({
-  localStoreData: {
-    type: LocalStoreData,
+  storage: {
+    type: StorageService,
     required: true,
   },
   config_id: {
@@ -25,7 +25,7 @@ const props = defineProps({
 
 const config_service = computed(() => {
   if (!props.config_id) return
-  return props.localStoreData.config_services.get(props.config_id)
+  return props.storage.configs.get(props.config_id)
 })
 
 const is_downloading = computed(() => {
@@ -123,8 +123,8 @@ onBeforeMount(() => setLocale())
       <!-- Content -->
       <div class="full-height-scroll gap-unit pr-unit-half">
         <!-- Sync on going  -->
-        <op-card v-if="config_service.is_downloading" middle row>
-          <SyncLoaderStatus :loader="config_service.sync_loader" />
+        <op-card v-if="config_service.current_sync" middle row>
+          <SyncLoaderStatus :loader="config_service.current_sync" />
         </op-card>
 
         <!-- Loading or No elements -->

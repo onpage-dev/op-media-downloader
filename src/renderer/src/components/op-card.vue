@@ -56,7 +56,7 @@
     <div
       v-if="loading"
       style="background: inherit; border-radius: inherit"
-      class="overlay flex-col-center justify-center"
+      class="overlay opacity-80 flex-col-center justify-center"
     >
       <OpIcon icon="spinner" spin />
     </div>

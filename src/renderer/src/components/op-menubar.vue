@@ -1,19 +1,19 @@
 <script lang="ts" setup>
 import { computed, onBeforeMount, ref } from 'vue'
-import { LocalStoreData } from '../../classes/store'
+import { StorageService } from '../../classes/store'
 import OpLogo from './op-logo.vue'
 
 const props = defineProps({
-  localStoreData: {
-    type: LocalStoreData,
+  storage: {
+    type: StorageService,
     required: true,
   },
 })
 const is_small = ref(false)
-const dark_mode = computed(() => props.localStoreData.user_properties.dark_mode)
+const dark_mode = computed(() => props.storage.user_properties.dark_mode)
 
 function toggleDarkMode(): void {
-  props.localStoreData.set('user_properties.dark_mode', !dark_mode.value)
+  props.storage.set('user_properties.dark_mode', !dark_mode.value)
 }
 
 onBeforeMount(() => {
