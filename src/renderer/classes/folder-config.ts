@@ -45,22 +45,6 @@ export class FolderConfig {
   constructor(public storage: StorageService, public json: FolderConfigJson) {
     this.api = reactive(new Api('app', this.api_token)) as Api
 
-    // On Progress
-    window.electron.ipcRenderer.on(
-      'downloadProgress',
-      (
-        event: IpcRendererEvent,
-        config_id: string,
-        progressEvent: SyncProgressInfo,
-      ) => {
-        reactive(this).onDownloadProgress({
-          event,
-          config_id,
-          progressEvent,
-        })
-      },
-    )
-
     void this.refresh()
   }
   get images_raw_array(): OpFileRaw[] {
@@ -172,12 +156,14 @@ export class FolderConfig {
     Object.assign(self.current_sync, data)
   }, 500)
 
-  onDownloadProgress(data: ConfigEvents['downloadProgress']): void {
+  onDownloadProgress(
+    progressEvent: ConfigEvents['downloadProgress']['progressEvent'],
+  ): void {
     if (data.config_id != this.id) return
 
-    this.setCurrentSyncDebounced(this, data.progressEvent)
+    this.setCurrentSyncDebounced(this, progressEvent)
 
-    if (!data.progressEvent.downloading) {
+    if (!progressEvent.downloading) {
       console.log('download ended', data.config_id)
 
       // Delete local files that are not present on remote anymore
@@ -188,7 +174,7 @@ export class FolderConfig {
       )
 
       // Save sync
-      this.saveLastSync(data.progressEvent)
+      this.saveLastSync(progressEvent)
     }
   }
 

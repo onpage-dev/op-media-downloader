@@ -41,6 +41,21 @@ export class StorageService {
   constructor() {
     this.watchStore()
     this.initStorage()
+    this.initRenderEvents()
+  }
+
+  initRenderEvents(): void {
+    // On Progress
+    window.electron.ipcRenderer.on(
+      'downloadProgress',
+      (
+        event: IpcRendererEvent,
+        config_id: string,
+        progressEvent: SyncProgressInfo,
+      ) => {
+        this.configs.get(config_id)?.onDownloadProgress(progressEvent)
+      },
+    )
   }
 
   async initStorage(): Promise<void> {
