@@ -23,6 +23,7 @@ import {
   faSpinner,
   faSun,
   faTrashCan,
+  faTriangleExclamation,
   faX,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons'
@@ -51,6 +52,7 @@ export default [
   faDownload,
   faBug,
   faExclamation,
+  faTriangleExclamation,
   faHashtag,
   faCheck,
 ]
