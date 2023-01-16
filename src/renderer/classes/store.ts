@@ -1,10 +1,10 @@
 import { IpcRendererEvent } from '@electron-toolkit/preload'
-import { cloneDeep, forEach, uniqBy } from 'lodash'
+import { cloneDeep, forEach } from 'lodash'
 import { reactive } from 'vue'
 import {
   FolderConfig,
   FolderConfigJson,
-  SyncProgressInfo,
+  SyncProgressInfo
 } from './folder-config'
 
 export type ConfigEvents = {
