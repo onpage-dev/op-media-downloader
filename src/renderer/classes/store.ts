@@ -4,7 +4,7 @@ import { reactive } from 'vue'
 import {
   FolderConfig,
   FolderConfigJson,
-  SyncProgressInfo
+  SyncProgressInfo,
 } from './folder-config'
 
 export type ConfigEvents = {
