@@ -1,4 +1,4 @@
-# On Page ® PHP library
+# On Page ® Media Downloader
 
 This program allows to download all files from a given project using an [API Token](https://app.onpage.it/#/help/integrations/token-api).
 
