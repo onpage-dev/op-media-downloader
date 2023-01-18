@@ -19,7 +19,7 @@ Every project enables 3 functions:
 # Develop
 
 ```bash
-git clone git@github.com:onpage-dev/op-media-downloader.git
+git clone https://github.com/onpage-dev/op-media-downloader.git
 cd op-media-downloader
 yarn
 yarn dev
@@ -28,7 +28,7 @@ yarn dev
 # Build
 
 ```bash
-git clone git@github.com:onpage-dev/op-media-downloader.git
+git clone https://github.com/onpage-dev/op-media-downloader.git
 cd op-media-downloader
 yarn
 yarn build:mac
