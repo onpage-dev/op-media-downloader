@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import SyncLoaderStatus from '../sync-loader-status.vue'
 
 const i18n = useI18n()
-defineEmits(['edit', 'delete'])
+defineEmits(['edit', 'delete', 'abort-download'])
 const props = defineProps({
   storage: {
     type: StorageService,
@@ -24,7 +24,11 @@ const props = defineProps({
 function syncOrLoad(): void {
   if (props.config.is_loading) return
   if (props.config.images_raw_by_token.size) {
-    props.config?.downloadFiles()
+    if (props.config.images_to_download.length) {
+      props.config?.downloadFiles()
+    } else {
+      props.config.images_raw_by_token.clear()
+    }
   } else {
     props.config.loadRemoteFiles().then(() => {
       window.electron.ipcRenderer.send(
@@ -113,20 +117,25 @@ watch(
           :loading="config.is_loading"
           @click="syncOrLoad"
         >
-          <span>
-            <op-icon
-              :icon="
-                config.images_raw_by_token.size ? 'download' : 'arrows-rotate'
-              "
-            />
-            <span v-if="config.images_raw_by_token.size" class="pl-unit">
-              {{ i18n.t('_storage_files.download') }}
-              +{{ config.images_to_download.length }}
-            </span>
-            <span v-else class="pl-unit">
-              {{ i18n.t('_storage_files.start_sync') }}
-            </span>
-          </span>
+          <template v-if="!config.images_raw_by_token.size">
+            <op-icon icon="arrows-rotate" />
+            {{ i18n.t('_storage_files.start_sync') }}
+          </template>
+          <template v-else-if="config.is_downloading">
+            {{ i18n.t('_storage_files.downloading') }}
+          </template>
+          <template v-else-if="config.is_loading">
+            {{ i18n.t('loading') }}
+          </template>
+          <template v-else-if="config.images_to_download.length">
+            <op-icon icon="download" />
+            {{ i18n.t('_storage_files.download') }}
+            +{{ config.images_to_download.length }}
+          </template>
+          <template v-else>
+            <op-icon icon="check" />
+            {{ i18n.t('_storage_files.no_files_to_download') }}
+          </template>
         </op-btn>
         <op-btn
           v-else
@@ -146,6 +155,22 @@ watch(
             <op-icon icon="triangle-exclamation" class="text-orange" />
             {{ i18n.t('failed_to_load_schema') }}
           </span>
+        </op-btn>
+
+        <!-- TODO: Implement Abort functionality -->
+        <op-btn
+          v-if="false && config.is_downloading"
+          class="min-w-0"
+          color="inherit"
+          pad="compact"
+          :disabled="config.is_loading"
+          :loading="config.is_loading"
+          @click="$emit('abort-download')"
+        >
+          <div class="flex-row-center-unit sober-link-danger">
+            <op-icon icon="stop" />
+            {{ i18n.t('_storage_files.abort_download') }}
+          </div>
         </op-btn>
       </div>
     </div>

@@ -30,7 +30,11 @@
     "reveal_in_explorer": "Open folder",
     "downloaded": "Downloaded",
     "failed": "Failed",
-    "total": "Total"
+    "total": "Total",
+    "no_files_to_download": "No files to download",
+    "downloading": "Downloading...",
+    "abort_download": "Abort download",
+    "abort_download_msg": "Are you shure you want to abort the download of {label}?"
   },
   "language": {
     "it": "Italiano",

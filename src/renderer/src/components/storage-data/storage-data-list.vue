@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { FolderConfigJson } from '@classes/folder-config'
+import { FolderConfig, FolderConfigJson } from '@classes/folder-config'
 import { StorageService } from '@classes/store'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -26,6 +26,7 @@ const props = defineProps({
 })
 const show_user_settings = ref(false)
 const deleting: Ref<FolderConfigJson | undefined> = ref(undefined)
+const aborting: Ref<FolderConfig | undefined> = ref(undefined)
 const delete_downloaded = ref(false)
 const form: Ref<FolderConfigJson | undefined> = ref(undefined)
 const search_query: Ref<string | undefined> = ref(undefined)
@@ -74,6 +75,28 @@ function deleteConfig(): void {
   <!-- user Settings -->
   <OpModal v-if="show_user_settings" @close="show_user_settings = false">
     <UserSettings :storage="storage" @close="show_user_settings = false" />
+  </OpModal>
+
+  <!-- Abort Download Modal -->
+  <OpModal v-if="aborting" @close="aborting = undefined">
+    <div class="modal-size-w-sm full-height-scroll gap-unit-double">
+      <h4 class="text-center">
+        {{
+          i18n.t('_storage_files.abort_download_msg', { label: aborting.label })
+        }}
+      </h4>
+      <div class="flex-row-center-unit justify-center">
+        <op-btn color="inherit" @click="aborting = undefined">
+          <op-icon icon="xmark" />
+          {{ i18n.t('cancel') }}
+        </op-btn>
+        <!-- TODO: Implement abort function -->
+        <op-btn color="red">
+          <op-icon icon="stop" />
+          {{ i18n.t('_storage_files.abort_download') }}
+        </op-btn>
+      </div>
+    </div>
   </OpModal>
 
   <!-- Delete Modal -->
@@ -133,6 +156,7 @@ function deleteConfig(): void {
           :storage="storage"
           :config="config"
           @edit="openForm(config.getConfig())"
+          @abort-download="aborting = config"
           @delete="deleting = config"
         />
       </div>

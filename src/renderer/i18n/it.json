@@ -30,7 +30,11 @@
     "reveal_in_explorer": "Apri cartella",
     "downloaded": "Scaricati",
     "failed": "Falliti",
-    "total": "Totali"
+    "total": "Totali",
+    "no_files_to_download": "Nessun file da scaricare",
+    "downloading": "Download in corso...",
+    "abort_download": "Ferma download",
+    "abort_download_msg": "Sei sicuro di voler fermare il download dei media per {label}?"
   },
   "language": {
     "it": "Italiano",
