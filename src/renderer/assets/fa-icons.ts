@@ -1,8 +1,11 @@
+import { faGithub } from '@fortawesome/free-brands-svg-icons'
 import {
   faArrowsRotate,
   faBug,
   faCalendar,
   faCheck,
+  faCircle,
+  faCircleInfo,
   faCloudArrowDown,
   faComputer,
   faDownload,
@@ -49,6 +52,7 @@ export default [
   faStop,
   faCalendar,
   faArrowsRotate,
+  faCircle,
   faFile,
   faFolderOpen,
   faDownload,
@@ -56,5 +60,7 @@ export default [
   faExclamation,
   faTriangleExclamation,
   faHashtag,
+  faCircleInfo,
   faCheck,
+  faGithub,
 ]

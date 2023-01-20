@@ -23,6 +23,10 @@ const store = new Store({
   watch: true,
   clearInvalidConfig: true,
 })
+ipcMain.on('openURL', (event, url) => {
+  event.preventDefault()
+  shell.openExternal(url)
+})
 ipcMain.on(
   'checkMissingTokens',
   (event, config_id: string, remote_tokens: string[], directory: string) => {
