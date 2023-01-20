@@ -1,25 +1,26 @@
 <script lang="ts" setup>
 import { FolderConfig } from '@classes/folder-config'
+import { StorageService } from '@classes/store'
 import dayjs from 'dayjs'
-import de from 'dayjs/locale/de'
 import en from 'dayjs/locale/en'
-import es from 'dayjs/locale/es'
-import fr from 'dayjs/locale/fr'
 import it from 'dayjs/locale/it'
-import ru from 'dayjs/locale/ru'
-import zh from 'dayjs/locale/zh'
-import { onBeforeMount, PropType } from 'vue'
+import { PropType, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SyncLoaderStatus from '../sync-loader-status.vue'
 
 const i18n = useI18n()
 defineEmits(['edit', 'delete'])
 const props = defineProps({
+  storage: {
+    type: StorageService,
+    required: true,
+  },
   config: {
     type: Object as PropType<FolderConfig>,
     required: true,
   },
 })
+
 function syncOrLoad(): void {
   if (props.config.is_loading) return
   if (props.config.images_raw_by_token.size) {
@@ -43,32 +44,23 @@ function openPath(file_name?: string): void {
 }
 function setLocale(): void {
   switch (i18n.locale.value) {
-    case 'de':
-      dayjs.locale(de)
-      break
     case 'en':
       dayjs.locale(en)
       break
-    case 'es':
-      dayjs.locale(es)
-      break
-    case 'fr':
-      dayjs.locale(fr)
-      break
     case 'it':
       dayjs.locale(it)
-      break
-    case 'ru':
-      dayjs.locale(ru)
-      break
-    case 'zh':
-      dayjs.locale(zh)
       break
     default:
       dayjs.locale(it)
   }
 }
-onBeforeMount(() => setLocale())
+watch(
+  () => i18n.locale.value,
+  () => {
+    setLocale()
+  },
+  { immediate: true },
+)
 </script>
 <template>
   <op-card class="gap-unit" provide>

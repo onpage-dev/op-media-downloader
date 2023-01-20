@@ -2,41 +2,38 @@
   "no_items": "Nessun elemento",
   "search_placeholder": "Cerca...",
   "simultaneous_downloads": "Download contemporanei",
-  "min_1": "min. 1",
+  "min_1": "1-10",
   "edit": "Modifica",
   "cancel": "Annulla",
   "delete": "Elimina",
   "save": "Salva",
+  "app_language": "Lingua applicazione",
   "loading": "Caricamento...",
   "user_settings": "Opzioni applicazione",
   "dark_mode": "Tema scuro",
   "failed_to_load_schema": "Caricamento fallito",
   "schema_load_failed_msg": "Caricamento del progetto fallito, verifica che il token sia corretto o che la connessione sia presente.",
   "_storage_data": {
-    "title": "Progetti",
     "label": "Nome",
     "add_new_storage": "Aggiungi progetto",
     "edit_storage": "Modifica \"{label}\"",
     "delete_storage": "Sei sicuro di voler eliminare \"{label}\"?",
-    "delete_local_files": "Elimina anche i file scaricati localmente",
+    "delete_local_files": "Elimina anche la cartella ed i file scaricati",
     "api_token": "Token Api",
     "folder_path": "Scegli dove salvare i file",
     "choose_folder": "Scegli cartella"
   },
   "_storage_files": {
-    "title": "File",
     "last_sync": "Ultima sincronizzazione",
-    "select_project": "Seleziona un progetto per iniziare",
     "start_sync": "Sincronizza",
     "download": "Scarica",
     "reveal_in_explorer": "Apri cartella",
-    "local_files": "File scaricati",
-    "local_file": "File locali",
-    "remote_file": "File in rete",
-    "fetch_remote_files": "Aggiorna file in rete",
     "downloaded": "Scaricati",
     "failed": "Falliti",
-    "already_present": "Già presenti",
     "total": "Totali"
+  },
+  "language": {
+    "it": "Italiano",
+    "en": "English"
   }
 }

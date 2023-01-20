@@ -379,6 +379,14 @@ export default defineComponent({
             if (!isFinite(value)) {
               value = undefined
             }
+            if (value) {
+              if (this.min) {
+                value = value < this.min ? this.min : value
+              }
+              if (this.max) {
+                value = value > this.max ? this.max : value
+              }
+            }
           }
           if (this.preferUndefined && this.undefinedValue === value) {
             value = undefined

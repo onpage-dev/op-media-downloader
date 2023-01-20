@@ -1,1 +1,39 @@
-{}
+{
+  "no_items": "No items",
+  "search_placeholder": "Search...",
+  "simultaneous_downloads": "Simultaneous downloads",
+  "min_1": "1-10",
+  "edit": "Edit",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "save": "Save",
+  "app_language": "Application language",
+  "loading": "Loading...",
+  "user_settings": "App settings",
+  "dark_mode": "Dark theme",
+  "failed_to_load_schema": "Loading failed",
+  "schema_load_failed_msg": "Project loading failed, check if the token is valid and if the internet connection is stable.",
+  "_storage_data": {
+    "label": "Name",
+    "add_new_storage": "Add project",
+    "edit_storage": "Edit \"{label}\"",
+    "delete_storage": "Are you shure you want to delete \"{label}\"?",
+    "delete_local_files": "Delete downloaded files and target folder too",
+    "api_token": "Api Token",
+    "folder_path": "Choose where to save the files",
+    "choose_folder": "Choose folder"
+  },
+  "_storage_files": {
+    "last_sync": "Last sync",
+    "start_sync": "Sync",
+    "download": "Download",
+    "reveal_in_explorer": "Open folder",
+    "downloaded": "Downloaded",
+    "failed": "Failed",
+    "total": "Total"
+  },
+  "language": {
+    "it": "Italiano",
+    "en": "English"
+  }
+}

@@ -3,11 +3,6 @@ import { App } from 'vue'
 
 import it from '../i18n/it.json'
 import en from '../i18n/en.json'
-import de from '../i18n/de.json'
-import fr from '../i18n/fr.json'
-import zh from '../i18n/zh.json'
-import ru from '../i18n/ru.json'
-import es from '../i18n/es.json'
 
 export default {
   install(app: App): void {
@@ -57,11 +52,6 @@ export default {
       messages: {
         it: it,
         en: en,
-        de: de,
-        es: es,
-        fr: fr,
-        zh: zh,
-        ru: ru,
       },
     })
 

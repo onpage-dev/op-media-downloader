@@ -2,13 +2,15 @@
 import { StorageService } from '@classes/store'
 import { forEach } from 'lodash'
 import { computed, onBeforeMount, Ref, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import OpMenubar from './components/op-menubar.vue'
-import { themes } from './service/theme-service'
 import StorageDataList from './components/storage-data/storage-data-list.vue'
-
+import { themes } from './service/theme-service'
+const i18n = useI18n()
 const storage = ref(new StorageService()) as Ref<StorageService>
 const theme = ref(themes[1])
 
+const lang = computed(() => storage.value.user_properties.language)
 const dark_mode = computed(() => storage.value.user_properties.dark_mode)
 const base_style = computed(() => {
   const ret = [] as string[]
@@ -63,6 +65,9 @@ function setBaseColor(
 
 watch(dark_mode, () => {
   toggleDarkMode()
+})
+watch(lang, () => {
+  i18n.locale.value = lang.value ?? 'it'
 })
 
 onBeforeMount(() => {

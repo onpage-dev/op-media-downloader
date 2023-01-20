@@ -130,6 +130,7 @@ function deleteConfig(): void {
     <div class="full-height-scroll pr-unit-half gap-unit">
       <div v-for="config in filtered_configs" :key="config.id">
         <StorageServiceItem
+          :storage="storage"
           :config="config"
           @edit="openForm(config.getConfig())"
           @delete="deleting = config"

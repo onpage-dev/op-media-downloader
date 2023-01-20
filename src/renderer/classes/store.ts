@@ -7,6 +7,9 @@ import {
   SyncProgressInfo,
 } from './folder-config'
 
+export const SUPPORTED_LANGS = ['it', 'en'] as const
+export type SupportedLang = typeof SUPPORTED_LANGS[number]
+
 export type ConfigEvents = {
   downloadProgress: {
     event: IpcRendererEvent
@@ -26,6 +29,7 @@ export interface Store {
 export interface UserSettings {
   dark_mode?: boolean
   simultaneous_downloads?: number
+  language?: SupportedLang
 }
 
 export interface StorageServiceJson {
