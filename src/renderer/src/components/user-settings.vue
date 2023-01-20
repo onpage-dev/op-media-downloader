@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { StorageService, SupportedLang, SUPPORTED_LANGS } from '@classes/store'
 import { countries } from '../..//boot/countries'
-import { computed, onBeforeMount, Ref, ref } from 'vue'
+import { computed, watch, onBeforeMount, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import OpFlag from './op-flag.vue'
 import OpToggle from './op-toggle.vue'
@@ -12,7 +12,7 @@ const props = defineProps({
     required: true,
   },
 })
-const local_simultaneous_downloads = ref(1)
+const local_simultaneous_downloads: Ref<number | undefined> = ref(undefined)
 const debounce_save: Ref<any | undefined> = ref(undefined)
 
 const current_lang = computed(() => props.storage.user_properties.language)
@@ -30,12 +30,20 @@ function setSimultaneousDownloads(new_val: number): void {
   }
   debounce_save.value = setTimeout(() => {
     props.storage.set('user_properties.simultaneous_downloads', new_val)
-    local_simultaneous_downloads.value = new_val
   }, 300)
 }
 function setLang(lang: SupportedLang): void {
   props.storage.set('user_properties.language', lang)
 }
+
+watch(
+  simultaneous_downloads,
+  val => {
+    local_simultaneous_downloads.value = val
+  },
+  { immediate: true },
+)
+
 onBeforeMount(() => {
   if (!simultaneous_downloads.value) {
     setSimultaneousDownloads(1)
@@ -53,7 +61,7 @@ onBeforeMount(() => {
         <span> {{ i18n.t('dark_mode') }}</span>
       </OpToggle>
 
-      <div class="flex flex-col">
+      <div v-if="local_simultaneous_downloads" class="flex flex-col">
         <span>
           {{ $t('simultaneous_downloads') }}
           <span class="text-sm opacity-50"> ({{ $t('min_1') }}) </span>
