@@ -18,6 +18,7 @@ export interface CondensedOpFile {
 export interface SyncProgressInfo {
   start_time: string
   downloading: boolean
+  is_stopping: boolean
   total: number
   downloaded: number
   failed: number
@@ -87,6 +88,9 @@ export class FolderConfig {
 
   get is_downloading(): boolean {
     return this.current_sync?.downloading ?? false
+  }
+  get is_stopping(): boolean {
+    return this.current_sync?.is_stopping ?? false
   }
   get is_loading(): boolean {
     return this.loading_schema || !!this.loaders.size || this.is_downloading
@@ -186,6 +190,7 @@ export class FolderConfig {
       downloaded: 0,
       failed: 0,
       already_exists: 0,
+      is_stopping: false,
     })
     window.electron.ipcRenderer.send(
       'downloadFiles',
@@ -202,6 +207,11 @@ export class FolderConfig {
     )
   }
 
+  stopDownload(): void {
+    console.log('sending stop signal', this.id)
+    window.electron.ipcRenderer.send('stop-download', this.id)
+  }
+
   saveLastSync(progress: SyncProgressInfo): void {
     this.last_sync = {
       end_time: this.getCurrentDate(),
@@ -211,6 +221,7 @@ export class FolderConfig {
       failed: progress.failed,
       already_exists: progress.already_exists,
       total: progress.total,
+      is_stopping: false,
     }
     this.current_sync = undefined
     this.resetRemoteFiles()

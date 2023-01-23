@@ -157,14 +157,12 @@ watch(
           </span>
         </op-btn>
 
-        <!-- TODO: Implement Abort functionality -->
         <op-btn
-          v-if="false && config.is_downloading"
+          v-if="config.is_downloading"
           class="min-w-0"
           color="inherit"
           pad="compact"
-          :disabled="config.is_loading"
-          :loading="config.is_loading"
+          :loading="config.is_stopping"
           @click="$emit('abort-download')"
         >
           <div class="flex-row-center-unit sober-link-danger">

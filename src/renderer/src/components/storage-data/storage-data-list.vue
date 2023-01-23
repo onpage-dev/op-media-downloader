@@ -90,8 +90,10 @@ function deleteConfig(): void {
           <op-icon icon="xmark" />
           {{ i18n.t('cancel') }}
         </op-btn>
-        <!-- TODO: Implement abort function -->
-        <op-btn color="red">
+        <op-btn
+          color="red"
+          @click="aborting?.stopDownload(), (aborting = undefined)"
+        >
           <op-icon icon="stop" />
           {{ i18n.t('_storage_files.abort_download') }}
         </op-btn>

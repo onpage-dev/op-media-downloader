@@ -1,6 +1,11 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import axios from 'axios'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain, shell
+} from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
@@ -12,6 +17,7 @@ import { processQueue } from './utils'
 export interface SyncProgressInfo {
   start_time: string
   downloading: boolean
+  is_stopping: boolean
   total: number
   downloaded: number
   failed: number
@@ -51,6 +57,11 @@ ipcMain.on(
 ipcMain.on('openPath', (_event, path_to_open) => {
   console.log(`[openPath] triggered for path ${path_to_open}`)
   shell.openPath(path.normalize(path_to_open))
+})
+
+ipcMain.on('stop-download', (_event, config_id: number) => {
+  console.log('[download-stop] stopping download for config', config_id)
+  queues.get(config_id)?.splice(0)
 })
 ipcMain.on('deleteFolder', async (_event, folder_path: string) => {
   try {
@@ -105,6 +116,9 @@ ipcMain.on(
     })
   },
 )
+
+const queues: Map<number, (() => Promise<void>)[]> = new Map()
+
 ipcMain.on(
   'downloadFiles',
   async (
@@ -127,6 +141,7 @@ ipcMain.on(
     const existing_files = fs.readdirSync(dataPath)
 
     const emit_progress = (): void => {
+      data.loader.is_stopping = !jobs.length
       event.sender.send('downloadProgress', config_id, data.loader)
     }
 
@@ -135,11 +150,11 @@ ipcMain.on(
       token: string
       name: string
     }): Promise<void> => {
-      console.log(
-        '[download] Start file download',
-        file.token,
-        process.memoryUsage().heapUsed / 1024 / 1024 / 1024 + ' GB',
-      )
+      // console.log(
+      //   '[download] Start file download',
+      //   file.token,
+      //   process.memoryUsage().heapUsed / 1024 / 1024 / 1024 + ' GB',
+      // )
 
       // Create the file path
       const filePath = path.normalize(`${dataPath}/${file.token}`)
@@ -154,7 +169,7 @@ ipcMain.on(
 
       // Download the file
       try {
-        console.log('[download] Streaming url to file', file.token)
+        // console.log('[download] Streaming url to file', file.token)
         await downloadUrlToFile(file.url, filePath)
         console.log('[download] stream complete', file.token)
 
@@ -169,16 +184,22 @@ ipcMain.on(
       }
     }
 
+    const jobs = data.files.map(
+      file => (): Promise<void> => download_file(file),
+    )
+
+    queues.set(config_id, jobs)
+
     console.log(`[downloadFiles] sync ${to_download.length} files`)
     const concurrentCount =
       Number(store.get('user_properties.simultaneous_downloads')) || 1
-    await processQueue(
-      data.files.map(file => (): Promise<void> => download_file(file)),
-      concurrentCount,
-    )
+
+    await processQueue(jobs, concurrentCount)
 
     data.loader.downloading = false
+    queues.delete(config_id)
     event.sender.send('downloadProgress', config_id, data.loader)
+
     console.log(` - downloaded: ${data.loader.downloaded}`)
     console.log(` - failed: ${data.loader.failed}`)
     console.log(` - already_exists: ${data.loader.already_exists}`)
@@ -187,7 +208,7 @@ ipcMain.on(
 )
 ipcMain.handle('pick-folder-path', async () => {
   const res = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
+    properties: ['openDirectory', 'createDirectory'],
   })
   return path.normalize(res.filePaths[0])
 })
