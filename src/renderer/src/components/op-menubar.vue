@@ -24,13 +24,13 @@ function openURL(url: string): void {
   <OpModal v-if="show_info" @close="show_info = false">
     <div class="full-height-scroll gap-unit">
       <!-- Title -->
-      <h1 class="flex flex-row gap-unit items-start">
+      <h2 class="flex flex-row gap-unit items-start">
         <div class="flex flex-row items-start">
           On Page
           <div class="text-sm mt-unit">®</div>
         </div>
         Media Downloader
-      </h1>
+      </h2>
 
       <div class="full-height-scroll gap-unit-double">
         <template v-if="italian">
