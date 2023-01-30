@@ -39,6 +39,11 @@ const filtered_configs = computed(() => {
   }
   return ret
 })
+const configs_with_duplicate_images = computed(() => {
+  return Array.from(props.storage.configs.values()).filter(
+    config => config.duplicated_images.size && !config.loaders.size,
+  )
+})
 
 function openForm(f?: FolderConfigJson): void {
   form.value = f ?? {
@@ -124,6 +129,56 @@ function deleteConfig(): void {
           {{ i18n.t('delete') }}
         </op-btn>
       </div>
+    </div>
+  </OpModal>
+
+  <OpModal
+    v-for="config in configs_with_duplicate_images"
+    :key="config.id"
+    @close="config.confirmDuplicatesAndContinue()"
+  >
+    <div class="modal-size-w-sm full-height-scroll gap-unit-double">
+      <h4 class="flex-row-center-unit">
+        <op-icon icon="triangle-exclamation" size="xl" class="text-warning" />
+        {{
+          i18n.t('_storage_data.config_has_duplicates', {
+            config: config.label,
+          })
+        }}
+      </h4>
+      <div>
+        {{ i18n.t('_storage_data.config_has_duplicates_description') }}
+      </div>
+
+      <div class="full-height-scroll gap-unit-double pr-unit-half">
+        <!-- files list -->
+        <div
+          v-for="[name, val] in config.duplicated_images"
+          :key="name"
+          class="flex flex-col gap-unit-half"
+        >
+          <b>
+            {{ name }}
+          </b>
+          <op-card v-for="[token, value] in val" :key="token" pad="compact">
+            <div v-for="x in value" :key="x.field_name">
+              {{ $t('field') }} : {{ x.field_name }}, {{ $t('resource') }}:
+              {{ x.resource_name }}
+            </div>
+            <div class="font-mono opacity-50 text-sm">
+              {{ $t('token') }}: {{ token }}
+            </div>
+          </op-card>
+        </div>
+      </div>
+
+      <op-btn
+        class="self-center"
+        @click="config.confirmDuplicatesAndContinue()"
+      >
+        <op-icon icon="check" />
+        {{ $t('continue') }}
+      </op-btn>
     </div>
   </OpModal>
 

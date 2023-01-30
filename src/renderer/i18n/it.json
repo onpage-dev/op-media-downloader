@@ -1,4 +1,8 @@
 {
+  "continue": "Continua",
+  "field": "Campo",
+  "resource": "Raccolta",
+  "token": "Token",
   "no_items": "Nessun elemento",
   "search_placeholder": "Cerca...",
   "simultaneous_downloads": "Download contemporanei",
@@ -21,7 +25,9 @@
     "delete_local_files": "Elimina anche la cartella ed i file scaricati",
     "api_token": "Token Api",
     "folder_path": "Scegli dove salvare i file",
-    "choose_folder": "Scegli cartella"
+    "choose_folder": "Scegli cartella",
+    "config_has_duplicates": "Sono presenti immagini con lo stesso nome in \"{config}\"",
+    "config_has_duplicates_description": "Le seguenti immagini hanno valori diversi collegati allo stesso nome. Ne verrà scaricata solo una. Si prega di rinominare i file con nomi univoci."
   },
   "_storage_files": {
     "last_sync": "Ultima sincronizzazione",

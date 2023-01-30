@@ -1,11 +1,6 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import axios from 'axios'
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain, shell
-} from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'

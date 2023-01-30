@@ -4,8 +4,9 @@ import { StorageService } from '@classes/store'
 import dayjs from 'dayjs'
 import en from 'dayjs/locale/en'
 import it from 'dayjs/locale/it'
-import { PropType, watch } from 'vue'
+import { PropType, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import OpModal from '../op-modal.vue'
 import SyncLoaderStatus from '../sync-loader-status.vue'
 
 const i18n = useI18n()
@@ -20,6 +21,7 @@ const props = defineProps({
     required: true,
   },
 })
+const show_warning = ref(false)
 
 function syncOrLoad(): void {
   if (props.config.is_loading) return
@@ -31,12 +33,9 @@ function syncOrLoad(): void {
     }
   } else {
     props.config.loadRemoteFiles().then(() => {
-      window.electron.ipcRenderer.send(
-        'checkMissingTokens',
-        props.config.id,
-        Array.from(props.config.images_raw_by_token.keys()),
-        props.config.folder_path,
-      )
+      if (!props.config.duplicated_images.size) {
+        props.config.checkMissingTokens()
+      }
     })
   }
 }
@@ -67,6 +66,7 @@ watch(
 )
 </script>
 <template>
+  <OpModal v-if="show_warning" />
   <op-card class="gap-unit" provide>
     <!-- Header and btns -->
     <div class="flex-row-center-unit" col>

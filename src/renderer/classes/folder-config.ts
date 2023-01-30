@@ -2,7 +2,7 @@ import { sleep } from '@renderer/service/utils'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import { cloneDeep, flatMap, throttle, uniqBy } from 'lodash'
-import { Api, FieldID, OpFile, OpFileRaw, Schema } from 'onpage-js'
+import { Api, Field, FieldID, OpFile, OpFileRaw, Schema } from 'onpage-js'
 import { reactive } from 'vue'
 import { ConfigEvents, StorageService } from './store'
 dayjs.extend(utc)
@@ -41,6 +41,7 @@ export class FolderConfig {
   current_sync?: SyncProgressInfo
 
   images_raw_by_token: Map<string, OpFileRaw[]> = reactive(new Map())
+  images_by_name: Map<string, Map<string, any[]>> = reactive(new Map())
   local_file_tokens: string[] = reactive([])
   images_to_download: OpFileRaw[] = reactive([])
 
@@ -48,6 +49,11 @@ export class FolderConfig {
     this.api = reactive(new Api('app', this.api_token)) as Api
   }
 
+  get duplicated_images(): Map<string, Map<string, any[]>> {
+    return new Map(
+      Array.from(this.images_by_name).filter(([, obj]) => obj.size > 1),
+    )
+  }
   get images_raw_array(): OpFileRaw[] {
     return flatMap(Array.from(this.images_raw_by_token.values()))
   }
@@ -109,6 +115,11 @@ export class FolderConfig {
   }
   resetRemoteFiles(): void {
     this.images_raw_by_token.clear()
+    this.images_by_name.clear()
+  }
+  confirmDuplicatesAndContinue(): void {
+    this.images_by_name.clear()
+    this.checkMissingTokens()
   }
   // Load all files of the project
   async loadRemoteFiles(): Promise<void> {
@@ -129,6 +140,7 @@ export class FolderConfig {
             images = await this.schema
               ?.query(resource.name)
               .pluck<OpFile>(field.id)
+
             break
           } catch (error) {
             await sleep(1000)
@@ -139,9 +151,30 @@ export class FolderConfig {
           const bytoken = this.images_raw_by_token.get(image.token)
           if (!bytoken) this.images_raw_by_token.set(image.token, [image])
           else bytoken.push(image)
+
+          const byname = this.images_by_name.get(image.name)
+          if (!byname) {
+            const val: Map<string, any[]> = new Map()
+            val.set(image.token, [this.formatField(field)])
+            this.images_by_name.set(image.name, val)
+          } else {
+            const hastoken = byname.get(image.token)
+            if (!hastoken) {
+              byname.set(image.token, [this.formatField(field)])
+            } else {
+              hastoken.push(this.formatField(field))
+            }
+          }
         })
         this.loaders.delete(field.id)
       }
+    }
+  }
+
+  formatField(field: Field): { field_name: string; resource_name: string } {
+    return {
+      field_name: field.name,
+      resource_name: field.resource().name,
     }
   }
 
@@ -227,6 +260,15 @@ export class FolderConfig {
     this.resetRemoteFiles()
     console.log('completed! save last sync')
     this.storage.setConfig(this.getConfig())
+  }
+
+  checkMissingTokens(): void {
+    window.electron.ipcRenderer.send(
+      'checkMissingTokens',
+      this.id,
+      Array.from(this.images_raw_by_token.keys()),
+      this.folder_path,
+    )
   }
 
   async refresh(): Promise<void> {

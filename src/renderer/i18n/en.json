@@ -1,4 +1,8 @@
 {
+  "continue": "Continue",
+  "field": "Field",
+  "resource": "Resource",
+  "token": "Token",
   "no_items": "No items",
   "search_placeholder": "Search...",
   "simultaneous_downloads": "Simultaneous downloads",
@@ -21,7 +25,9 @@
     "delete_local_files": "Delete downloaded files and target folder too",
     "api_token": "Api Token",
     "folder_path": "Choose where to save the files",
-    "choose_folder": "Choose folder"
+    "choose_folder": "Choose folder",
+    "config_has_duplicates": "Images with the same name in \"{config}\"",
+    "config_has_duplicates_description": "The following images have different values connected to the same name. Only one of them will be downloaded. Please rename the following files with unique names."
   },
   "_storage_files": {
     "last_sync": "Last sync",
