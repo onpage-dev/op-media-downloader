@@ -51,6 +51,7 @@ function openForm(f?: FolderConfigJson): void {
     api_token: '',
     folder_path: '',
     id: uuidv4(),
+    keep_old_files: false,
     label: '',
   }
 }
@@ -151,8 +152,8 @@ function deleteConfig(): void {
         {{ i18n.t('_storage_data.config_has_duplicates_description') }}
       </div>
 
+      <!-- files list -->
       <div class="full-height-scroll gap-unit-double pr-unit-half">
-        <!-- files list -->
         <div
           v-for="[name, val] in config.duplicated_images"
           :key="name"
@@ -175,9 +176,11 @@ function deleteConfig(): void {
                 :key="duplicates[0].field.id"
               >
                 <div class="font-bold">
-                  {{ duplicates[0].field.resource().label }}
+                  {{
+                    duplicates[0].field.resource().getLabel(i18n.locale.value)
+                  }}
                   →
-                  {{ duplicates[0].field.label }}
+                  {{ duplicates[0].field.getLabel(i18n.locale.value) }}
                 </div>
 
                 <a
@@ -189,27 +192,27 @@ function deleteConfig(): void {
                   }/${x.field.resource_id}`"
                   target="_blank"
                 >
-                  <!-- {{ $t('thing') }}: -->
                   {{ x.thing_label }}
                   <span class="text-sm opacity-50"> #{{ x.thing_id }} </span>
                   <span v-if="x.lang"> ({{ x.lang }}) </span>
                 </a>
               </div>
             </div>
-            <!-- <div class="font-mono opacity-50 text-sm">
-              {{ $t('token') }}: {{ token }}
-            </div> -->
           </op-card>
         </div>
       </div>
 
-      <op-btn
-        class="self-center"
-        @click="config.confirmDuplicatesAndContinue()"
-      >
-        <op-icon icon="check" />
-        {{ $t('continue') }}
-      </op-btn>
+      <div class="flex-row-center-unit justify-between">
+        <op-btn @click="config.loadRemoteFiles()">
+          <op-icon icon="arrows-rotate" />
+          {{ $t('refresh') }}
+        </op-btn>
+
+        <op-btn color="warning" @click="config.confirmDuplicatesAndContinue()">
+          {{ $t('continue') }}
+          <op-icon icon="arrow-right" />
+        </op-btn>
+      </div>
     </div>
   </OpModal>
 

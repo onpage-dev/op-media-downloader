@@ -1,17 +1,7 @@
-import { sleep } from '@renderer/service/utils'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import { chunk, cloneDeep, flatMap, throttle, uniqBy } from 'lodash'
-import {
-  Api,
-  Field,
-  FieldID,
-  OpFile,
-  OpFileRaw,
-  Schema,
-  Thing,
-  ThingID,
-} from 'onpage-js'
+import { Api, Field, FieldID, OpFile, Schema, ThingID } from 'onpage-js'
 import { reactive } from 'vue'
 import { ConfigEvents, StorageService } from './store'
 dayjs.extend(utc)
@@ -39,6 +29,7 @@ export interface FolderConfigJson {
   label: string
   api_token: string
   folder_path: string
+  keep_old_files: boolean
   last_sync?: SyncResult
 }
 export type FileToken = string
@@ -58,12 +49,12 @@ export class FolderConfig {
   loaders: Map<FieldID, boolean> = reactive(new Map())
   current_sync?: SyncProgressInfo
 
-  images_raw_by_token: Map<string, OpFileRaw[]> = reactive(new Map())
+  images_raw_by_token: Map<string, OpFile[]> = reactive(new Map())
   images_by_name: Map<FileName, Map<FileToken, DuplicatedInfo[]>> = reactive(
     new Map(),
   )
   local_file_tokens: string[] = reactive([])
-  images_to_download: OpFileRaw[] = reactive([])
+  images_to_download: OpFile[] = reactive([])
 
   constructor(public storage: StorageService, public json: FolderConfigJson) {
     this.api = reactive(new Api('app', this.api_token)) as Api
@@ -74,10 +65,10 @@ export class FolderConfig {
       Array.from(this.images_by_name).filter(([, obj]) => obj.size > 1),
     )
   }
-  get images_raw_array(): OpFileRaw[] {
+  get images_raw_array(): OpFile[] {
     return flatMap(Array.from(this.images_raw_by_token.values()))
   }
-  get uniq_images_raw_array(): OpFileRaw[] {
+  get uniq_images_raw_array(): OpFile[] {
     return uniqBy(this.images_raw_array, file => file.name)
   }
   get label(): string {
@@ -97,6 +88,12 @@ export class FolderConfig {
   }
   set id(id: string) {
     this.json.id = id
+  }
+  get keep_old_files(): boolean {
+    return this.json.keep_old_files
+  }
+  set keep_old_files(keep_old_files: boolean) {
+    this.json.keep_old_files = keep_old_files
   }
   get folder_path(): string {
     return this.json.folder_path
@@ -127,6 +124,7 @@ export class FolderConfig {
       label: this.label,
       api_token: this.api_token,
       folder_path: this.folder_path,
+      keep_old_files: this.json.keep_old_files,
       last_sync: this.last_sync,
     }
   }
@@ -235,11 +233,13 @@ export class FolderConfig {
 
     if (!progressEvent.downloading) {
       // Delete local files that are not present on remote anymore
-      window.electron.ipcRenderer.send(
-        'deleteRemovedFilesFromRemote',
-        cloneDeep(this.uniq_images_raw_array),
-        this.folder_path,
-      )
+      if (!this.keep_old_files) {
+        window.electron.ipcRenderer.send(
+          'deleteRemovedFilesFromRemote',
+          [...this.uniq_images_raw_array.map(file => file.serialize())],
+          this.folder_path,
+        )
+      }
 
       // Save sync
       this.saveLastSync(progressEvent)
@@ -267,12 +267,13 @@ export class FolderConfig {
       this.id,
       cloneDeep({
         files: this.uniq_images_raw_array.map(file => ({
-          url: OpFile.fromRaw(file).link(),
+          url: file.link(),
           token: file.token,
           name: file.name,
         })),
         directory: this.folder_path,
         loader: this.current_sync,
+        keep_old_files: this.keep_old_files,
       }),
     )
   }

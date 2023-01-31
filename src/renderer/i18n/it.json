@@ -1,9 +1,6 @@
 {
   "continue": "Continua",
-  "field": "Campo",
-  "thing": "Elemento",
-  "resource": "Raccolta",
-  "token": "Token",
+  "refresh": "Aggiorna",
   "no_items": "Nessun elemento",
   "search_placeholder": "Cerca...",
   "simultaneous_downloads": "Download contemporanei",
@@ -27,6 +24,8 @@
     "api_token": "Token Api",
     "folder_path": "Scegli dove salvare i file",
     "choose_folder": "Scegli cartella",
+    "keep_old_files": "Mantieni i vecchi file locali non più presenti su On Page",
+    "keep_old_files_msg": "Attivare questa funzione può creare conflitti tra i nuovi ed i vecchi file con lo stesso nome",
     "config_has_duplicates": "Sono presenti immagini con lo stesso nome in \"{config}\"",
     "config_has_duplicates_description": "Le seguenti immagini hanno valori diversi collegati allo stesso nome. Ne verrà scaricata solo una. Si prega di rinominare i file con nomi univoci."
   },

@@ -66,6 +66,9 @@ function openURL(url: string): void {
                 <op-icon icon="circle" style="font-size: 0.4rem" /> Cartella
                 dove salvare i file scaricati
               </li>
+              <li class="flex-row-center-unit">
+                <op-icon icon="circle" style="font-size: 0.4rem" /> Se mantenere o meno i vecchi file scaricati non più presenti su On Page
+              </li>
             </ol>
 
             <p class="pt-unit">
@@ -121,6 +124,9 @@ function openURL(url: string): void {
               <li class="flex-row-center-unit">
                 <op-icon icon="circle" style="font-size: 0.4rem" /> Destination
                 Folder where the software will save the downloaded files
+              </li>
+              <li class="flex-row-center-unit">
+                <op-icon icon="circle" style="font-size: 0.4rem" /> If you'd like to keep the local files that are not present on On Page anymore
               </li>
             </ol>
 

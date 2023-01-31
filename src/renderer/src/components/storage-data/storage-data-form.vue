@@ -4,6 +4,7 @@ import { StorageService } from '@classes/store'
 import { cloneDeep } from 'lodash'
 import { PropType, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import OpToggle from '../op-toggle.vue'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -90,6 +91,17 @@ async function save(): Promise<void> {
             {{ $t('_storage_data.choose_folder') }}
           </op-clickable-card>
         </div>
+      </div>
+
+      <OpToggle v-model="local_form.keep_old_files" acolor="warning">
+        {{ $t('_storage_data.keep_old_files') }}
+      </OpToggle>
+      <div
+        v-if="local_form.keep_old_files"
+        class="flex flex-row items-center gap-unit bg-warning bg-opacity-20 p-unit rounded-md"
+      >
+        <op-icon icon="exclamation-triangle" size="xl" class="text-warning" />
+        {{ $t('_storage_data.keep_old_files_msg') }}
       </div>
     </div>
 

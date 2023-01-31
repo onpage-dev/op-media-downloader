@@ -123,6 +123,7 @@ ipcMain.on(
       files: { url: string; token: string; name: string }[]
       directory: string
       loader: SyncProgressInfo
+      keep_old_files: boolean
     },
   ) => {
     console.log(`[downloadFiles] triggered for folder ${data.directory}`)
@@ -135,6 +136,15 @@ ipcMain.on(
 
     const existing_files = fs.readdirSync(dataPath)
 
+    // Delete old links
+    if (!data.keep_old_files) {
+      fs.readdirSync(data.directory).forEach(link => {
+        if (link !== 'data') {
+          fs.unlinkSync(path.normalize(`${data.directory}/${link}`))
+        }
+      })
+    }
+
     const emit_progress = (): void => {
       data.loader.is_stopping = !jobs.length
       event.sender.send('downloadProgress', config_id, data.loader)
@@ -145,31 +155,28 @@ ipcMain.on(
       token: string
       name: string
     }): Promise<void> => {
-      // console.log(
-      //   '[download] Start file download',
-      //   file.token,
-      //   process.memoryUsage().heapUsed / 1024 / 1024 / 1024 + ' GB',
-      // )
-
       // Create the file path
       const filePath = path.normalize(`${dataPath}/${file.token}`)
       const linkPath = path.normalize(`${data.directory}/${file.name}`)
 
       if (existing_files.includes(file.token)) {
         console.log('[download] File exists')
-        fs.link(filePath, linkPath, () => {})
+        fs.unlink(linkPath, () => {
+          fs.link(filePath, linkPath, () => {})
+        })
         data.loader.already_exists++
         return
       }
 
       // Download the file
       try {
-        // console.log('[download] Streaming url to file', file.token)
         await downloadUrlToFile(file.url, filePath)
         console.log('[download] stream complete', file.token)
 
-        // Link the file and return
-        fs.link(filePath, linkPath, () => {})
+        // Unlink file if already present then Link the file and return
+        fs.unlink(linkPath, () => {
+          fs.link(filePath, linkPath, () => {})
+        })
         data.loader.downloaded++
       } catch (error) {
         console.log('[download] cannot download file:', error)
