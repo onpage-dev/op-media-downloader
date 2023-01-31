@@ -1,6 +1,7 @@
 {
   "continue": "Continua",
   "field": "Campo",
+  "thing": "Elemento",
   "resource": "Raccolta",
   "token": "Token",
   "no_items": "Nessun elemento",

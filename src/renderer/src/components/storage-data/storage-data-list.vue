@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { FolderConfig, FolderConfigJson } from '@classes/folder-config'
 import { StorageService } from '@classes/store'
+import { groupBy } from 'lodash'
 import { v4 as uuidv4 } from 'uuid'
 
 import { computed, PropType, Ref, ref } from 'vue'
@@ -160,14 +161,44 @@ function deleteConfig(): void {
           <b>
             {{ name }}
           </b>
-          <op-card v-for="[token, value] in val" :key="token" pad="compact">
-            <div v-for="x in value" :key="x.field_name">
-              {{ $t('field') }} : {{ x.field_name }}, {{ $t('resource') }}:
-              {{ x.resource_name }}
+          <op-card v-for="[token, value] in val" :key="token" pad="compact" row>
+            <a :href="value[0].file.link({ inline: true })" target="_blank">
+              <img
+                class="w-20 h-20 bg-grey block"
+                :src="value[0].file.link({ x: 100, y: 100, mode: 'contain' })"
+              />
+            </a>
+
+            <div>
+              <div
+                v-for="duplicates in groupBy(value, x => x.field.id)"
+                :key="duplicates[0].field.id"
+              >
+                <div class="font-bold">
+                  {{ duplicates[0].field.resource().label }}
+                  →
+                  {{ duplicates[0].field.label }}
+                </div>
+
+                <a
+                  v-for="x in duplicates"
+                  :key="x.thing_id"
+                  class="block sober-link-accent"
+                  :href="`https://app.onpage.it/#/things/edit/${x.thing_id}/${
+                    x.field.schema().id
+                  }/${x.field.resource_id}`"
+                  target="_blank"
+                >
+                  <!-- {{ $t('thing') }}: -->
+                  {{ x.thing_label }}
+                  <span class="text-sm opacity-50"> #{{ x.thing_id }} </span>
+                  <span v-if="x.lang"> ({{ x.lang }}) </span>
+                </a>
+              </div>
             </div>
-            <div class="font-mono opacity-50 text-sm">
+            <!-- <div class="font-mono opacity-50 text-sm">
               {{ $t('token') }}: {{ token }}
-            </div>
+            </div> -->
           </op-card>
         </div>
       </div>

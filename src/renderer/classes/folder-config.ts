@@ -1,8 +1,17 @@
 import { sleep } from '@renderer/service/utils'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
-import { cloneDeep, flatMap, throttle, uniqBy } from 'lodash'
-import { Api, Field, FieldID, OpFile, OpFileRaw, Schema } from 'onpage-js'
+import { chunk, cloneDeep, flatMap, throttle, uniqBy } from 'lodash'
+import {
+  Api,
+  Field,
+  FieldID,
+  OpFile,
+  OpFileRaw,
+  Schema,
+  Thing,
+  ThingID,
+} from 'onpage-js'
 import { reactive } from 'vue'
 import { ConfigEvents, StorageService } from './store'
 dayjs.extend(utc)
@@ -32,6 +41,15 @@ export interface FolderConfigJson {
   folder_path: string
   last_sync?: SyncResult
 }
+export type FileToken = string
+export type FileName = string
+export type DuplicatedInfo = {
+  field: Field
+  thing_id: ThingID
+  thing_label?: string
+  file: OpFile
+  lang?: string
+}
 export class FolderConfig {
   api: Api
   schema?: Schema
@@ -41,7 +59,9 @@ export class FolderConfig {
   current_sync?: SyncProgressInfo
 
   images_raw_by_token: Map<string, OpFileRaw[]> = reactive(new Map())
-  images_by_name: Map<string, Map<string, any[]>> = reactive(new Map())
+  images_by_name: Map<FileName, Map<FileToken, DuplicatedInfo[]>> = reactive(
+    new Map(),
+  )
   local_file_tokens: string[] = reactive([])
   images_to_download: OpFileRaw[] = reactive([])
 
@@ -49,7 +69,7 @@ export class FolderConfig {
     this.api = reactive(new Api('app', this.api_token)) as Api
   }
 
-  get duplicated_images(): Map<string, Map<string, any[]>> {
+  get duplicated_images(): Map<FileName, Map<FileToken, DuplicatedInfo[]>> {
     return new Map(
       Array.from(this.images_by_name).filter(([, obj]) => obj.size > 1),
     )
@@ -131,50 +151,67 @@ export class FolderConfig {
     console.log('[loadRemoteFiles] triggered')
 
     for (const resource of this.schema.resources) {
-      for (const field of resource.fields) {
-        if (!field.isMedia()) continue
-        this.loaders.set(field.id, true)
-        let images: OpFileRaw[] | undefined
-        while (!images) {
-          try {
-            images = await this.schema
-              ?.query(resource.name)
-              .pluck<OpFile>(field.id)
+      const media_fields = resource.fields.filter(f => f.isMedia())
+      if (!media_fields.length) continue
+      this.loaders.set(resource.id, true)
+      const ids = await resource
+        .query()
+        .filter([
+          '_or',
+          ...media_fields.map(f => [f.name, 'not_empty', '']),
+        ] as any[])
+        .ids()
+      const label_field = resource.fields.find(f => f.is_textual)
+      const fields_to_load = media_fields
+      if (label_field) fields_to_load.push(label_field)
 
-            break
-          } catch (error) {
-            await sleep(1000)
+      for (const id_chunk of chunk(ids, 10000)) {
+        const things = await resource
+          .query()
+          .setFields(fields_to_load.map(f => f.name))
+          .where('_id', 'in', id_chunk)
+          .all()
+
+        for (const thing of things) {
+          for (const field of media_fields) {
+            const langs = field.is_translatable
+              ? field.schema().langs
+              : [undefined]
+
+            langs.forEach(lang => {
+              const images: OpFile[] = thing.files(field, lang)
+
+              images.forEach(image => {
+                const bytoken = this.images_raw_by_token.get(image.token)
+                if (!bytoken) this.images_raw_by_token.set(image.token, [image])
+                else bytoken.push(image)
+
+                let byname = this.images_by_name.get(image.name)
+                if (!byname) {
+                  byname = new Map()
+                  this.images_by_name.set(image.name, byname)
+                }
+
+                let hastoken = byname.get(image.token)
+                if (!hastoken) {
+                  hastoken = []
+                  byname.set(image.token, hastoken)
+                }
+
+                hastoken.push({
+                  field,
+                  thing_id: thing.id,
+                  thing_label: label_field ? thing.val(label_field) : undefined,
+                  file: image,
+                  lang,
+                })
+              })
+            })
           }
         }
-
-        images.forEach(image => {
-          const bytoken = this.images_raw_by_token.get(image.token)
-          if (!bytoken) this.images_raw_by_token.set(image.token, [image])
-          else bytoken.push(image)
-
-          const byname = this.images_by_name.get(image.name)
-          if (!byname) {
-            const val: Map<string, any[]> = new Map()
-            val.set(image.token, [this.formatField(field)])
-            this.images_by_name.set(image.name, val)
-          } else {
-            const hastoken = byname.get(image.token)
-            if (!hastoken) {
-              byname.set(image.token, [this.formatField(field)])
-            } else {
-              hastoken.push(this.formatField(field))
-            }
-          }
-        })
-        this.loaders.delete(field.id)
       }
-    }
-  }
 
-  formatField(field: Field): { field_name: string; resource_name: string } {
-    return {
-      field_name: field.name,
-      resource_name: field.resource().name,
+      this.loaders.delete(resource.id)
     }
   }
 

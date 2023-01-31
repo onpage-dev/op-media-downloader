@@ -3,6 +3,7 @@
   "field": "Field",
   "resource": "Resource",
   "token": "Token",
+  "thing": "Item",
   "no_items": "No items",
   "search_placeholder": "Search...",
   "simultaneous_downloads": "Simultaneous downloads",
