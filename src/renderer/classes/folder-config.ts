@@ -1,7 +1,15 @@
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import { chunk, cloneDeep, flatMap, throttle, uniqBy } from 'lodash'
-import { Api, Field, FieldID, OpFile, Schema, ThingID } from 'onpage-js'
+import {
+  Api,
+  Field,
+  FieldID,
+  OpFile,
+  OpFileRaw,
+  Schema,
+  ThingID,
+} from 'onpage-js'
 import { reactive } from 'vue'
 import { ConfigEvents, StorageService } from './store'
 dayjs.extend(utc)
@@ -304,7 +312,9 @@ export class FolderConfig {
     window.electron.ipcRenderer.send(
       'checkMissingTokens',
       this.id,
-      Array.from(this.images_raw_by_token.keys()),
+      Array.from(this.images_raw_by_token.values()).map<OpFileRaw>(files =>
+        files[0].serialize(),
+      ),
       this.folder_path,
     )
   }

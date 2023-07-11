@@ -1,5 +1,6 @@
 import { IpcRendererEvent } from '@electron-toolkit/preload'
 import { cloneDeep, forEach } from 'lodash'
+import { OpFileRaw } from 'onpage-js'
 import { reactive } from 'vue'
 import {
   FolderConfig,
@@ -70,12 +71,12 @@ export class StorageService {
       (
         _event: IpcRendererEvent,
         config_id: string,
-        missing_tokens: string[],
+        missing_files: OpFileRaw[],
       ) => {
         const c = this.configs.get(config_id)
         if (!c) return
         c.images_to_download = c.uniq_images_raw_array.filter(image =>
-          missing_tokens.includes(image.token),
+          missing_files.find(img => img.token == image.token),
         )
       },
     )

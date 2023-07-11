@@ -30,19 +30,25 @@ ipcMain.on('openURL', (event, url) => {
 })
 ipcMain.on(
   'checkMissingTokens',
-  (event, config_id: string, remote_tokens: string[], directory: string) => {
+  (event, config_id: string, remote_files: OpFileRaw[], directory: string) => {
     console.log(`[checkMissingTokens] triggered for path ${directory}`)
 
     generateMissingFolder(directory)
-    const local_tokens = fs.readdirSync(getDataPath(directory))
+    const base_path = path.normalize(directory)
+    const local_files = fs.readdirSync(base_path)
+
+    const data_path = getDataPath(directory)
+    const local_tokens = fs.readdirSync(data_path)
 
     if (!local_tokens.length) {
-      event.sender.send('missingTokensToDownload', config_id, remote_tokens)
+      event.sender.send('missingTokensToDownload', config_id, remote_files)
       return
     }
 
-    const difference = remote_tokens.filter(
-      token => !local_tokens.includes(token),
+    // Check if missing token or file name
+    const difference = remote_files.filter(
+      file =>
+        !local_tokens.includes(file.token) || !local_files.includes(file.name),
     )
     console.log(`${difference.length} tokens missing`)
     console.log(difference)
