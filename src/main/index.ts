@@ -1,6 +1,6 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import axios from 'axios'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
@@ -119,19 +119,15 @@ ipcMain.on(
 )
 
 const queues: Map<number, (() => Promise<void>)[]> = new Map()
-
+interface DownloadFilesData {
+  files: { url: string; token: string; name: string }[]
+  directory: string
+  loader: SyncProgressInfo
+  keep_old_files: boolean
+}
 ipcMain.on(
   'downloadFiles',
-  async (
-    event,
-    config_id,
-    data: {
-      files: { url: string; token: string; name: string }[]
-      directory: string
-      loader: SyncProgressInfo
-      keep_old_files: boolean
-    },
-  ) => {
+  async (event, config_id, data: DownloadFilesData) => {
     console.log(`[downloadFiles] triggered for folder ${data.directory}`)
     data.loader.downloading = true
 
@@ -143,13 +139,7 @@ ipcMain.on(
     const existing_files = fs.readdirSync(dataPath)
 
     // Delete old links
-    if (!data.keep_old_files) {
-      fs.readdirSync(data.directory).forEach(link => {
-        if (link !== 'data') {
-          fs.unlinkSync(path.normalize(`${data.directory}/${link}`))
-        }
-      })
-    }
+    if (!data.keep_old_files) doDeleteOldLinks(data)
 
     const emit_progress = (): void => {
       data.loader.is_stopping = !jobs.length
@@ -167,9 +157,8 @@ ipcMain.on(
 
       if (existing_files.includes(file.token)) {
         console.log('[download] File exists')
-        fs.unlink(linkPath, () => {
-          fs.link(filePath, linkPath, () => {})
-        })
+        doLink(linkPath, filePath)
+
         data.loader.already_exists++
         return
       }
@@ -178,11 +167,8 @@ ipcMain.on(
       try {
         await downloadUrlToFile(file.url, filePath)
         console.log('[download] stream complete', file.token)
+        doLink(linkPath, filePath)
 
-        // Unlink file if already present then Link the file and return
-        fs.unlink(linkPath, () => {
-          fs.link(filePath, linkPath, () => {})
-        })
         data.loader.downloaded++
       } catch (error) {
         console.log('[download] cannot download file:', error)
@@ -235,7 +221,25 @@ ipcMain.handle('electron-store-delete', async (_Event, key: string) => {
   store.delete(key)
   return !store.has(key)
 })
-
+function doDeleteOldLinks(data: DownloadFilesData): void {
+  fs.readdirSync(data.directory).forEach(link => {
+    if (link !== 'data') {
+      fs.unlinkSync(path.normalize(`${data.directory}/${link}`))
+    }
+  })
+}
+function doLink(linkPath: string, filePath: string): void {
+  // Unlink file if already present then Link the file and return
+  fs.unlink(linkPath, async () => {
+    fs.link(filePath, linkPath, link_err => {
+      if (link_err?.code == 'EISDIR') {
+        fs.copyFile(filePath, linkPath, () => {})
+      } else if (link_err) {
+        throw link_err
+      }
+    })
+  })
+}
 function generateMissingFolder(directory: string): void {
   const main_path = path.normalize(directory)
   const data_path = path.normalize(`${directory}/data`)
