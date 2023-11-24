@@ -14,6 +14,8 @@
   "user_settings": "Opzioni applicazione",
   "dark_mode": "Tema scuro",
   "failed_to_load_schema": "Caricamento fallito",
+  "download_new_version": "Scarica la nuova versione da qui:",
+  "download": "Scarica",
   "schema_load_failed_msg": "Caricamento del progetto fallito, verifica che il token sia corretto o che la connessione sia presente.",
   "_storage_data": {
     "label": "Nome",

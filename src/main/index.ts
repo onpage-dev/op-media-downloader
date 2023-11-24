@@ -28,6 +28,23 @@ ipcMain.on('openURL', (event, url) => {
   event.preventDefault()
   shell.openExternal(url)
 })
+ipcMain.on('getVersionInfo', async event => {
+  let next: undefined | { tag_name: string } = undefined
+  try {
+    event.preventDefault()
+    next = (
+      await axios(
+        'https://api.github.com/repos/onpage-dev/op-media-downloader/releases/latest',
+      )
+    ).data
+  } catch (error) {
+    console.error(error)
+  }
+  event.sender.send('version_info', {
+    current: 'v' + app.getVersion(),
+    latest: next?.tag_name,
+  })
+})
 ipcMain.on(
   'checkMissingTokens',
   (event, config_id: string, remote_files: OpFileRaw[], directory: string) => {

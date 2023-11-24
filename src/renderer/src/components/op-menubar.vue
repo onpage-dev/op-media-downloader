@@ -18,6 +18,15 @@ const italian = computed(() => i18n.locale.value == 'it')
 function openURL(url: string): void {
   window.electron.ipcRenderer.send('openURL', url)
 }
+
+const version_info = window.version_info
+
+const is_outdated = computed(() => {
+  return (
+    version_info.value?.latest &&
+    version_info.value?.current != version_info.value?.latest
+  )
+})
 </script>
 
 <template>
@@ -171,19 +180,43 @@ function openURL(url: string): void {
       </div>
     </div>
   </OpModal>
-  <div
-    class="flex flex-row items-end py-10 cursor-pointer group"
-    @click="show_info = true"
-  >
-    <OpLogo
-      :dark="dark_mode"
-      class="w-auto object-contain my-unit flex-shrink-0"
-      style="height: 4rem"
-    />
-    <op-icon
-      icon="circle-info"
-      class="mb-unit group-hover:text-info duration-200"
-      style="margin-left: -1rem"
-    />
+  <div class="flex flex-col text-center py-10">
+    <div
+      class="flex flex-row items-end cursor-pointer group"
+      @click="show_info = true"
+    >
+      <OpLogo
+        :dark="dark_mode"
+        class="w-auto object-contain my-unit flex-shrink-0"
+        style="height: 4rem"
+      />
+      <op-icon
+        icon="circle-info"
+        class="mb-unit group-hover:text-info duration-200"
+        style="margin-left: -1rem"
+      />
+    </div>
+    <div>
+      Media Downloader
+      <span
+        v-if="version_info"
+        class="rounded-sm text-dark"
+        :class="is_outdated ? 'bg-red' : 'bg-brand'"
+        style="padding: 2px"
+      >
+        {{ version_info?.current ?? '?' }}
+      </span>
+    </div>
+    <a
+      v-if="is_outdated && version_info?.latest"
+      class="mt-2"
+      :href="`https://github.com/onpage-dev/op-media-downloader/releases/tag/${version_info.latest}`"
+      target="_blank"
+    >
+      <span class="bg-blue rounded-sm text-dark" style="padding: 2px">
+        {{ $t('download') }}
+        {{ version_info.latest }}
+      </span>
+    </a>
   </div>
 </template>
