@@ -247,16 +247,22 @@ function doDeleteOldLinks(data: DownloadFilesData): void {
 }
 function doLink(linkPath: string, filePath: string): void {
   // Unlink file if already present then Link the file and return
-  fs.unlink(linkPath, async () => {
-    fs.link(filePath, linkPath, link_err => {
-      if (link_err?.code == 'EISDIR') {
-        fs.copyFile(filePath, linkPath, () => {})
-      } else if (link_err) {
-        throw link_err
-      }
-    })
-  })
+  try {
+    fs.unlinkSync(linkPath)
+  } catch (error) {
+    // Cannot download file, maybe it does not exist or we have permission issues
+    // do not care
+  }
+
+  try {
+    // Try to link the file with the original to save storage space
+    fs.linkSync(filePath, linkPath)
+  } catch (error) {
+    // If linking does not work (e.g. network file systems) we fallback on normal copy
+    fs.copyFileSync(filePath, linkPath)
+  }
 }
+
 function generateMissingFolder(directory: string): void {
   const main_path = path.normalize(directory)
   const data_path = path.normalize(`${directory}/data`)
