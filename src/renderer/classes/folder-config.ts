@@ -65,7 +65,7 @@ export class FolderConfig {
   images_to_download: OpFile[] = reactive([])
 
   constructor(public storage: StorageService, public json: FolderConfigJson) {
-    this.api = reactive(new Api('app', this.api_token)) as Api
+    this.api = reactive(new Api({ token: this.api_token })) as Api
   }
 
   get duplicated_images(): Map<FileName, Map<FileToken, DuplicatedInfo[]>> {
