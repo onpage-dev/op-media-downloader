@@ -11,6 +11,7 @@ import OpModal from '../op-modal.vue'
 import UserSettings from '../user-settings.vue'
 import StorageServiceForm from './storage-data-form.vue'
 import StorageServiceItem from './storage-data-item.vue'
+import { bytesToString } from '@renderer/helpers'
 
 const i18n = useI18n()
 const emit = defineEmits<{
@@ -45,6 +46,9 @@ const configs_with_duplicate_images = computed(() => {
     config => config.duplicated_images.size && !config.loaders.size,
   )
 })
+setTimeout(() => {
+  console.log(configs_with_duplicate_images.value)
+}, 2000)
 
 function openForm(f?: FolderConfigJson): void {
   form.value = f ?? {
@@ -195,6 +199,13 @@ function deleteConfig(): void {
                   {{ x.thing_label }}
                   <span class="text-sm opacity-50"> #{{ x.thing_id }} </span>
                   <span v-if="x.lang"> ({{ x.lang }}) </span>
+                  <div class="text-sm opacity-50">
+                    {{
+                      `${x.file.width}x${x.file.height} (${bytesToString(
+                        x.file.size,
+                      )})`
+                    }}
+                  </div>
                 </a>
               </div>
             </div>

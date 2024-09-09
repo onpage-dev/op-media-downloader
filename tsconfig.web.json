@@ -5,6 +5,7 @@
     "src/renderer/**/*.d.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.vue",
+    "src/renderer/src/helpers.ts",
     "src/preload/*.d.ts"
 , "src/renderer/assets"  ],
   "compilerOptions": {
