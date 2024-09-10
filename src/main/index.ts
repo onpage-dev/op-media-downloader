@@ -189,7 +189,6 @@ ipcMain.on(
     const do_link = (linkPath: string, filePath: string): void => {
       console.log('linking file ', linkPath, filePath)
       try {
-        if (fs.existsSync(linkPath)) fs.unlinkSync(linkPath)
         console.log(`fs.unlinkSync(linkPath)`)
         if (fs.existsSync(linkPath)) fs.unlinkSync(linkPath)
       } catch (error) {
@@ -197,8 +196,8 @@ ipcMain.on(
       }
       try {
         console.log('linking file')
-        console.log(`fs.symlinkSync(filePath, linkPath)`)
-        fs.symlinkSync(filePath, linkPath)
+        console.log(`fs.linkSync(filePath, linkPath)`)
+        fs.linkSync(filePath, linkPath)
       } catch (error) {
         console.log(
           'using soft copy as fallback method because link failed',
