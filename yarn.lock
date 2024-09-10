@@ -3075,7 +3075,7 @@ mime-db@1.52.0:
   resolved "https://registry.yarnpkg.com/mime-db/-/mime-db-1.52.0.tgz#bbabcdc02859f4987301c856e3387ce5ec43bf70"
   integrity sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==
 
-mime-types@^2.1.12, mime-types@^2.1.27:
+mime-types@^2.1.12:
   version "2.1.35"
   resolved "https://registry.yarnpkg.com/mime-types/-/mime-types-2.1.35.tgz#381a871b62a734450660ae3deee44813f70d959a"
   integrity sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==
@@ -3236,16 +3236,6 @@ node-releases@^2.0.18:
   version "2.0.18"
   resolved "https://registry.yarnpkg.com/node-releases/-/node-releases-2.0.18.tgz#f010e8d35e2fe8d6b2944f03f70213ecedc4ca3f"
   integrity sha512-d9VeXT4SJ7ZeOqGX6R5EM022wpL+eWPooLI+5UpWn2jCT1aosUQEhQP214x33Wkwx3JQMvIm+tIoVOdodFS40g==
-
-nodejs-file-downloader@^4.10.3:
-  version "4.13.0"
-  resolved "https://registry.yarnpkg.com/nodejs-file-downloader/-/nodejs-file-downloader-4.13.0.tgz#da87c30081de5ff4e8b864062c98cdec03e66ad0"
-  integrity sha512-nI2fKnmJWWFZF6SgMPe1iBodKhfpztLKJTtCtNYGhm/9QXmWa/Pk9Sv00qHgzEvNLe1x7hjGDRor7gcm/ChaIQ==
-  dependencies:
-    follow-redirects "^1.15.6"
-    https-proxy-agent "^5.0.0"
-    mime-types "^2.1.27"
-    sanitize-filename "^1.6.3"
 
 normalize-path@^3.0.0, normalize-path@~3.0.0:
   version "3.0.0"
