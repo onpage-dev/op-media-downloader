@@ -9,7 +9,7 @@ import {
 } from './folder-config'
 
 export const SUPPORTED_LANGS = ['it', 'en'] as const
-export type SupportedLang = typeof SUPPORTED_LANGS[number]
+export type SupportedLang = (typeof SUPPORTED_LANGS)[number]
 
 export type ConfigEvents = {
   downloadProgress: {

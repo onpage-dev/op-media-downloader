@@ -7,9 +7,9 @@ import regularIcons from '../../assets/fa-icons'
 library.add([...regularIcons] as any)
 
 const FA_ICON_TYPES = ['solid', 'regular', 'light', 'thin', 'brand'] as const
-type FaIconType = typeof FA_ICON_TYPES[number]
+type FaIconType = (typeof FA_ICON_TYPES)[number]
 const FA_ICON_CODES = ['fas', 'far', 'fal', 'fat', 'fab'] as const
-type FaIconTypeCode = typeof FA_ICON_CODES[number]
+type FaIconTypeCode = (typeof FA_ICON_CODES)[number]
 type FaIcon = [FaIconTypeCode, string]
 
 const props = defineProps({

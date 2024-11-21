@@ -17,7 +17,7 @@ if (TOKEN == 'forget') {
   console.log('Forgetting translations of', `${path}`)
   const path_array = path.split('.')
   langs.forEach(lang => {
-    data = readLangFile(lang)
+    const data = readLangFile(lang)
     forget(data, path_array)
     writeLangFile(lang, data)
   })
@@ -28,7 +28,7 @@ if (TOKEN == 'remove') {
   console.log('Forgetting translations of', `${path}`)
   const path_array = path.split('.')
   ;[source].concat(langs).forEach(lang => {
-    data = readLangFile(lang)
+    const data = readLangFile(lang)
     forget(data, path_array)
     writeLangFile(lang, data)
   })

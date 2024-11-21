@@ -29,7 +29,7 @@ const colors = [
   'box',
   'dbox',
 ] as const
-export type THEME_COLOR = typeof colors[number]
+export type THEME_COLOR = (typeof colors)[number]
 interface RawThemeColors {
   [key: string]: string
 }

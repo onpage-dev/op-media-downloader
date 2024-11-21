@@ -12,7 +12,7 @@ const COLOR_LUMINOSITY = [
   'd4',
   'd5',
 ] as const
-export type ColorLuminosity = typeof COLOR_LUMINOSITY[number]
+export type ColorLuminosity = (typeof COLOR_LUMINOSITY)[number]
 export type RgbColor = [number, number, number]
 export interface PaletteColor {
   label?: string
@@ -62,7 +62,7 @@ export const PALETTE_COLOR_IDENTIFIERS = [
   'custom18',
   'custom19',
 ] as const
-export type PaletteColorIdentifier = typeof PALETTE_COLOR_IDENTIFIERS[number]
+export type PaletteColorIdentifier = (typeof PALETTE_COLOR_IDENTIFIERS)[number]
 export type PaletteColors = {
   [key in PaletteColorIdentifier]?: PaletteColor
 }

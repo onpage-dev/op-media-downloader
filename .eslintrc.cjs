@@ -1,4 +1,3 @@
-/* eslint-env node */
 require('@rushstack/eslint-patch/modern-module-resolution')
 
 module.exports = {
@@ -26,6 +25,12 @@ module.exports = {
     '@typescript-eslint/no-empty-function': [
       'error',
       { allow: ['arrowFunctions'] },
+    ],
+    'prettier/prettier': [
+      'error',
+      {
+        endOfLine: 'auto',
+      },
     ],
     '@typescript-eslint/no-explicit-any': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
