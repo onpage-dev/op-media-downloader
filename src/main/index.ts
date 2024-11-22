@@ -261,12 +261,12 @@ ElectronIPC.on('download-files', async (event, data) => {
     token: string
     name: string
   }): Promise<void> => {
-    // Create the file path
+    /** Create Path */
     const filePath = path.normalize(`${dataPath}/${file.token}`)
     const linkPath = path.normalize(`${data.directory}/${file.name}`)
 
     if (!existing_files.includes(file.token)) {
-      // Invalidate all links pointing to the file we have to download
+      /** Invalidate all links pointing to the file we have to download */
       for (const i in link_map) {
         if (link_map[i] == file.token) {
           delete link_map[i]
@@ -292,7 +292,7 @@ ElectronIPC.on('download-files', async (event, data) => {
       data.loader.already_exists++
     }
 
-    // Download the file
+    /** Download the file */
     if (link_map[file.name] != file.token) {
       try {
         do_link(linkPath, filePath)
@@ -309,7 +309,9 @@ ElectronIPC.on('download-files', async (event, data) => {
     emit_progress()
   }
 
-  const jobs = data.files.map(file => (): Promise<void> => download_file(file))
+  const jobs = data.files.map(
+    file => (): Promise<void> => download_file(cloneDeep(file)),
+  )
 
   queues.set(data.config_id, jobs)
 
@@ -353,6 +355,30 @@ ElectronIPC.handle('electron-store-delete', async (_Event, key) => {
   return !store.has(key)
 })
 
+async function downloadUrlToFile(url: string, path: string): Promise<void> {
+  const response = await axios({
+    method: 'GET',
+    url,
+    responseType: 'stream',
+  })
+
+  try {
+    console.log(`fs.createWriteStream(${path}.download))`)
+    response.data.pipe(fs.createWriteStream(`${path}.download`))
+  } catch (error) {
+    console.log('error creating write stream', error)
+  }
+
+  return new Promise((resolve, reject) => {
+    response.data.on('end', () => {
+      console.log(`fs.renameSync(${path}.download, ${path})`)
+      fs.renameSync(`${path}.download`, path)
+      resolve()
+    })
+
+    response.data.on('error', (error: any) => reject(error))
+  })
+}
 function generateMissingFolder(directory: string): void {
   const main_path = path.normalize(directory)
   const data_path = path.normalize(`${directory}/data`)
@@ -443,35 +469,5 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  if (process.platform !== 'darwin') app.quit()
 })
-
-// In this file you can include the rest of your app"s specific main process
-// code. You can also put them in separate files and require them here.
-
-async function downloadUrlToFile(url: string, path: string): Promise<void> {
-  const response = await axios({
-    method: 'GET',
-    url,
-    responseType: 'stream',
-  })
-  try {
-    console.log(`fs.createWriteStream(path.download))`)
-    console.log(`${path}.download`)
-    response.data.pipe(fs.createWriteStream(`${path}.download`))
-  } catch (error) {
-    console.log('error creating write stream', error)
-  }
-
-  return new Promise((resolve, reject) => {
-    response.data.on('end', () => {
-      console.log(`fs.renameSync(path.download, path)`)
-      fs.renameSync(path + '.download', path)
-      resolve()
-    })
-
-    response.data.on('error', (error: any) => reject(error))
-  })
-}
