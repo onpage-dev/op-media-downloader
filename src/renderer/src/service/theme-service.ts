@@ -43,8 +43,6 @@ type ExtendedThemeColors = Record<THEME_COLOR, RawThemeColors>
 export interface Theme {
   name: string
   label: string
-  // solid_cards?: boolean
-  // dark_panels?: boolean
   colors: ExtendedThemeColors
 }
 
@@ -124,45 +122,7 @@ function colorToRgb(color: Color): string {
 
 export const themes: Theme[] = [
   {
-    name: 'default',
-    label: 'Originale',
-    colors: ThemeService.generateColors({
-      white: {
-        lightest: '#ffffff',
-        normal: '#ffffff',
-        darkest: '#E0E6EC',
-      },
-      light: '#f4f5f7',
-      grey: '#ededed',
-      wallpaper: '#f1f2f6',
-      darkerwallpaper: '#e9ebf1',
-      darkwallpaper: '#3c3c47',
-      darkerdarkwallpaper: '#393944',
-      box: {
-        lightest: '#ffffff',
-        normal: '#ffffff',
-        darkest: '#d1d4d6',
-      },
-      dbox: '#4c4c57',
-      darker: '#d8d8d8',
-      dark: '#3c3c47',
-      black: '#0a0a0a',
-      brand: '#00cc78',
-      accent: '#00cc78',
-      info: '#209cee',
-      success: '#23d160',
-      warning: '#ff8800',
-      danger: '#ff0000',
-      yellow: '#FFD420',
-      blue: '#17b1fb',
-      red: '#bf616a',
-      orange: '#FFAE4B',
-      pink: '#fed5e5',
-      green: '#00cc78',
-    }),
-  },
-  {
-    name: 'andrian',
+    name: 'modern',
     label: 'Modern',
     colors: ThemeService.generateColors({
       white: {
@@ -197,86 +157,6 @@ export const themes: Theme[] = [
       orange: '#ffad5c',
       pink: '#f7bae1',
       green: '#46d89b',
-    }),
-  },
-  {
-    name: 'giacomo',
-    label: 'Colori caldi',
-    colors: ThemeService.generateColors({
-      white: {
-        lightest: '#ffffff',
-        normal: '#ffffff',
-        darkest: '#E0E6EC',
-      },
-      wallpaper: '#f5f5f5',
-      darkerwallpaper: '#f0f0f0',
-      darkwallpaper: {
-        lightest: '#4a4a55',
-        normal: '#3c3c47',
-        darkest: '#2f2f37',
-      },
-      darkerdarkwallpaper: '#393944',
-      box: {
-        lightest: '#ffffff',
-        normal: '#ffffff',
-        darkest: '#d1d4d6',
-      },
-      dbox: '#4c4c57',
-      light: '#f5f5f5',
-      grey: '#ededed',
-      darker: '#d8d8d8',
-      dark: '#313237',
-      black: '#0a0a0a',
-      brand: '#00cc78',
-      accent: '#00cc78',
-      info: '#209cee',
-      success: '#23d160',
-      warning: '#ff8800',
-      danger: '#ff0000',
-      yellow: '#FFD420',
-      blue: '#17b1fb',
-      red: '#bf616a',
-      orange: '#FFAE4B',
-      pink: '#fed5e5',
-      green: '#00cc78',
-    }),
-  },
-  {
-    name: 'nord',
-    label: 'Nord',
-    colors: ThemeService.generateColors({
-      white: {
-        lightest: '#ffffff',
-        normal: '#ffffff',
-        darkest: '#E5E9F0',
-      },
-      light: '#ECEFF4',
-      grey: '#D8DEE9',
-      wallpaper: '#f2f3F5',
-      darkerwallpaper: '#eeeff2',
-      darkwallpaper: '#363c4c',
-      darkerdarkwallpaper: '#3a4152',
-      box: {
-        lightest: '#ffffff',
-        normal: '#ffffff',
-        darkest: '#D8DEE9',
-      },
-      dbox: '#4C566A',
-      darker: '#D8DEE9',
-      dark: '#3B4252',
-      black: '#060606',
-      brand: '#00cc78',
-      accent: '#00cc78',
-      info: '#A3BE8C',
-      success: '#23d160',
-      warning: '#ff8800',
-      danger: '#ff0000',
-      yellow: '#FFD420',
-      blue: '#17b1fb',
-      red: '#BF616A',
-      orange: '#D08770',
-      pink: '#B48EAD',
-      green: '#A3BE8C',
     }),
   },
 ]

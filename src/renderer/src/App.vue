@@ -6,14 +6,21 @@ import { useI18n } from 'vue-i18n'
 import OpMenubar from './components/op-menubar.vue'
 import StorageDataList from './components/storage-data/storage-data-list.vue'
 import { themes } from './service/theme-service'
-const i18n = useI18n()
+/** Storage */
 const storage = ref(new StorageService()) as Ref<StorageService>
-const theme = ref(themes[1])
 
+/** Language */
+const i18n = useI18n()
 const lang = computed(() => storage.value.user_properties.language)
+watch(lang, () => {
+  i18n.locale.value = lang.value ?? 'it'
+})
+
+/** Theme */
+const theme = ref(themes[0])
 const dark_mode = computed(() => storage.value.user_properties.dark_mode)
 const base_style = computed(() => {
-  const ret = [] as string[]
+  const ret: string[] = []
   const variants = ['', 'focus', 'hover']
   forEach(theme.value?.colors ?? {}, (color_variants, name) => {
     const colors = [] as string[]
@@ -43,7 +50,6 @@ const base_style = computed(() => {
   })
   return ret.join(' ')
 })
-
 function toggleDarkMode(): void {
   const html = document.querySelector('html')!
   if (dark_mode.value) {
@@ -60,16 +66,9 @@ function setBaseColor(
   element?: HTMLElement,
 ): void {
   if (!element) element = document.documentElement
-  element!.style.setProperty(`--color-${name}`.replace('-DEFAULT', ''), color)
+  element.style.setProperty(`--color-${name}`.replace('-DEFAULT', ''), color)
 }
-
-watch(dark_mode, () => {
-  toggleDarkMode()
-})
-watch(lang, () => {
-  i18n.locale.value = lang.value ?? 'it'
-})
-
+watch(dark_mode, () => toggleDarkMode())
 onBeforeMount(() => {
   toggleDarkMode()
   forEach(theme.value.colors, (color, name) => {
@@ -79,16 +78,13 @@ onBeforeMount(() => {
   })
 })
 </script>
-
 <template>
   <div
     id="realapp"
-    class="full-height-scroll-wfull relative h-full bg-wallpaper dark:bg-darkwallpaper provide-bg"
+    class="full-height-scroll-wfull h-full bg-wallpaper dark:bg-darkwallpaper provide-bg"
   >
     <component :is="'style'" v-text="base_style" />
-    <div
-      class="full-height-scroll-wfull overflow-auto items-center gap-unit relative"
-    >
+    <div class="full-height-scroll-wfull items-center gap-unit">
       <OpMenubar :storage="storage" />
       <StorageDataList :storage="storage" />
     </div>
