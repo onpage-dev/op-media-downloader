@@ -136,10 +136,6 @@ h5 {
   }
 }
 
-.animate-fadein-slow {
-  animation: fadein 400ms;
-}
-
 .op-modal > .op-modal-content {
   > * {
     @apply flex-shrink max-w-full;
