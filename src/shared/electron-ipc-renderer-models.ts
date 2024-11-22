@@ -34,7 +34,7 @@ export interface IPCSendChannels {
 export interface IPCOnChannels {
   'update-version-info': {
     current: string
-    latest: string
+    latest?: string
   }
   'update-download-progress': {
     config_id: string
@@ -44,7 +44,7 @@ export interface IPCOnChannels {
     config_id: string
     missing_files: OpFileRaw[]
   }
-  'electron-store-changed': string
+  'electron-store-changed': Readonly<Record<string, unknown>>
 }
 
 // Payload and return types for invoke

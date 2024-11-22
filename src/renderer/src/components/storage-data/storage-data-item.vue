@@ -19,7 +19,7 @@ function syncOrLoad(): void {
   if (props.config.is_loading) return
   if (props.config.images_raw_by_token.size) {
     if (props.config.images_to_download.length) {
-      props.config?.downloadFiles()
+      props.config.downloadFiles()
     } else {
       props.config.images_raw_by_token.clear()
     }

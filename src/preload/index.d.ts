@@ -44,7 +44,7 @@ declare global {
       | undefined
       | {
           current: string
-          latest: string
+          latest?: string
         }
     >
   }

@@ -195,39 +195,47 @@ ElectronIPC.on('download-files', async (event, data) => {
     data.loader.is_stopping = !jobs.length
     event.sender.send('update-download-progress', {
       config_id: data.config_id,
-      loader: data.loader,
+      progressEvent: data.loader,
     })
   }
 
   const do_link = (linkPath: string, filePath: string): void => {
-    console.log('linking file ', linkPath, filePath)
+    console.log(' ')
+    console.log('[Link START] File:')
+    console.log(` - ${filePath}`)
+    console.log(` - ${linkPath}`)
     try {
-      console.log(`fs.unlinkSync(linkPath)`)
-      if (fs.existsSync(linkPath)) fs.unlinkSync(linkPath)
+      if (fs.existsSync(linkPath)) {
+        console.log(`fs.unlinkSync(linkPath)`)
+        fs.unlinkSync(linkPath)
+      }
     } catch (error) {
-      console.log('unlink failed', error)
+      console.log('Unlink failed:')
+      console.log(error)
     }
+
     try {
-      console.log('linking file')
       console.log(`fs.linkSync(filePath, linkPath)`)
       fs.linkSync(filePath, linkPath)
     } catch (error) {
-      console.log(
-        'using soft copy as fallback method because link failed',
-        error,
-      )
+      console.log('[Link FAILED] Using Soft Copy as fallback')
+      console.log(error)
       try {
-        fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
-        console.log(`console.log(fs.constants.COPYFILE_FICLONE)`)
+        console.log(
+          'fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)',
+        )
         fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
       } catch (error) {
-        console.log('using hard copy because soft copy returned', error)
-        fs.writeFileSync(linkPath, fs.readFileSync(filePath))
+        console.log('[Soft Copy FAILED] Using hard copy as fallback')
+        console.log(error)
+        console.log(' ')
         console.log(`console.log(fs.readFileSync(filePath))`)
-        fs.writeFileSync(linkPath, fs.readFileSync(filePath))
+
+        const buffer: Uint8Array = fs.readFileSync(filePath) as any
+        fs.writeFileSync(linkPath, buffer)
       }
     }
-    console.log('linking file successful')
+    console.log('[Link END] Linking file successful')
   }
 
   // Delete old links
@@ -265,13 +273,17 @@ ElectronIPC.on('download-files', async (event, data) => {
         }
       }
 
-      console.log('[download] Downloadinf file...', file.url, filePath)
+      console.log(' ')
+      console.log('[download] Downloadinf file:')
+      console.log(` - ${file.url}`)
+      console.log(` - ${filePath}`)
       try {
         await downloadUrlToFile(file.url, filePath)
-        console.log('[download] Downloadinf complete', file.url, filePath)
+        console.log('[download] Downloadinf complete')
         data.loader.downloaded++
       } catch (error) {
-        console.log('[download] Downloadinf failed', file.url, filePath, error)
+        console.log('[download] Downloadinf failed:')
+        console.log(error)
         data.loader.failed++
         emit_progress()
         return
@@ -309,7 +321,10 @@ ElectronIPC.on('download-files', async (event, data) => {
 
   data.loader.downloading = false
   queues.delete(data.config_id)
-  event.sender.send('update-download-progress', data.config_id, data.loader)
+  event.sender.send('update-download-progress', {
+    config_id: data.config_id,
+    progressEvent: data.loader,
+  })
 
   console.log(` - downloaded: ${data.loader.downloaded}`)
   console.log(` - failed: ${data.loader.failed}`)
@@ -443,21 +458,20 @@ async function downloadUrlToFile(url: string, path: string): Promise<void> {
     responseType: 'stream',
   })
   try {
-    console.log(`fs.createWriteStream(path + '.download'))`)
-    response.data.pipe(fs.createWriteStream(path + '.download'))
+    console.log(`fs.createWriteStream(path.download))`)
+    console.log(`${path}.download`)
+    response.data.pipe(fs.createWriteStream(`${path}.download`))
   } catch (error) {
     console.log('error creating write stream', error)
   }
 
   return new Promise((resolve, reject) => {
     response.data.on('end', () => {
-      console.log(`fs.renameSync(path + '.download', path)`)
+      console.log(`fs.renameSync(path.download, path)`)
       fs.renameSync(path + '.download', path)
       resolve()
     })
 
-    response.data.on('error', (error: any) => {
-      reject(error)
-    })
+    response.data.on('error', (error: any) => reject(error))
   })
 }
