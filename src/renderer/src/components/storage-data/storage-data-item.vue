@@ -115,7 +115,7 @@ watch(
           pad="compact"
           :disabled="config.is_loading"
           :loading="config.is_loading"
-          @click="syncOrLoad"
+          @click="syncOrLoad()"
         >
           <template v-if="!config.images_raw_by_token.size">
             <op-icon icon="arrows-rotate" />
