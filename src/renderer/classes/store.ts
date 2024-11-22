@@ -11,7 +11,7 @@ export const SUPPORTED_LANGS = ['it', 'en'] as const
 export type SupportedLang = (typeof SUPPORTED_LANGS)[number]
 
 export type ConfigEvents = {
-  downloadProgress: {
+  'update-download-progress': {
     event: IpcRendererEvent
     config_id: string
     progressEvent: SyncProgressInfo
@@ -50,11 +50,14 @@ export class StorageService {
   }
 
   initRenderEvents(): void {
-    window.electron.ipcRenderer.on('update-download-progress', (_event, data) => {
-      const c = this.configs.get(data.config_id)
-      if (!c) return
-      c.onDownloadProgress(data.progressEvent)
-    })
+    window.electron.ipcRenderer.on(
+      'update-download-progress',
+      (_event, data) => {
+        const c = this.configs.get(data.config_id)
+        if (!c) return
+        c.onDownloadProgress(data.progressEvent)
+      },
+    )
 
     window.electron.ipcRenderer.on(
       'update-missing-tokens-to-download',

@@ -58,7 +58,10 @@ function deleteConfig(): void {
   if (!deleting.value) return
   props.storage.delete(`storage_data.${deleting.value.id}`)
   if (delete_downloaded.value) {
-    window.electron.ipcRenderer.send('deleteFolder', deleting.value.folder_path)
+    window.electron.ipcRenderer.send(
+      'delete-folder',
+      deleting.value.folder_path,
+    )
   }
   clearDelete()
   emit('select', undefined)

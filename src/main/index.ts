@@ -25,11 +25,11 @@ const store = new Store({
   watch: true,
   clearInvalidConfig: true,
 })
-ElectronIPC.on('openURL', (event, url) => {
+ElectronIPC.on('open-url', (event, url) => {
   event.preventDefault()
   shell.openExternal(url)
 })
-ElectronIPC.on('getVersionInfo', async event => {
+ElectronIPC.on('get-version-info', async event => {
   let next: undefined | { tag_name: string } = undefined
   try {
     event.preventDefault()
@@ -42,7 +42,7 @@ ElectronIPC.on('getVersionInfo', async event => {
     console.error(error)
   }
   event.sender.send(
-    'setVersionInfo',
+    'update-version-info',
     cloneDeep({
       current: 'v' + app.getVersion(),
       latest: next?.tag_name,
@@ -50,7 +50,7 @@ ElectronIPC.on('getVersionInfo', async event => {
   )
 })
 ElectronIPC.on(
-  'checkMissingTokens',
+  'check-missing-tokens',
   (event, { config_id, remote_files, directory }) => {
     try {
       chechMissingTokens(event, config_id, remote_files, directory)
@@ -97,16 +97,16 @@ function chechMissingTokens(
     missing_files: difference,
   })
 }
-ElectronIPC.on('openPath', (_event, path_to_open) => {
+ElectronIPC.on('open-path', (_event, path_to_open) => {
   console.log(`[openPath] triggered for path ${path_to_open}`)
   shell.openPath(path.normalize(path_to_open))
 })
 
-ElectronIPC.on('stopDownload', (_event, config_id) => {
+ElectronIPC.on('stop-download', (_event, config_id) => {
   console.log('[download-stop] stopping download for config', config_id)
   queues.get(config_id)?.splice(0)
 })
-ElectronIPC.on('deleteFolder', async (_event, folder_path: string) => {
+ElectronIPC.on('delete-folder', async (_event, folder_path: string) => {
   try {
     console.log(`[deleteFolder] triggered for path ${folder_path}`)
     await fsPromises.rm(path.normalize(folder_path), { recursive: true })
@@ -115,7 +115,7 @@ ElectronIPC.on('deleteFolder', async (_event, folder_path: string) => {
   }
 })
 ElectronIPC.on(
-  'deleteRemovedFilesFromRemote',
+  'delete-removed-files-from-remote',
   (
     _event,
     {
@@ -170,7 +170,7 @@ ElectronIPC.on(
 
 const queues: Map<string, (() => Promise<void>)[]> = new Map()
 
-ElectronIPC.on('downloadFiles', async (event, data) => {
+ElectronIPC.on('download-files', async (event, data) => {
   console.log(`[downloadFiles] triggered for folder ${data.directory}`)
   data.loader.downloading = true
 

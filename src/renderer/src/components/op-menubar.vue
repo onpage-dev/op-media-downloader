@@ -13,7 +13,7 @@ const dark_mode = computed(() => props.storage.user_properties.dark_mode)
 const italian = computed(() => i18n.locale.value == 'it')
 
 function openURL(url: string): void {
-  window.electron.ipcRenderer.send('openURL', url)
+  window.electron.ipcRenderer.send('open-url', url)
 }
 
 const version_info = window.version_info

@@ -280,7 +280,7 @@ export class FolderConfig {
       // Delete local files that are not present on remote anymore
       if (!this.keep_old_files) {
         window.electron.ipcRenderer.send(
-          'deleteRemovedFilesFromRemote',
+          'delete-removed-files-from-remote',
           cloneDeep({
             remote_files: [
               ...this.uniq_images_raw_array.map(file => file.serialize()),
@@ -312,7 +312,7 @@ export class FolderConfig {
       is_stopping: false,
     })
     window.electron.ipcRenderer.send(
-      'downloadFiles',
+      'download-files',
       cloneDeep({
         config_id: this.id,
         files: this.uniq_images_raw_array.map(file => ({
@@ -329,7 +329,7 @@ export class FolderConfig {
 
   stopDownload(): void {
     console.log('sending stop signal', this.id)
-    window.electron.ipcRenderer.send('stopDownload', this.id)
+    window.electron.ipcRenderer.send('stop-download', this.id)
   }
 
   saveLastSync(progress: SyncProgressInfo): void {
@@ -358,7 +358,7 @@ export class FolderConfig {
       directory: this.folder_path,
     }
     /** On end this will trigger missingTokensToDownload from main */
-    window.electron.ipcRenderer.send('checkMissingTokens', params)
+    window.electron.ipcRenderer.send('check-missing-tokens', params)
   }
 
   async refresh(): Promise<void> {

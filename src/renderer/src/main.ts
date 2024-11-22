@@ -17,8 +17,8 @@ app.use(VTooltip, {
 })
 
 window.version_info = ref(undefined)
-window.electron.ipcRenderer.send('getVersionInfo')
-window.electron.ipcRenderer.on('setVersionInfo', (_event, data) => {
+window.electron.ipcRenderer.send('get-version-info')
+window.electron.ipcRenderer.on('update-version-info', (_event, data) => {
   window.version_info.value = data
 })
 

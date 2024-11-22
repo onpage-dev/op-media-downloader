@@ -33,7 +33,7 @@ function syncOrLoad(): void {
 }
 function openPath(file_name?: string): void {
   window.electron.ipcRenderer.send(
-    'openPath',
+    'open-path',
     `${props.config.folder_path}${file_name ? '/' + file_name : ''}`,
   )
 }

@@ -3,12 +3,15 @@ import { SyncProgressInfo } from '@classes/folder-config'
 
 // Payload types for send
 export interface IPCSendChannels {
-  getVersionInfo: undefined
-  openURL: string
-  deleteFolder: string
-  openPath: string
-  deleteRemovedFilesFromRemote: { remote_files: OpFileRaw[]; directory: string }
-  downloadFiles: {
+  'get-version-info': undefined
+  'open-url': string
+  'open-path': string
+  'delete-folder': string
+  'delete-removed-files-from-remote': {
+    remote_files: OpFileRaw[]
+    directory: string
+  }
+  'download-files': {
     config_id: string
     files: {
       url: string
@@ -19,8 +22,8 @@ export interface IPCSendChannels {
     loader: SyncProgressInfo
     keep_old_files: boolean
   }
-  stopDownload: string
-  checkMissingTokens: {
+  'stop-download': string
+  'check-missing-tokens': {
     config_id: string
     remote_files: OpFileRaw[]
     directory: string
@@ -29,7 +32,7 @@ export interface IPCSendChannels {
 
 // Payload types for on
 export interface IPCOnChannels {
-  setVersionInfo: {
+  'update-version-info': {
     current: string
     latest: string
   }
