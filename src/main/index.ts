@@ -78,7 +78,7 @@ function chechMissingTokens(
 
   if (!local_tokens.length) {
     console.log('All tokens missing')
-    event.sender.send('missingTokensToDownload', {
+    event.sender.send('update-missing-tokens-to-download', {
       config_id,
       missing_files: remote_files,
     })
@@ -92,7 +92,7 @@ function chechMissingTokens(
   )
   console.log(`${difference.length} tokens missing`)
   console.log(difference)
-  event.sender.send('missingTokensToDownload', {
+  event.sender.send('update-missing-tokens-to-download', {
     config_id,
     missing_files: difference,
   })

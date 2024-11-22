@@ -37,7 +37,7 @@ export interface IPCOnChannels {
     config_id: string
     progressEvent: SyncProgressInfo
   }
-  missingTokensToDownload: {
+  'update-missing-tokens-to-download': {
     config_id: string
     missing_files: OpFileRaw[]
   }

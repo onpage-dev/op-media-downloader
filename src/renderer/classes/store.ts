@@ -57,7 +57,7 @@ export class StorageService {
     })
 
     window.electron.ipcRenderer.on(
-      'missingTokensToDownload',
+      'update-missing-tokens-to-download',
       (_event, data) => {
         const c = this.configs.get(data.config_id)
         if (!c) return
