@@ -50,7 +50,7 @@ export class StorageService {
   }
 
   initRenderEvents(): void {
-    window.electron.ipcRenderer.on('downloadProgress', (_event, data) => {
+    window.electron.ipcRenderer.on('update-download-progress', (_event, data) => {
       const c = this.configs.get(data.config_id)
       if (!c) return
       c.onDownloadProgress(data.progressEvent)

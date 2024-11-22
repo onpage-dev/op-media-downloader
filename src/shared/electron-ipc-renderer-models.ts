@@ -33,7 +33,7 @@ export interface IPCOnChannels {
     current: string
     latest: string
   }
-  downloadProgress: {
+  'update-download-progress': {
     config_id: string
     progressEvent: SyncProgressInfo
   }

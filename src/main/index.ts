@@ -193,7 +193,7 @@ ElectronIPC.on('downloadFiles', async (event, data) => {
 
   const emit_progress = (): void => {
     data.loader.is_stopping = !jobs.length
-    event.sender.send('downloadProgress', {
+    event.sender.send('update-download-progress', {
       config_id: data.config_id,
       loader: data.loader,
     })
@@ -309,7 +309,7 @@ ElectronIPC.on('downloadFiles', async (event, data) => {
 
   data.loader.downloading = false
   queues.delete(data.config_id)
-  event.sender.send('downloadProgress', data.config_id, data.loader)
+  event.sender.send('update-download-progress', data.config_id, data.loader)
 
   console.log(` - downloaded: ${data.loader.downloaded}`)
   console.log(` - failed: ${data.loader.failed}`)

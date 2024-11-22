@@ -272,7 +272,7 @@ export class FolderConfig {
   }, 500)
 
   onDownloadProgress(
-    progressEvent: ConfigEvents['downloadProgress']['progressEvent'],
+    progressEvent: ConfigEvents['update-download-progress']['progressEvent'],
   ): void {
     this.setCurrentSyncDebounced(this, progressEvent)
 
