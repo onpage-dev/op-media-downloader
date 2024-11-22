@@ -1,7 +1,3 @@
-export function sleep(millis: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, millis))
-}
-
 export async function processQueue<T>(
   todo: (() => Promise<T>)[],
   concurrentCount = 1,

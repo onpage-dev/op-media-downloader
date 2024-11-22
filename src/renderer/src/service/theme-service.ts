@@ -1,5 +1,6 @@
+import { OpCardColor } from '@classes/color-classes'
 import Color from 'color'
-import { each, isString } from 'lodash'
+import { each, isNumber, isString } from 'lodash'
 
 const colors = [
   'accent',
@@ -118,6 +119,30 @@ export function stringToColorVariants(
 
 function colorToRgb(color: Color): string {
   return [color.red(), color.green(), color.blue()].join(',')
+}
+
+export function formattedColor(string: string): OpCardColor {
+  const exploded = string.split('-')
+  const col = exploded[0]
+  const inv = exploded[1] == 'inv'
+  let lum = Number(exploded[1] || 5)
+  if (isNaN(lum)) lum = 5
+  return {
+    col,
+    lum,
+    inv,
+    mix(diff?: number | 'inv' | 'mix'): string {
+      if (isString(diff)) {
+        return this.col + '-' + diff
+      } else if (isNumber(diff)) {
+        return this.col + '-' + (this.lum + diff)
+      } else if (this.inv) {
+        return this.col + '-inv'
+      } else {
+        return this.col + '-' + this.lum
+      }
+    },
+  }
 }
 
 export const themes: Theme[] = [

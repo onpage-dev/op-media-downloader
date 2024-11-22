@@ -4,24 +4,16 @@ import { StorageService } from '@classes/store'
 import dayjs from 'dayjs'
 import en from 'dayjs/locale/en'
 import it from 'dayjs/locale/it'
-import { PropType, ref, watch } from 'vue'
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import OpModal from '../op-modal.vue'
 import SyncLoaderStatus from '../sync-loader-status.vue'
 
 const i18n = useI18n()
 defineEmits(['edit', 'delete', 'abort-download'])
-const props = defineProps({
-  storage: {
-    type: StorageService,
-    required: true,
-  },
-  config: {
-    type: Object as PropType<FolderConfig>,
-    required: true,
-  },
-})
-const show_warning = ref(false)
+const props = defineProps<{
+  storage: StorageService
+  config: FolderConfig
+}>()
 
 function syncOrLoad(): void {
   if (props.config.is_loading) return
@@ -66,7 +58,6 @@ watch(
 )
 </script>
 <template>
-  <OpModal v-if="show_warning" />
   <op-card class="gap-unit" provide>
     <!-- Header and btns -->
     <div class="flex-row-center-unit" col>

@@ -2,7 +2,7 @@
 import { FolderConfigJson } from '@classes/folder-config'
 import { StorageService } from '@classes/store'
 import { cloneDeep } from 'lodash'
-import { PropType, reactive } from 'vue'
+import { reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import OpToggle from '../op-toggle.vue'
 
@@ -11,22 +11,16 @@ const emit = defineEmits<{
   (e: 'save', value: FolderConfigJson): void
 }>()
 const i18n = useI18n()
-const props = defineProps({
-  form: {
-    type: Object as PropType<FolderConfigJson>,
-    required: true,
-  },
-  storage: {
-    type: StorageService,
-    required: true,
-  },
-})
+const props = defineProps<{
+  form: FolderConfigJson
+  storage: StorageService
+}>()
 
 const local_form = reactive(cloneDeep(props.form))
 
 function chooseFolder(): void {
   if (!local_form) return
-  window.electron.ipcRenderer.invoke('pick-folder-path').then(res => {
+  window.electron.ipcRenderer.invoke('pickFolderPath').then(res => {
     console.log('selected folder path', res)
     local_form!.folder_path = res
   })
@@ -85,7 +79,7 @@ async function save(): Promise<void> {
             class="border-l-0 rounded-l-none"
             row
             middle
-            @click="chooseFolder"
+            @click="chooseFolder()"
           >
             <op-icon icon="fa-folder-plus" />
             {{ $t('_storage_data.choose_folder') }}

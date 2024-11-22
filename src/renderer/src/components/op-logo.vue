@@ -1,3 +1,9 @@
+<script lang="ts" setup>
+defineProps<{
+  dark?: boolean
+  small?: boolean | number | string
+}>()
+</script>
 <template>
   <svg
     id="svg184"
@@ -128,14 +134,3 @@
     </g>
   </svg>
 </template>
-<script lang="ts" setup>
-defineProps({
-  dark: {
-    type: Boolean,
-    default: false,
-  },
-  small: {
-    type: [Boolean, Number, String],
-  },
-})
-</script>

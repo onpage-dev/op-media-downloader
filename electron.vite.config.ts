@@ -14,6 +14,7 @@ export default defineConfig({
       alias: {
         '@renderer': resolve('src/renderer/src'),
         '@classes': resolve('src/renderer/classes'),
+        '@shared': resolve('src/shared'),
       },
     },
     plugins: [vue()],

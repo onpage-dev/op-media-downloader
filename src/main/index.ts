@@ -1,6 +1,6 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import axios from 'axios'
-import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, IpcMainEvent, app, dialog, shell } from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
@@ -8,6 +8,7 @@ import { cloneDeep } from 'lodash'
 import { OpFileRaw } from 'onpage-js'
 import path from 'path'
 import { processQueue } from './utils'
+import { ElectronIPC } from './electron-ipc'
 
 export interface SyncProgressInfo {
   start_time: string
@@ -24,11 +25,11 @@ const store = new Store({
   watch: true,
   clearInvalidConfig: true,
 })
-ipcMain.on('openURL', (event, url) => {
+ElectronIPC.on('openURL', (event, url) => {
   event.preventDefault()
   shell.openExternal(url)
 })
-ipcMain.on('getVersionInfo', async event => {
+ElectronIPC.on('getVersionInfo', async event => {
   let next: undefined | { tag_name: string } = undefined
   try {
     event.preventDefault()
@@ -40,23 +41,26 @@ ipcMain.on('getVersionInfo', async event => {
   } catch (error) {
     console.error(error)
   }
-  event.sender.send('version_info', {
-    current: 'v' + app.getVersion(),
-    latest: next?.tag_name,
-  })
+  event.sender.send(
+    'setVersionInfo',
+    cloneDeep({
+      current: 'v' + app.getVersion(),
+      latest: next?.tag_name,
+    }),
+  )
 })
-ipcMain.on(
+ElectronIPC.on(
   'checkMissingTokens',
-  (event, config_id: string, remote_files: OpFileRaw[], directory: string) => {
+  (event, { config_id, remote_files, directory }) => {
     try {
       chechMissingTokens(event, config_id, remote_files, directory)
     } catch (error) {
-      console.log('error', error)
+      console.log('ERROR [on checkMissingToken]', error)
     }
   },
 )
 function chechMissingTokens(
-  event,
+  event: IpcMainEvent,
   config_id: string,
   remote_files: OpFileRaw[],
   directory: string,
@@ -65,15 +69,19 @@ function chechMissingTokens(
 
   generateMissingFolder(directory)
   const base_path = path.normalize(directory)
-  console.log(`fs.readdirSync(base_path)`)
+  console.log(`fs.readdirSync(base_path)`, base_path)
   const local_files = fs.readdirSync(base_path)
 
   const data_path = getDataPath(directory)
-  console.log(`fs.readdirSync(data_path)`)
+  console.log(`fs.readdirSync(data_path)`, data_path)
   const local_tokens = fs.readdirSync(data_path)
 
   if (!local_tokens.length) {
-    event.sender.send('missingTokensToDownload', config_id, remote_files)
+    console.log('All tokens missing')
+    event.sender.send('missingTokensToDownload', {
+      config_id,
+      missing_files: remote_files,
+    })
     return
   }
 
@@ -84,18 +92,21 @@ function chechMissingTokens(
   )
   console.log(`${difference.length} tokens missing`)
   console.log(difference)
-  event.sender.send('missingTokensToDownload', config_id, difference)
+  event.sender.send('missingTokensToDownload', {
+    config_id,
+    missing_files: difference,
+  })
 }
-ipcMain.on('openPath', (_event, path_to_open) => {
+ElectronIPC.on('openPath', (_event, path_to_open) => {
   console.log(`[openPath] triggered for path ${path_to_open}`)
   shell.openPath(path.normalize(path_to_open))
 })
 
-ipcMain.on('stop-download', (_event, config_id: number) => {
+ElectronIPC.on('stopDownload', (_event, config_id) => {
   console.log('[download-stop] stopping download for config', config_id)
   queues.get(config_id)?.splice(0)
 })
-ipcMain.on('deleteFolder', async (_event, folder_path: string) => {
+ElectronIPC.on('deleteFolder', async (_event, folder_path: string) => {
   try {
     console.log(`[deleteFolder] triggered for path ${folder_path}`)
     await fsPromises.rm(path.normalize(folder_path), { recursive: true })
@@ -103,9 +114,15 @@ ipcMain.on('deleteFolder', async (_event, folder_path: string) => {
     console.log(error)
   }
 })
-ipcMain.on(
+ElectronIPC.on(
   'deleteRemovedFilesFromRemote',
-  (_event, remote_files: OpFileRaw[], directory: string) => {
+  (
+    _event,
+    {
+      remote_files,
+      directory,
+    }: { remote_files: OpFileRaw[]; directory: string },
+  ) => {
     console.log(
       `[deleteRemovedFilesFromRemote] triggered for path ${directory}`,
     )
@@ -151,184 +168,172 @@ ipcMain.on(
   },
 )
 
-const queues: Map<number, (() => Promise<void>)[]> = new Map()
-interface DownloadFilesData {
-  files: { url: string; token: string; name: string }[]
-  directory: string
-  loader: SyncProgressInfo
-  keep_old_files: boolean
-}
-ipcMain.on(
-  'downloadFiles',
-  async (event, config_id, data: DownloadFilesData) => {
-    console.log(`[downloadFiles] triggered for folder ${data.directory}`)
-    data.loader.downloading = true
+const queues: Map<string, (() => Promise<void>)[]> = new Map()
 
-    data.loader.total = data.files.length
-    const to_download = cloneDeep(data.files).map(file => file.token)
-    const dataPath = getDataPath(data.directory)
-    generateMissingFolder(data.directory)
-    const links_path = dataPath + '/link.json'
+ElectronIPC.on('downloadFiles', async (event, data) => {
+  console.log(`[downloadFiles] triggered for folder ${data.directory}`)
+  data.loader.downloading = true
 
-    console.log(`fs.readdirSync(dataPath)`)
-    const existing_files = fs.readdirSync(dataPath)
+  data.loader.total = data.files.length
+  const to_download = cloneDeep(data.files).map(file => file.token)
+  const dataPath = getDataPath(data.directory)
+  generateMissingFolder(data.directory)
+  const links_path = dataPath + '/link.json'
 
-    console.log(`fs.readdirSync(data.directory)`)
-    const existing_links = fs.readdirSync(data.directory)
+  console.log(`fs.readdirSync(dataPath)`)
+  const existing_files = fs.readdirSync(dataPath)
 
-    console.log(`fs.existsSync(links_path)`)
-    const link_map = fs.existsSync(links_path)
-      ? JSON.parse(fs.readFileSync(links_path, { encoding: 'utf-8' }))
-      : {}
+  console.log(`fs.readdirSync(data.directory)`)
+  const existing_links = fs.readdirSync(data.directory)
 
-    const emit_progress = (): void => {
-      data.loader.is_stopping = !jobs.length
-      event.sender.send('downloadProgress', config_id, data.loader)
+  console.log(`fs.existsSync(links_path)`)
+  const link_map = fs.existsSync(links_path)
+    ? JSON.parse(fs.readFileSync(links_path, { encoding: 'utf-8' }))
+    : {}
+
+  const emit_progress = (): void => {
+    data.loader.is_stopping = !jobs.length
+    event.sender.send('downloadProgress', {
+      config_id: data.config_id,
+      loader: data.loader,
+    })
+  }
+
+  const do_link = (linkPath: string, filePath: string): void => {
+    console.log('linking file ', linkPath, filePath)
+    try {
+      console.log(`fs.unlinkSync(linkPath)`)
+      if (fs.existsSync(linkPath)) fs.unlinkSync(linkPath)
+    } catch (error) {
+      console.log('unlink failed', error)
     }
-
-    const do_link = (linkPath: string, filePath: string): void => {
-      console.log('linking file ', linkPath, filePath)
+    try {
+      console.log('linking file')
+      console.log(`fs.linkSync(filePath, linkPath)`)
+      fs.linkSync(filePath, linkPath)
+    } catch (error) {
+      console.log(
+        'using soft copy as fallback method because link failed',
+        error,
+      )
       try {
-        console.log(`fs.unlinkSync(linkPath)`)
-        if (fs.existsSync(linkPath)) fs.unlinkSync(linkPath)
+        fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
+        console.log(`console.log(fs.constants.COPYFILE_FICLONE)`)
+        fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
       } catch (error) {
-        console.log('unlink failed', error)
+        console.log('using hard copy because soft copy returned', error)
+        fs.writeFileSync(linkPath, fs.readFileSync(filePath))
+        console.log(`console.log(fs.readFileSync(filePath))`)
+        fs.writeFileSync(linkPath, fs.readFileSync(filePath))
       }
+    }
+    console.log('linking file successful')
+  }
+
+  // Delete old links
+  if (!data.keep_old_files) {
+    existing_links.forEach(existing_link => {
+      const filename = path.basename(existing_link)
+      if (filename == 'data') return
+      if (!data.files.find(f => f.name == filename)) {
+        console.log('deleting old link', existing_link)
+        try {
+          console.log(`fs.unlinkSync(existing_link)`)
+          fs.unlinkSync(existing_link)
+        } catch (error) {
+          console.log('cannot delete file', error)
+        }
+        delete link_map[filename]
+      }
+    })
+  }
+
+  const download_file = async (file: {
+    url: string
+    token: string
+    name: string
+  }): Promise<void> => {
+    // Create the file path
+    const filePath = path.normalize(`${dataPath}/${file.token}`)
+    const linkPath = path.normalize(`${data.directory}/${file.name}`)
+
+    if (!existing_files.includes(file.token)) {
+      // Invalidate all links pointing to the file we have to download
+      for (const i in link_map) {
+        if (link_map[i] == file.token) {
+          delete link_map[i]
+        }
+      }
+
+      console.log('[download] Downloadinf file...', file.url, filePath)
       try {
-        console.log('linking file')
-        console.log(`fs.linkSync(filePath, linkPath)`)
-        fs.linkSync(filePath, linkPath)
+        await downloadUrlToFile(file.url, filePath)
+        console.log('[download] Downloadinf complete', file.url, filePath)
+        data.loader.downloaded++
       } catch (error) {
-        console.log(
-          'using soft copy as fallback method because link failed',
-          error,
-        )
-        try {
-          fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
-          console.log(`console.log(fs.constants.COPYFILE_FICLONE)`)
-          fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
-        } catch (error) {
-          console.log('using hard copy because soft copy returned', error)
-          fs.writeFileSync(linkPath, fs.readFileSync(filePath))
-          console.log(`console.log(fs.readFileSync(filePath))`)
-          fs.writeFileSync(linkPath, fs.readFileSync(filePath))
-        }
+        console.log('[download] Downloadinf failed', file.url, filePath, error)
+        data.loader.failed++
+        emit_progress()
+        return
       }
-      console.log('linking file successful')
+    } else {
+      data.loader.already_exists++
     }
 
-    // Delete old links
-    if (!data.keep_old_files) {
-      existing_links.forEach(existing_link => {
-        const filename = path.basename(existing_link)
-        if (filename == 'data') return
-        if (!data.files.find(f => f.name == filename)) {
-          console.log('deleting old link', existing_link)
-          try {
-            console.log(`fs.unlinkSync(existing_link)`)
-            fs.unlinkSync(existing_link)
-          } catch (error) {
-            console.log('cannot delete file', error)
-          }
-          delete link_map[filename]
-        }
-      })
+    // Download the file
+    if (link_map[file.name] != file.token) {
+      try {
+        do_link(linkPath, filePath)
+        link_map[file.name] = file.token
+        console.log(`fs.writeFileSync(links_path, JSON.stringify(link_map))`)
+        fs.writeFileSync(links_path, JSON.stringify(link_map))
+      } catch (error) {
+        console.log('[download] cannot copy file:', error)
+        data.loader.failed++
+      }
     }
 
-    const download_file = async (file: {
-      url: string
-      token: string
-      name: string
-    }): Promise<void> => {
-      // Create the file path
-      const filePath = path.normalize(`${dataPath}/${file.token}`)
-      const linkPath = path.normalize(`${data.directory}/${file.name}`)
+    // Update progress
+    emit_progress()
+  }
 
-      if (!existing_files.includes(file.token)) {
-        // Invalidate all links pointing to the file we have to download
-        for (const i in link_map) {
-          if (link_map[i] == file.token) {
-            delete link_map[i]
-          }
-        }
+  const jobs = data.files.map(file => (): Promise<void> => download_file(file))
 
-        console.log('[download] Downloadinf file...', file.url, filePath)
-        try {
-          await downloadUrlToFile(file.url, filePath)
-          console.log('[download] Downloadinf complete', file.url, filePath)
-          data.loader.downloaded++
-        } catch (error) {
-          console.log(
-            '[download] Downloadinf failed',
-            file.url,
-            filePath,
-            error,
-          )
-          data.loader.failed++
-          emit_progress()
-          return
-        }
-      } else {
-        data.loader.already_exists++
-      }
+  queues.set(data.config_id, jobs)
 
-      // Download the file
-      if (link_map[file.name] != file.token) {
-        try {
-          do_link(linkPath, filePath)
-          link_map[file.name] = file.token
-          console.log(`fs.writeFileSync(links_path, JSON.stringify(link_map))`)
-          fs.writeFileSync(links_path, JSON.stringify(link_map))
-        } catch (error) {
-          console.log('[download] cannot copy file:', error)
-          data.loader.failed++
-        }
-      }
+  console.log(`[downloadFiles] sync ${to_download.length} files`)
+  const concurrentCount =
+    Number(store.get('user_properties.simultaneous_downloads')) || 1
 
-      // Update progress
-      emit_progress()
-    }
+  await processQueue(jobs, concurrentCount)
 
-    const jobs = data.files.map(
-      file => (): Promise<void> => download_file(file),
-    )
+  data.loader.downloading = false
+  queues.delete(data.config_id)
+  event.sender.send('downloadProgress', data.config_id, data.loader)
 
-    queues.set(config_id, jobs)
-
-    console.log(`[downloadFiles] sync ${to_download.length} files`)
-    const concurrentCount =
-      Number(store.get('user_properties.simultaneous_downloads')) || 1
-
-    await processQueue(jobs, concurrentCount)
-
-    data.loader.downloading = false
-    queues.delete(config_id)
-    event.sender.send('downloadProgress', config_id, data.loader)
-
-    console.log(` - downloaded: ${data.loader.downloaded}`)
-    console.log(` - failed: ${data.loader.failed}`)
-    console.log(` - already_exists: ${data.loader.already_exists}`)
-    console.log('[downloadFiles] sync over')
-  },
-)
-ipcMain.handle('pick-folder-path', async () => {
+  console.log(` - downloaded: ${data.loader.downloaded}`)
+  console.log(` - failed: ${data.loader.failed}`)
+  console.log(` - already_exists: ${data.loader.already_exists}`)
+  console.log('[downloadFiles] sync over')
+})
+ElectronIPC.handle('pickFolderPath', async () => {
   const res = await dialog.showOpenDialog({
     properties: ['openDirectory', 'createDirectory'],
   })
   return path.normalize(res.filePaths[0])
 })
-ipcMain.handle('electron-store-set', async (_event, key: string, val: any) => {
+ElectronIPC.handle('electron-store-set', async (_event, { key, val }) => {
   console.log('[electron-store-set] setting', key, 'as', val)
   store.set(key, val)
   return store.get(key)
 })
-ipcMain.handle('electron-store-get', (_event, key: string) => {
+ElectronIPC.handle('electron-store-get', (_event, key) => {
   return store.get(key)
 })
-ipcMain.handle('electron-store-has', async (_event, key: string) => {
+ElectronIPC.handle('electron-store-has', async (_event, key) => {
   return store.has(key)
 })
-ipcMain.handle('electron-store-delete', async (_Event, key: string) => {
+ElectronIPC.handle('electron-store-delete', async (_Event, key) => {
   store.delete(key)
   return !store.has(key)
 })
@@ -336,12 +341,14 @@ ipcMain.handle('electron-store-delete', async (_Event, key: string) => {
 function generateMissingFolder(directory: string): void {
   const main_path = path.normalize(directory)
   const data_path = path.normalize(`${directory}/data`)
-  console.log(`fs.existsSync(main_path)) {`)
+
+  console.log(`fs.existsSync(main_path))`)
   if (!fs.existsSync(main_path)) {
     console.log(`fs.mkdirSync(main_path)`)
     fs.mkdirSync(main_path)
   }
-  console.log(`fs.existsSync(data_path)) {`)
+
+  console.log(`fs.existsSync(data_path))`)
   if (!fs.existsSync(data_path)) {
     console.log(`fs.mkdirSync(data_path)`)
     fs.mkdirSync(data_path)

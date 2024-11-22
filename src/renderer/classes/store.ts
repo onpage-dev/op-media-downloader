@@ -1,6 +1,5 @@
 import { IpcRendererEvent } from '@electron-toolkit/preload'
 import { cloneDeep, forEach } from 'lodash'
-import { OpFileRaw } from 'onpage-js'
 import { reactive } from 'vue'
 import {
   FolderConfig,
@@ -51,32 +50,20 @@ export class StorageService {
   }
 
   initRenderEvents(): void {
-    // On Progress
-    window.electron.ipcRenderer.on(
-      'downloadProgress',
-      (
-        _event: IpcRendererEvent,
-        config_id: string,
-        progressEvent: SyncProgressInfo,
-      ) => {
-        const c = this.configs.get(config_id)
-        if (!c) return
-        c.onDownloadProgress(progressEvent)
-      },
-    )
+    window.electron.ipcRenderer.on('downloadProgress', (_event, data) => {
+      const c = this.configs.get(data.config_id)
+      if (!c) return
+      c.onDownloadProgress(data.progressEvent)
+    })
 
-    // missing tokens to download
     window.electron.ipcRenderer.on(
       'missingTokensToDownload',
-      (
-        _event: IpcRendererEvent,
-        config_id: string,
-        missing_files: OpFileRaw[],
-      ) => {
-        const c = this.configs.get(config_id)
+      (_event, data) => {
+        const c = this.configs.get(data.config_id)
         if (!c) return
-        c.images_to_download = c.uniq_images_raw_array.filter(image =>
-          missing_files.find(img => img.token == image.token),
+        const missing_tokens = new Set(data.missing_files.map(f => f.token))
+        c.images_to_download = c.uniq_images_raw_array.filter(({ token }) =>
+          missing_tokens.has(token),
         )
       },
     )
@@ -104,33 +91,25 @@ export class StorageService {
   }
 
   async set<T>(key: string, val: T): Promise<T> {
-    const res: T = await window.electron.ipcRenderer.invoke(
+    return window.electron.ipcRenderer.invoke<'electron-store-set', T>(
       'electron-store-set',
-      key,
-      val,
+      {
+        key,
+        val,
+      },
     )
-    return res
   }
   async delete(key: string): Promise<boolean> {
-    const res: boolean = await window.electron.ipcRenderer.invoke(
-      'electron-store-delete',
-      key,
-    )
-    return res
+    return window.electron.ipcRenderer.invoke('electron-store-delete', key)
   }
   async get<T>(key: string): Promise<T> {
-    const res = await window.electron.ipcRenderer.invoke(
+    return window.electron.ipcRenderer.invoke<'electron-store-get', T>(
       'electron-store-get',
       key,
     )
-    return res
   }
   async has(key: string): Promise<boolean> {
-    const res: boolean = await window.electron.ipcRenderer.invoke(
-      'electron-store-has',
-      key,
-    )
-    return res
+    return window.electron.ipcRenderer.invoke('electron-store-has', key)
   }
 
   async setConfig(f: FolderConfigJson): Promise<void> {

@@ -1,3 +1,16 @@
+<script lang="ts" setup>
+import 'flag-icons/css/flag-icons.min.css'
+withDefaults(
+  defineProps<{
+    iso?: string
+    size?: string
+    rounded?: boolean
+  }>(),
+  {
+    size: '1',
+  },
+)
+</script>
 <template>
   <span
     :class="`fi fi-${iso} fis ${rounded ? 'rounded-full' : ''}`"
@@ -5,20 +18,3 @@
     class="shrink-0"
   />
 </template>
-
-<script lang="ts" setup>
-import 'flag-icons/css/flag-icons.min.css'
-
-defineProps({
-  iso: {
-    type: String,
-  },
-  size: {
-    type: String,
-    default: '1',
-  },
-  rounded: {
-    type: Boolean,
-  },
-})
-</script>

@@ -6,8 +6,10 @@
     "src/renderer/**/*.ts",
     "src/renderer/**/*.vue",
     "src/renderer/src/helpers.ts",
-    "src/preload/*.d.ts"
-, "src/renderer/assets"  ],
+    "src/preload/*.d.ts",
+    "src/renderer/assets",
+    "src/shared/electron-ipc-renderer-models.ts"
+  ],
   "compilerOptions": {
     "composite": true,
     "baseUrl": ".",
@@ -17,6 +19,9 @@
       ],
       "@classes/*": [
         "src/renderer/classes/*"
+      ],
+      "@shared/*": [
+        "src/shared/*"
       ]
     }
   }

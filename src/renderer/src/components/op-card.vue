@@ -65,7 +65,7 @@
 
 <script lang="ts">
 import { OpCardColor } from '@classes/color-classes'
-import { formattedColor } from '@renderer/service/utils'
+import { formattedColor } from '@renderer/service/theme-service'
 import { debounce, forEach, isArray, isNumber, isString } from 'lodash'
 import { computed, defineComponent, inject, PropType } from 'vue'
 import OpIcon from './op-icon.vue'
@@ -555,7 +555,6 @@ export default defineComponent({
         } else {
           ret.add('cursor-pointer')
           ret.add('duration-colors-100')
-          // const [light, dark] = $utils.splitColor(this.hover)!
           if (!this.nohover) {
             ret.add(
               `hover:bg-${pal.bg.mix(1)} dark:hover:bg-${pal.bg_dark.mix(-1)}`,
@@ -574,13 +573,6 @@ export default defineComponent({
               2,
             )}-inv dark:active:text-${pal.bg_dark.mix(-2)}-inv`,
           )
-          // if (this.active) {
-          //   ret.add(` text-black dark:text-light`)
-          //   ret.add(
-          //     `bg-opacity-30 darl:bg-opacity-30`
-          //   )
-          // } else {
-          // }
         }
       }
       if (this.row) {

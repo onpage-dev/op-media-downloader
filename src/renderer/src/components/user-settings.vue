@@ -5,37 +5,20 @@ import { computed, watch, onBeforeMount, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import OpFlag from './op-flag.vue'
 import OpToggle from './op-toggle.vue'
+import { debounce } from 'lodash'
 const i18n = useI18n()
-const props = defineProps({
-  storage: {
-    type: StorageService,
-    required: true,
-  },
-})
-const local_simultaneous_downloads: Ref<number | undefined> = ref(undefined)
-const debounce_save: Ref<any | undefined> = ref(undefined)
+const props = defineProps<{
+  storage: StorageService
+}>()
 
+/** Language */
 const current_lang = computed(() => props.storage.user_properties.language)
+
+/** Simultaneout Downloads */
+const local_simultaneous_downloads: Ref<number | undefined> = ref(undefined)
 const simultaneous_downloads = computed(
   () => props.storage.user_properties.simultaneous_downloads,
 )
-const dark_mode = computed(() => props.storage.user_properties.dark_mode)
-function toggleDarkMode(): void {
-  props.storage.set('user_properties.dark_mode', !dark_mode.value)
-}
-function setSimultaneousDownloads(new_val: number): void {
-  if (debounce_save.value) {
-    clearTimeout(debounce_save.value)
-    debounce_save.value = undefined
-  }
-  debounce_save.value = setTimeout(() => {
-    props.storage.set('user_properties.simultaneous_downloads', new_val)
-  }, 300)
-}
-function setLang(lang: SupportedLang): void {
-  props.storage.set('user_properties.language', lang)
-}
-
 watch(
   simultaneous_downloads,
   val => {
@@ -43,6 +26,10 @@ watch(
   },
   { immediate: true },
 )
+const setSimultaneousDownloads = debounce(doSetSimultaneousDownloads, 300)
+function doSetSimultaneousDownloads(new_val: number): void {
+  props.storage.set('user_properties.simultaneous_downloads', new_val)
+}
 
 onBeforeMount(() => {
   if (!simultaneous_downloads.value) {
@@ -52,6 +39,15 @@ onBeforeMount(() => {
     setLang('it')
   }
 })
+
+/** Theme */
+const dark_mode = computed(() => props.storage.user_properties.dark_mode)
+function toggleDarkMode(): void {
+  props.storage.set('user_properties.dark_mode', !dark_mode.value)
+}
+function setLang(lang: SupportedLang): void {
+  props.storage.set('user_properties.language', lang)
+}
 </script>
 <template>
   <div class="full-height-scroll gap-unit-double modal-size-w-sm">

@@ -10,7 +10,7 @@ import {
   Schema,
   ThingID,
 } from 'onpage-js'
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { ConfigEvents, StorageService } from './store'
 dayjs.extend(utc)
 
@@ -64,20 +64,57 @@ export class FolderConfig {
   local_file_tokens: string[] = reactive([])
   images_to_download: OpFile[] = reactive([])
 
+  /** Images raw array maps with cache */
+  private _images_raw_array: OpFile[] = []
+  private _images_raw_array_cache_invalid = true
+  private _uniq_images_raw_array: OpFile[] = []
+  private _uniq_images_raw_array_cache_invalid = true
+  get images_raw_array(): OpFile[] {
+    if (this._images_raw_array_cache_invalid) {
+      console.log('invalid _images_raw_array_cache_invalid cache')
+      this._images_raw_array = []
+      for (const files of this.images_raw_by_token.values()) {
+        this._images_raw_array.push(...files)
+      }
+      this._images_raw_array_cache_invalid = false
+    }
+    console.log('valid _images_raw_array_cache_invalid cache')
+    return this._images_raw_array
+  }
+  get uniq_images_raw_array(): OpFile[] {
+    if (this._uniq_images_raw_array_cache_invalid) {
+      console.log('invalid _uniq_images_raw_array_cache_invalid cache')
+      const seen = new Set<string>()
+      this._uniq_images_raw_array = []
+      for (const file of this.images_raw_array) {
+        if (!seen.has(file.name)) {
+          seen.add(file.name)
+          this._uniq_images_raw_array.push(file)
+        }
+      }
+      this._uniq_images_raw_array_cache_invalid = false
+    }
+    console.log('valid _uniq_images_raw_array_cache_invalid cache')
+    return this._uniq_images_raw_array
+  }
+
   constructor(public storage: StorageService, public json: FolderConfigJson) {
     this.api = reactive(new Api({ token: this.api_token })) as Api
+
+    watch(
+      () => Array.from(this.images_raw_by_token.entries()),
+      () => {
+        this._images_raw_array_cache_invalid = true
+        this._uniq_images_raw_array_cache_invalid = true
+      },
+      { deep: true },
+    )
   }
 
   get duplicated_images(): Map<FileName, Map<FileToken, DuplicatedInfo[]>> {
     return new Map(
       Array.from(this.images_by_name).filter(([, obj]) => obj.size > 1),
     )
-  }
-  get images_raw_array(): OpFile[] {
-    return flatMap(Array.from(this.images_raw_by_token.values()))
-  }
-  get uniq_images_raw_array(): OpFile[] {
-    return uniqBy(this.images_raw_array, file => file.name)
   }
   get label(): string {
     return this.json.label
@@ -244,8 +281,12 @@ export class FolderConfig {
       if (!this.keep_old_files) {
         window.electron.ipcRenderer.send(
           'deleteRemovedFilesFromRemote',
-          [...this.uniq_images_raw_array.map(file => file.serialize())],
-          this.folder_path,
+          cloneDeep({
+            remote_files: [
+              ...this.uniq_images_raw_array.map(file => file.serialize()),
+            ],
+            directory: this.folder_path,
+          }),
         )
       }
 
@@ -272,8 +313,8 @@ export class FolderConfig {
     })
     window.electron.ipcRenderer.send(
       'downloadFiles',
-      this.id,
       cloneDeep({
+        config_id: this.id,
         files: this.uniq_images_raw_array.map(file => ({
           url: file.link(),
           token: file.token,
@@ -288,7 +329,7 @@ export class FolderConfig {
 
   stopDownload(): void {
     console.log('sending stop signal', this.id)
-    window.electron.ipcRenderer.send('stop-download', this.id)
+    window.electron.ipcRenderer.send('stopDownload', this.id)
   }
 
   saveLastSync(progress: SyncProgressInfo): void {
@@ -309,14 +350,15 @@ export class FolderConfig {
   }
 
   checkMissingTokens(): void {
-    window.electron.ipcRenderer.send(
-      'checkMissingTokens',
-      this.id,
-      Array.from(this.images_raw_by_token.values()).map<OpFileRaw>(files =>
-        files[0].serialize(),
-      ),
-      this.folder_path,
-    )
+    const params = {
+      config_id: this.id,
+      remote_files: Array.from(
+        this.images_raw_by_token.values(),
+      ).map<OpFileRaw>(files => files[0].serialize()),
+      directory: this.folder_path,
+    }
+    /** On end this will trigger missingTokensToDownload from main */
+    window.electron.ipcRenderer.send('checkMissingTokens', params)
   }
 
   async refresh(): Promise<void> {
