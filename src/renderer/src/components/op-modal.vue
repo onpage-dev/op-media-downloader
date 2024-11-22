@@ -4,9 +4,14 @@ const emit = defineEmits<{
 }>()
 </script>
 <template>
-  <div class="overlay bg-overlay z-50 flex-col" @click="emit('close')">
+  <div class="overlay bg-overlay z-50" @click="emit('close')">
     <div class="op-modal full-height-scroll h-full p-unit-double">
-      <op-overlay-card class="op-modal-content m-auto" col @click.stop>
+      <op-overlay-card
+        class="op-modal-content m-auto"
+        style="max-height: 90vh; max-width: 90vw"
+        col
+        @click.stop
+      >
         <op-circle-btn
           class="top-0 right-0 group"
           position="absolute"
