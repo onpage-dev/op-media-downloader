@@ -20,7 +20,7 @@ const local_form = reactive(cloneDeep(props.form))
 
 function chooseFolder(): void {
   if (!local_form) return
-  window.electron.ipcRenderer.invoke('pickFolderPath').then(res => {
+  window.electron.ipcRenderer.invoke('pick-folder-path').then(res => {
     console.log('selected folder path', res)
     local_form!.folder_path = res
   })

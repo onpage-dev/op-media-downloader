@@ -316,7 +316,7 @@ ElectronIPC.on('downloadFiles', async (event, data) => {
   console.log(` - already_exists: ${data.loader.already_exists}`)
   console.log('[downloadFiles] sync over')
 })
-ElectronIPC.handle('pickFolderPath', async () => {
+ElectronIPC.handle('pick-folder-path', async () => {
   const res = await dialog.showOpenDialog({
     properties: ['openDirectory', 'createDirectory'],
   })

@@ -46,7 +46,7 @@ export interface IPCOnChannels {
 
 // Payload and return types for invoke
 export interface IPCInvokeChannels<T = any> {
-  pickFolderPath: { payload: undefined; return: string }
+  'pick-folder-path': { payload: undefined; return: string }
   'electron-store-set': {
     payload: { key: string; val: T }
     return: T
