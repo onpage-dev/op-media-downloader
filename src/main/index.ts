@@ -277,23 +277,36 @@ ElectronIPC.on('download-files', async (event, data) => {
         console.log('[download] Downloadinf file:')
         console.log(` - ${file.url}`)
         console.log(` - ${filePath}`)
-        await downloadUrlToFile(file.url, filePath, () => {
-          /** Create links */
-          if (link_map[file.name] == file.token) return
-          try {
-            do_link(linkPath, filePath)
-            link_map[file.name] = file.token
-            console.log(
-              `fs.writeFileSync(links_path, JSON.stringify(link_map))`,
-            )
-            fs.writeFileSync(links_path, JSON.stringify(link_map))
-            console.log('[download] Downloadinf complete')
-            data.loader.downloaded++
-          } catch (error) {
-            console.log('[download] cannot copy file:', error)
-            data.loader.failed++
-          }
-        })
+        await downloadUrlToFile(
+          file.url,
+          filePath,
+          (resolve: CallableFunction, reject: CallableFunction) => {
+            function doResolve(): void {
+              data.loader.downloaded++
+              resolve()
+            }
+            /** Create links */
+            if (link_map[file.name] == file.token) {
+              doResolve()
+              return
+            }
+
+            try {
+              do_link(linkPath, filePath)
+              link_map[file.name] = file.token
+              console.log(
+                `fs.writeFileSync(links_path, JSON.stringify(link_map))`,
+              )
+              fs.writeFileSync(links_path, JSON.stringify(link_map))
+              console.log('[download] Downloadinf complete')
+              doResolve()
+            } catch (error) {
+              console.log('[download] cannot copy file:', error)
+              data.loader.failed++
+              reject(error)
+            }
+          },
+        )
       } catch (error) {
         console.log('[download] Downloadinf failed:')
         console.log(error)
@@ -319,11 +332,12 @@ ElectronIPC.on('download-files', async (event, data) => {
 
   await processQueue(jobs, concurrentCount)
 
-  data.loader.downloading = false
   queues.delete(data.config_id)
   event.sender.send('update-download-progress', {
     config_id: data.config_id,
-    progressEvent: data.loader,
+    progressEvent: Object.assign(data.loader, {
+      downloading: false,
+    }),
   })
 
   console.log(` - downloaded: ${data.loader.downloaded}`)
@@ -375,8 +389,7 @@ async function downloadUrlToFile(
     response.data.on('end', async () => {
       console.log(`fs.renameSync(${path}.download, ${path})`)
       fs.renameSync(`${path}.download`, path)
-      on_end()
-      resolve()
+      on_end(resolve, reject)
     })
 
     response.data.on('error', (error: any) => reject(error))
