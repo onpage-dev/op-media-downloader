@@ -1,6 +1,13 @@
 import { OpFileRaw } from 'onpage-js'
-import { SyncProgressInfo } from '@classes/folder-config'
-
+interface SyncProgressInfo {
+  start_time: string
+  downloading: boolean
+  is_stopping: boolean
+  total: number
+  downloaded: number
+  failed: number
+  already_exists: number
+}
 // Payload types for send
 export interface IPCSendChannels {
   'get-version-info': undefined
