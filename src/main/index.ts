@@ -4,11 +4,10 @@ import { BrowserWindow, IpcMainEvent, app, dialog, shell } from 'electron'
 import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
-import { cloneDeep } from 'lodash'
 import { OpFileRaw } from 'onpage-js'
 import path from 'path'
-import { processQueue } from './utils'
 import { ElectronIPC } from './electron-ipc'
+import { processQueue } from './utils'
 
 export interface SyncProgressInfo {
   start_time: string
@@ -41,13 +40,10 @@ ElectronIPC.on('get-version-info', async event => {
   } catch (error) {
     console.error(error)
   }
-  event.sender.send(
-    'update-version-info',
-    cloneDeep({
-      current: 'v' + app.getVersion(),
-      latest: next?.tag_name,
-    }),
-  )
+  event.sender.send('update-version-info', {
+    current: 'v' + app.getVersion(),
+    latest: next?.tag_name,
+  })
 })
 ElectronIPC.on(
   'check-missing-tokens',
@@ -175,7 +171,7 @@ ElectronIPC.on('download-files', async (event, data) => {
   data.loader.downloading = true
 
   data.loader.total = data.files.length
-  const to_download = cloneDeep(data.files).map(file => file.token)
+  const to_download = data.files.map(file => file.token)
   const dataPath = getDataPath(data.directory)
   generateMissingFolder(data.directory)
   const links_path = dataPath + '/link.json'
@@ -273,14 +269,29 @@ ElectronIPC.on('download-files', async (event, data) => {
         }
       }
 
-      console.log(' ')
-      console.log('[download] Downloadinf file:')
-      console.log(` - ${file.url}`)
-      console.log(` - ${filePath}`)
+      /** Download the file */
       try {
-        await downloadUrlToFile(file.url, filePath)
-        console.log('[download] Downloadinf complete')
-        data.loader.downloaded++
+        console.log(' ')
+        console.log('[download] Downloadinf file:')
+        console.log(` - ${file.url}`)
+        console.log(` - ${filePath}`)
+        await downloadUrlToFile(file.url, filePath, () => {
+          /** Create links */
+          if (link_map[file.name] == file.token) return
+          try {
+            do_link(linkPath, filePath)
+            link_map[file.name] = file.token
+            console.log(
+              `fs.writeFileSync(links_path, JSON.stringify(link_map))`,
+            )
+            fs.writeFileSync(links_path, JSON.stringify(link_map))
+            console.log('[download] Downloadinf complete')
+            data.loader.downloaded++
+          } catch (error) {
+            console.log('[download] cannot copy file:', error)
+            data.loader.failed++
+          }
+        })
       } catch (error) {
         console.log('[download] Downloadinf failed:')
         console.log(error)
@@ -292,26 +303,11 @@ ElectronIPC.on('download-files', async (event, data) => {
       data.loader.already_exists++
     }
 
-    /** Download the file */
-    if (link_map[file.name] != file.token) {
-      try {
-        do_link(linkPath, filePath)
-        link_map[file.name] = file.token
-        console.log(`fs.writeFileSync(links_path, JSON.stringify(link_map))`)
-        fs.writeFileSync(links_path, JSON.stringify(link_map))
-      } catch (error) {
-        console.log('[download] cannot copy file:', error)
-        data.loader.failed++
-      }
-    }
-
     // Update progress
     emit_progress()
   }
 
-  const jobs = data.files.map(
-    file => (): Promise<void> => download_file(cloneDeep(file)),
-  )
+  const jobs = data.files.map(file => (): Promise<void> => download_file(file))
 
   queues.set(data.config_id, jobs)
 
@@ -355,7 +351,11 @@ ElectronIPC.handle('electron-store-delete', async (_Event, key) => {
   return !store.has(key)
 })
 
-async function downloadUrlToFile(url: string, path: string): Promise<void> {
+async function downloadUrlToFile(
+  url: string,
+  path: string,
+  on_end: CallableFunction,
+): Promise<void> {
   const response = await axios({
     method: 'GET',
     url,
@@ -370,9 +370,10 @@ async function downloadUrlToFile(url: string, path: string): Promise<void> {
   }
 
   return new Promise((resolve, reject) => {
-    response.data.on('end', () => {
+    response.data.on('end', async () => {
       console.log(`fs.renameSync(${path}.download, ${path})`)
       fs.renameSync(`${path}.download`, path)
+      on_end()
       resolve()
     })
 
