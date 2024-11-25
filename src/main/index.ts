@@ -52,6 +52,8 @@ ElectronIPC.on(
       chechMissingTokens(event, config_id, remote_files, directory)
     } catch (error) {
       console.log('ERROR [on checkMissingToken]', error)
+    } finally {
+      event.sender.send('update-missing-tokens')
     }
   },
 )

@@ -32,6 +32,7 @@ export interface IPCSendChannels {
 
 // Payload types for on
 export interface IPCOnChannels {
+  'update-missing-tokens': undefined
   'update-version-info': {
     current: string
     latest?: string

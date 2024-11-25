@@ -64,6 +64,7 @@ export class FolderConfig {
   )
   local_file_tokens: string[] = reactive([])
   images_to_download: OpFile[] = reactive([])
+  calculating_images_to_download = false
 
   /** Images raw array maps with cache */
   private _images_raw_array: OpFile[] = []
@@ -162,7 +163,12 @@ export class FolderConfig {
     return this.current_sync?.is_stopping ?? false
   }
   get is_loading(): boolean {
-    return this.loading_schema || !!this.loaders.size || this.is_downloading
+    return (
+      this.loading_schema ||
+      !!this.loaders.size ||
+      this.is_downloading ||
+      this.calculating_images_to_download
+    )
   }
   getConfig(): FolderConfigJson {
     return {
@@ -267,6 +273,8 @@ export class FolderConfig {
       this.load_fields_error = true
       this.loaders.clear()
       this.resetRemoteFiles()
+    } finally {
+      this.calculating_images_to_download = true
     }
   }
 
@@ -376,6 +384,9 @@ export class FolderConfig {
     }
     /** On end this will trigger missingTokensToDownload from main */
     window.electron.ipcRenderer.send('check-missing-tokens', params)
+    window.electron.ipcRenderer.on('update-missing-tokens', () => {
+      this.calculating_images_to_download = false
+    })
   }
 
   async refresh(): Promise<void> {
