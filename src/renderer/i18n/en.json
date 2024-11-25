@@ -32,6 +32,7 @@
     "config_has_duplicates_description": "The following images have different values connected to the same name. Only one of them will be downloaded. Please rename the following files with unique names."
   },
   "_storage_files": {
+    "error": "Loading error",
     "last_sync": "Last sync",
     "start_sync": "Sync",
     "download": "Download",

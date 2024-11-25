@@ -32,6 +32,7 @@
     "config_has_duplicates_description": "Le seguenti immagini hanno valori diversi collegati allo stesso nome. Ne verrà scaricata solo una. Si prega di rinominare i file con nomi univoci."
   },
   "_storage_files": {
+    "error": "Errore caricamento",
     "last_sync": "Ultima sincronizzazione",
     "start_sync": "Sincronizza",
     "download": "Scarica",

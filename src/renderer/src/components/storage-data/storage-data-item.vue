@@ -104,11 +104,17 @@ watch(
           }"
           color="inherit"
           pad="compact"
+          :active="config.load_fields_error"
+          acolor="red"
           :disabled="config.is_loading"
           :loading="config.is_loading"
           @click="syncOrLoad()"
         >
-          <template v-if="!config.images_raw_by_token.size">
+          <template v-if="config.load_fields_error">
+            <op-icon icon="arrows-rotate" />
+            {{ i18n.t('_storage_files.error') }}
+          </template>
+          <template v-else-if="!config.images_raw_by_token.size">
             <op-icon icon="arrows-rotate" />
             {{ i18n.t('_storage_files.start_sync') }}
           </template>

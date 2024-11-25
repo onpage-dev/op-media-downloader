@@ -55,6 +55,7 @@ export class FolderConfig {
   loading_schema: boolean = false
   failed_schema_load?: boolean
   loaders: Map<FieldID, boolean> = reactive(new Map())
+  load_fields_error = false
   current_sync?: SyncProgressInfo
 
   images_raw_by_token: Map<string, OpFile[]> = reactive(new Map())
@@ -193,68 +194,79 @@ export class FolderConfig {
     this.resetRemoteFiles()
     console.log('[loadRemoteFiles] triggered')
 
-    for (const resource of this.schema.resources) {
-      const media_fields = resource.fields.filter(f => f.isMedia())
-      if (!media_fields.length) continue
-      this.loaders.set(resource.id, true)
-      const ids = await resource
-        .query()
-        .filter([
-          '_or',
-          ...media_fields.map(f => [f.name, 'not_empty', '']),
-        ] as any[])
-        .ids()
-      const label_field = resource.fields.find(f => f.is_textual)
-      const fields_to_load = media_fields
-      if (label_field) fields_to_load.push(label_field)
-
-      for (const id_chunk of chunk(ids, 10000)) {
-        const things = await resource
+    try {
+      this.load_fields_error = false
+      for (const resource of this.schema.resources) {
+        const media_fields = resource.fields.filter(f => f.isMedia())
+        if (!media_fields.length) continue
+        this.loaders.set(resource.id, true)
+        const ids = await resource
           .query()
-          .setFields(fields_to_load.map(f => f.name))
-          .where('_id', 'in', id_chunk)
-          .all()
+          .filter([
+            '_or',
+            ...media_fields.map(f => [f.name, 'not_empty', '']),
+          ] as any[])
+          .ids()
+        const label_field = resource.fields.find(f => f.is_textual)
+        const fields_to_load = media_fields
+        if (label_field) fields_to_load.push(label_field)
 
-        for (const thing of things) {
-          for (const field of media_fields) {
-            const langs = field.is_translatable
-              ? field.schema().langs
-              : [undefined]
+        for (const id_chunk of chunk(ids, 10000)) {
+          const things = await resource
+            .query()
+            .setFields(fields_to_load.map(f => f.name))
+            .where('_id', 'in', id_chunk)
+            .all()
 
-            langs.forEach(lang => {
-              const images: OpFile[] = thing.files(field, lang)
+          for (const thing of things) {
+            for (const field of media_fields) {
+              const langs = field.is_translatable
+                ? field.schema().langs
+                : [undefined]
 
-              images.forEach(image => {
-                const bytoken = this.images_raw_by_token.get(image.token)
-                if (!bytoken) this.images_raw_by_token.set(image.token, [image])
-                else bytoken.push(image)
+              langs.forEach(lang => {
+                const images: OpFile[] = thing.files(field, lang)
 
-                let byname = this.images_by_name.get(image.name)
-                if (!byname) {
-                  byname = new Map()
-                  this.images_by_name.set(image.name, byname)
-                }
+                images.forEach(image => {
+                  const bytoken = this.images_raw_by_token.get(image.token)
+                  if (!bytoken)
+                    this.images_raw_by_token.set(image.token, [image])
+                  else bytoken.push(image)
 
-                let hastoken = byname.get(image.token)
-                if (!hastoken) {
-                  hastoken = []
-                  byname.set(image.token, hastoken)
-                }
+                  let byname = this.images_by_name.get(image.name)
+                  if (!byname) {
+                    byname = new Map()
+                    this.images_by_name.set(image.name, byname)
+                  }
 
-                hastoken.push({
-                  field,
-                  thing_id: thing.id,
-                  thing_label: label_field ? thing.val(label_field) : undefined,
-                  file: image,
-                  lang,
+                  let hastoken = byname.get(image.token)
+                  if (!hastoken) {
+                    hastoken = []
+                    byname.set(image.token, hastoken)
+                  }
+
+                  hastoken.push({
+                    field,
+                    thing_id: thing.id,
+                    thing_label: label_field
+                      ? thing.val(label_field)
+                      : undefined,
+                    file: image,
+                    lang,
+                  })
                 })
               })
-            })
+            }
           }
         }
-      }
 
-      this.loaders.delete(resource.id)
+        this.loaders.delete(resource.id)
+      }
+    } catch (error) {
+      console.error('folderConfig.loadRemoteFiles()', error)
+      this.load_fields_error = true
+      this.loaders.clear()
+      this.resetRemoteFiles()
     }
   }
 
