@@ -302,6 +302,11 @@ export class FolderConfig {
         )
       }
 
+      /** Clear loaders in case of stop-download */
+      if (progressEvent.is_stopping == true) {
+        this.loaders.clear()
+      }
+
       // Save sync
       this.saveLastSync(progressEvent)
     }
