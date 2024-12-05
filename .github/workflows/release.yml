@@ -112,11 +112,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
-            const { getOctokit } = require("@actions/github");
-            const token = process.env.GITHUB_TOKEN;
-            const octokit = getOctokit(token);
-
-            const { data: releases } = await octokit.rest.repos.listReleases({
+            const { data: releases } = await github.rest.repos.listReleases({
               owner: github.context.repo.owner,
               repo: github.context.repo.repo,
             });
@@ -135,7 +131,7 @@ jobs:
             ];
 
             for (const artifact of artifacts) {
-              await octokit.rest.repos.uploadReleaseAsset({
+              await github.rest.repos.uploadReleaseAsset({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
                 release_id: release.id,
