@@ -112,13 +112,21 @@ jobs:
           name: op-media-downloader-mac-arm
           path: release/mac-arm
 
+      - name: List downloaded files
+        run: ls -R release
+
       - name: Upload assets to the latest release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get the latest release tag
           LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-          echo "Latest release: $LATEST_RELEASE"
+          echo "Latest release tag: $LATEST_RELEASE"
+
+          if [ -z "$LATEST_RELEASE" ]; then
+            echo "Error: No release found."
+            exit 1
+          fi
 
           # Upload assets
           gh release upload "$LATEST_RELEASE" \
