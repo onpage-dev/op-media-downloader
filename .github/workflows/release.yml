@@ -47,12 +47,6 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Create and Import Certificate
-        run: |
-          ./scripts/setup-certificate.sh
-          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
-          security set-key-partition-list -S apple-tool:,apple: -s -k "password" build.keychain
-
       - name: Build for macOS (Intel)
         env:
           ARCH: x64
@@ -81,12 +75,6 @@ jobs:
 
       - name: Install dependencies
         run: yarn install
-
-      - name: Create and Import Certificate
-        run: |
-          ./scripts/setup-certificate.sh
-          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
-          security set-key-partition-list -S apple-tool:,apple: -s -k "password" build.keychain
 
       - name: Build for macOS (ARM)
         env:

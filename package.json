@@ -17,9 +17,7 @@
     "build": "yarn run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:win": "yarn run build && electron-builder --win --config",
-    "create-certificate": "./scripts/setup-certificate.sh",
-    "sign-dmg": "./scripts/sign-dmg.sh dist/*.dmg",
-    "build:mac": "yarn create-certificate && yarn run build && electron-builder --mac --config --$ARCH && yarn sign-dmg",
+    "build:mac": "yarn run build && electron-builder --mac --config --$ARCH && ./scripts/setup-and-sign.sh dist/*.dmg",
     "build:linux": "yarn run build && electron-builder --linux --config",
     "translate": "node ./bin/translate.js"
   },
