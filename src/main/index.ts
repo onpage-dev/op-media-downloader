@@ -266,7 +266,7 @@ ElectronIPC.on('download-files', async (event, data) => {
     if (!existing_files.includes(file.token)) {
       /** Invalidate all links pointing to the file we have to download */
       for (const i in link_map) {
-        if (link_map[i] == file.token) {
+        if (link_map[i] == file.name) {
           delete link_map[i]
         }
       }
@@ -316,6 +316,7 @@ ElectronIPC.on('download-files', async (event, data) => {
       }
     } else {
       data.loader.already_exists++
+      do_link(linkPath, filePath)
     }
 
     // Update progress
@@ -380,20 +381,20 @@ async function downloadUrlToFile(
 
   try {
     console.log(`fs.createWriteStream(${path}.download))`)
-    response.data.pipe(fs.createWriteStream(`${path}.download`))
+    const stream = fs.createWriteStream(`${path}.download`)
+    response.data.pipe(stream)
+    return new Promise((resolve, reject) => {
+      stream.on('finish', async () => {
+        console.log(`fs.renameSync(${path}.download, ${path})`)
+        fs.renameSync(`${path}.download`, path)
+        on_end(resolve, reject)
+      })
+
+      stream.on('error', reject)
+    })
   } catch (error) {
     console.log('error creating write stream', error)
   }
-
-  return new Promise((resolve, reject) => {
-    response.data.on('end', async () => {
-      console.log(`fs.renameSync(${path}.download, ${path})`)
-      fs.renameSync(`${path}.download`, path)
-      on_end(resolve, reject)
-    })
-
-    response.data.on('error', (error: any) => reject(error))
-  })
 }
 function generateMissingFolder(directory: string): void {
   const main_path = path.normalize(directory)
