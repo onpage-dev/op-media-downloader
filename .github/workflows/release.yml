@@ -1,0 +1,116 @@
+name: Build and Release OP Media Downloader
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build for Windows
+        run: yarn run build:win
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: op-media-downloader-windows
+          path: dist/*.exe
+
+  build-mac-intel:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build for macOS (Intel)
+        env:
+          ELECTRON_BUILD_ENV: intel
+        run: yarn run build:mac
+
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: op-media-downloader-mac-intel
+          path: dist/*.dmg
+
+  build-mac-arm:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build for macOS (ARM)
+        env:
+          ELECTRON_BUILD_ENV: arm
+        run: yarn run build:mac
+
+      - name: Upload macOS ARM artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: op-media-downloader-mac-arm
+          path: dist/*.dmg
+
+  release:
+    needs:
+      - build-windows
+      - build-mac-intel
+      - build-mac-arm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: op-media-downloader-windows
+          path: release/windows
+
+      - name: Download macOS Intel artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: op-media-downloader-mac-intel
+          path: release/mac-intel
+
+      - name: Download macOS ARM artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: op-media-downloader-mac-arm
+          path: release/mac-arm
+
+      - name: Create GitHub release and attach artifacts
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: |
+            release/windows/*.exe
+            release/mac-intel/*.dmg
+            release/mac-arm/*.dmg
+          token: ${{ secrets.GITHUB_TOKEN }}
