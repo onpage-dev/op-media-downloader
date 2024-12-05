@@ -4,7 +4,7 @@ CERTIFICATE_NAME="Developer ID Application: Local Self-Signed"
 KEYCHAIN_NAME="build.keychain"
 PASSWORD="password"
 EXISTING_DMG_PATH=$1
-APP_PATH="$(echo -n dist/mac-*/*.app)"
+APP_PATH="$(echo -n dist/m*/*.app)"
 NEW_DMG_NAME="$(basename "$EXISTING_DMG_PATH")"
 NEW_DMG_PATH="dist/$NEW_DMG_NAME"
 
