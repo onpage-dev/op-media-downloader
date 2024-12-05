@@ -88,6 +88,9 @@ jobs:
       - build-mac-arm
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
       - name: Download Windows artifact
         uses: actions/download-artifact@v3
         with:
