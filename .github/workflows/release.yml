@@ -1,4 +1,4 @@
-name: Build and Update Release OP Media Downloader
+name: Build and Release OP Media Downloader
 
 on:
   release:
@@ -112,18 +112,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
-            const { context, getOctokit } = require("@actions/github");
+            const { getOctokit } = require("@actions/github");
             const token = process.env.GITHUB_TOKEN;
             const octokit = getOctokit(token);
 
             const { data: releases } = await octokit.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: github.context.repo.owner,
+              repo: github.context.repo.repo,
             });
 
-            const release = releases.find(r => r.tag_name === context.ref.replace('refs/tags/', ''));
+            const release = releases.find(r => r.tag_name === github.context.ref.replace('refs/tags/', ''));
             if (!release) {
-              throw new Error(`Release with tag ${context.ref.replace('refs/tags/', '')} does not exist.`);
+              throw new Error(`Release with tag ${github.context.ref.replace('refs/tags/', '')} does not exist.`);
             }
 
             console.log(`Found release: ${release.name} (${release.id})`);
@@ -136,8 +136,8 @@ jobs:
 
             for (const artifact of artifacts) {
               await octokit.rest.repos.uploadReleaseAsset({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
                 release_id: release.id,
                 name: artifact.split('/').pop(),
                 data: require('fs').readFileSync(artifact),
