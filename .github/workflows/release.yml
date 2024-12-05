@@ -52,9 +52,6 @@ jobs:
           ARCH: x64
         run: yarn run build:mac
 
-      - name: Verify and Sign DMG
-        run: ./scripts/sign-dmg.sh dist/*.dmg
-
       - name: Upload macOS Intel artifact
         uses: actions/upload-artifact@v3
         with:
@@ -80,9 +77,6 @@ jobs:
         env:
           ARCH: arm64
         run: yarn run build:mac
-
-      - name: Verify and Sign DMG
-        run: ./scripts/sign-dmg.sh dist/*.dmg
 
       - name: Upload macOS ARM artifact
         uses: actions/upload-artifact@v3
