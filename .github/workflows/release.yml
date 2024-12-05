@@ -1,4 +1,4 @@
-name: Build and Release OP Media Downloader
+name: Build and Update Release OP Media Downloader
 
 on:
   release:
@@ -108,6 +108,8 @@ jobs:
 
       - name: Attach assets to existing release
         uses: actions/github-script@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
             const { context, getOctokit } = require("@actions/github");
@@ -141,5 +143,3 @@ jobs:
                 data: require('fs').readFileSync(artifact),
               });
             }
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
