@@ -46,7 +46,7 @@ jobs:
 
       - name: Build for macOS (Intel)
         env:
-          ELECTRON_BUILD_ENV: intel
+          ARCH: x64
         run: yarn run build:mac
 
       - name: Upload macOS Intel artifact
@@ -72,7 +72,7 @@ jobs:
 
       - name: Build for macOS (ARM)
         env:
-          ELECTRON_BUILD_ENV: arm
+          ARCH: arm64
         run: yarn run build:mac
 
       - name: Upload macOS ARM artifact
