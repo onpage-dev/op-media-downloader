@@ -20,7 +20,10 @@ nsis:
   createDesktopShortcut: always
 mac:
   entitlementsInherit: build/entitlements.mac.plist
-  target: dmg
+  target:
+    - dmg
+  identity: null # Disable default code signing
+  hardenedRuntime: false # Not required for self-signed certificates
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.

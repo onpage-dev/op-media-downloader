@@ -31,5 +31,6 @@ yarn dev
 git clone https://github.com/onpage-dev/op-media-downloader.git
 cd op-media-downloader
 yarn
+chmod +x scripts/setup-certificate.sh scripts/sign-dmg.sh
 yarn build:mac
 ```
