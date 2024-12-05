@@ -106,11 +106,12 @@ jobs:
           name: op-media-downloader-mac-arm
           path: release/mac-arm
 
-      - name: Create GitHub release and attach artifacts
-        uses: ncipollo/release-action@v1
+      - name: Attach assets to existing release
+        uses: marvinpinto/action-automatic-releases@latest
         with:
-          artifacts: |
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: false
+          files: |
             release/windows/*.exe
             release/mac-intel/*.dmg
             release/mac-arm/*.dmg
-          token: ${{ secrets.GITHUB_TOKEN }}
