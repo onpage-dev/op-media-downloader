@@ -107,11 +107,39 @@ jobs:
           path: release/mac-arm
 
       - name: Attach assets to existing release
-        uses: marvinpinto/action-automatic-releases@latest
+        uses: actions/github-script@v6
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          prerelease: false
-          files: |
-            release/windows/*.exe
-            release/mac-intel/*.dmg
-            release/mac-arm/*.dmg
+          script: |
+            const { context, getOctokit } = require("@actions/github");
+            const token = process.env.GITHUB_TOKEN;
+            const octokit = getOctokit(token);
+
+            const { data: releases } = await octokit.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const release = releases.find(r => r.tag_name === context.ref.replace('refs/tags/', ''));
+            if (!release) {
+              throw new Error(`Release with tag ${context.ref.replace('refs/tags/', '')} does not exist.`);
+            }
+
+            console.log(`Found release: ${release.name} (${release.id})`);
+
+            const artifacts = [
+              'release/windows/*.exe',
+              'release/mac-intel/*.dmg',
+              'release/mac-arm/*.dmg'
+            ];
+
+            for (const artifact of artifacts) {
+              await octokit.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.id,
+                name: artifact.split('/').pop(),
+                data: require('fs').readFileSync(artifact),
+              });
+            }
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
