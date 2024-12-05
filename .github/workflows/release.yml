@@ -47,10 +47,19 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Create and Import Certificate
+        run: |
+          ./scripts/setup-certificate.sh
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple: -s -k "password" build.keychain
+
       - name: Build for macOS (Intel)
         env:
           ARCH: x64
         run: yarn run build:mac
+
+      - name: Verify and Sign DMG
+        run: ./scripts/sign-dmg.sh dist/*.dmg
 
       - name: Upload macOS Intel artifact
         uses: actions/upload-artifact@v3
@@ -73,10 +82,19 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Create and Import Certificate
+        run: |
+          ./scripts/setup-certificate.sh
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple: -s -k "password" build.keychain
+
       - name: Build for macOS (ARM)
         env:
           ARCH: arm64
         run: yarn run build:mac
+
+      - name: Verify and Sign DMG
+        run: ./scripts/sign-dmg.sh dist/*.dmg
 
       - name: Upload macOS ARM artifact
         uses: actions/upload-artifact@v3
