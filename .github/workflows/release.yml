@@ -112,9 +112,6 @@ jobs:
           name: op-media-downloader-mac-arm
           path: release/mac-arm
 
-      - name: List downloaded files
-        run: ls -R release
-
       - name: Upload assets to the latest release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -128,9 +125,12 @@ jobs:
             exit 1
           fi
 
+          # Debug: Validate the files exist
+          ls -R release
+
           # Upload assets
           gh release upload "$LATEST_RELEASE" \
-            release/windows/* \
-            release/mac-intel/* \
-            release/mac-arm/* \
+            release/windows/*.exe \
+            release/mac-intel/*.dmg \
+            release/mac-arm/*.dmg \
             --clobber
