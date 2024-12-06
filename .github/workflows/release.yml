@@ -52,12 +52,23 @@ jobs:
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
           CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
         run: |
+          # Create and unlock a temporary keychain
           security create-keychain -p "$CERT_PASSWORD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$CERT_PASSWORD" build.keychain
+
+          # Decode the Base64 certificate
           echo "$CERTIFICATE" | base64 --decode > certificate.p12
-          security import certificate.p12 -A -P "$CERT_PASSWORD"
+
+          # Import the certificate into the keychain
+          security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
+
+          # Mark the certificate as trusted
+          security add-trusted-cert -d -r trustRoot -k build.keychain certificate.p12
+
+          # Set key partition list for code signing
           security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
+          
       - name: Build for macOS (Intel)
         env:
           ARCH: x64
@@ -89,11 +100,21 @@ jobs:
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
           CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
         run: |
+          # Create and unlock a temporary keychain
           security create-keychain -p "$CERT_PASSWORD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$CERT_PASSWORD" build.keychain
+
+          # Decode the Base64 certificate
           echo "$CERTIFICATE" | base64 --decode > certificate.p12
-          security import certificate.p12 -A -P "$CERT_PASSWORD"
+
+          # Import the certificate into the keychain
+          security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
+
+          # Mark the certificate as trusted
+          security add-trusted-cert -d -r trustRoot -k build.keychain certificate.p12
+
+          # Set key partition list for code signing
           security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
 
       - name: Build for macOS (ARM)
