@@ -89,7 +89,7 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Build for macOS (Intel)
+      - name: Build for macOS (ARM)
         env:
           ARCH: arm64
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
@@ -106,16 +106,11 @@ jobs:
           # Import the certificate into the keychain
           security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
 
-          # Extract the certificate's SHA1 hash
-          CERT_HASH=$(security find-certificate -a -Z -c "OnPage" build.keychain | awk '/SHA-1/ {print $NF}')
-
-          # Force the certificate to always be trusted
-          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k build.keychain certificate.p12
-
-          # Set key partition list for code signing tools
+          # Explicitly trust the imported certificate
+          CERT_HASH=$(security find-identity -v -p codesigning build.keychain | awk '/OnPage/ {print $2}')
           security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
 
-          # Verify that the certificate is available for code signing
+          # Verify identities for code signing
           security find-identity -v -p codesigning build.keychain
 
           # Run the build
