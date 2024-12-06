@@ -106,13 +106,13 @@ jobs:
           # Import the certificate into the keychain
           security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
 
-          # Extract the certificate's SHA1 hash for use in trusting
-          CERT_HASH=$(security find-certificate -c "OnPage" -a -Z -k build.keychain | awk '/SHA-1/ {print $NF}')
+          # Extract the SHA1 hash of the certificate
+          CERT_HASH=$(security find-certificate -c "OnPage" -a -Z build.keychain | awk '/SHA-1/ {print $NF}')
 
           # Mark the certificate as trusted
-          security add-trusted-cert -d -r trustRoot -k build.keychain /Users/runner/Library/Keychains/build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
 
-          # Verify the identity
+          # Verify the certificate identity
           security find-identity -v -p codesigning build.keychain
 
           # Run the build
