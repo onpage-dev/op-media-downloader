@@ -52,11 +52,12 @@ jobs:
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
           CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
         run: |
+          security create-keychain -p "$CERT_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$CERT_PASSWORD" build.keychain
           echo "$CERTIFICATE" | base64 --decode > certificate.p12
-          security unlock-keychain ~/Library/Keychains/login.keychain
-          security import certificate.p12 -k ~/Library/Keychains/login.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: ~/Library/Keychains/login.keychain
-
+          security import certificate.p12 -A -P "$CERT_PASSWORD"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
       - name: Build for macOS (Intel)
         env:
           ARCH: x64
@@ -88,10 +89,12 @@ jobs:
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
           CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
         run: |
+          security create-keychain -p "$CERT_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$CERT_PASSWORD" build.keychain
           echo "$CERTIFICATE" | base64 --decode > certificate.p12
-          security unlock-keychain ~/Library/Keychains/login.keychain
-          security import certificate.p12 -k ~/Library/Keychains/login.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: ~/Library/Keychains/login.keychain
+          security import certificate.p12 -A -P "$CERT_PASSWORD"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
 
       - name: Build for macOS (ARM)
         env:
