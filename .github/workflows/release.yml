@@ -47,6 +47,14 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Decode and Install Self-Signed Certificate
+        env:
+          CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
+        run: |
+          echo "$CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k ~/Library/Keychains/login.keychain -P "" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "" ~/Library/Keychains/login.keychain
+
       - name: Build for macOS (Intel)
         env:
           ARCH: x64
@@ -72,6 +80,14 @@ jobs:
 
       - name: Install dependencies
         run: yarn install
+
+      - name: Decode and Install Self-Signed Certificate
+        env:
+          CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
+        run: |
+          echo "$CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k ~/Library/Keychains/login.keychain -P "" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "" ~/Library/Keychains/login.keychain
 
       - name: Build for macOS (ARM)
         env:

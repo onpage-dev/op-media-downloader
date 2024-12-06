@@ -1,4 +1,3 @@
-appId: com.electron.app
 productName: On Page Media Downloader
 directories:
   buildResources: build
@@ -10,7 +9,6 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - '**/*.{node,dll}'
-afterSign: build/notarize.js
 
 win:
   executableName: On Page Media Downloader
@@ -24,11 +22,9 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   target:
     - dmg
-  identity: null # Disable default code signing
-  hardenedRuntime: false # Not required for self-signed certificates
+  identity: "OnPage"
+  hardenedRuntime: true
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   artifactName: ${name}-${version}-${arch}.${ext}
