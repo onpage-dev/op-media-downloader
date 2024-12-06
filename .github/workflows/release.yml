@@ -53,7 +53,7 @@ jobs:
           CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
         run: |
           echo "$CERTIFICATE" | base64 --decode > certificate.p12
-          security unlock-keychain -p "$CERT_PASSWORD" ~/Library/Keychains/login.keychain
+          security unlock-keychain ~/Library/Keychains/login.keychain
           security import certificate.p12 -k ~/Library/Keychains/login.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: ~/Library/Keychains/login.keychain
 
@@ -89,7 +89,7 @@ jobs:
           CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
         run: |
           echo "$CERTIFICATE" | base64 --decode > certificate.p12
-          security unlock-keychain -p "$CERT_PASSWORD" ~/Library/Keychains/login.keychain
+          security unlock-keychain ~/Library/Keychains/login.keychain
           security import certificate.p12 -k ~/Library/Keychains/login.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: ~/Library/Keychains/login.keychain
 
