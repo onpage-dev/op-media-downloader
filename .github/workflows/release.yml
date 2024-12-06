@@ -63,12 +63,9 @@ jobs:
           # Import the certificate into the keychain
           security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
 
-          # Mark the certificate as trusted
-          security add-trusted-cert -d -r trustRoot -k build.keychain certificate.p12
+          # Trust the imported identity (specify the common name of the certificate)
+          security find-certificate -c "OnPage" -a -k build.keychain | security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
 
-          # Set key partition list for code signing
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
-          
       - name: Build for macOS (Intel)
         env:
           ARCH: x64
@@ -111,11 +108,8 @@ jobs:
           # Import the certificate into the keychain
           security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
 
-          # Mark the certificate as trusted
-          security add-trusted-cert -d -r trustRoot -k build.keychain certificate.p12
-
-          # Set key partition list for code signing
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
+          # Trust the imported identity (specify the common name of the certificate)
+          security find-certificate -c "OnPage" -a -k build.keychain | security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
 
       - name: Build for macOS (ARM)
         env:
