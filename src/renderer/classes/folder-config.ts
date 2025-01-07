@@ -67,37 +67,35 @@ export class FolderConfig {
   calculating_images_to_download = false
 
   /** Images raw array maps with cache */
-  private _images_raw_array: OpFile[] = []
-  private _images_raw_array_cache_invalid = true
-  private _uniq_images_raw_array: OpFile[] = []
-  private _uniq_images_raw_array_cache_invalid = true
-  get images_raw_array(): OpFile[] {
-    if (this._images_raw_array_cache_invalid) {
-      console.log('invalid _images_raw_array_cache_invalid cache')
-      this._images_raw_array = []
+  private _raw_images: OpFile[] = []
+  private _invalid_raw_images_cache = true
+  get raw_images(): OpFile[] {
+    if (this._invalid_raw_images_cache) {
+      console.log('Invalid invalid_raw_images cache')
+      this._raw_images = []
       for (const files of this.images_raw_by_token.values()) {
-        this._images_raw_array.push(...files)
+        this._raw_images.push(...files)
       }
-      this._images_raw_array_cache_invalid = false
+      this._invalid_raw_images_cache = false
     }
-    console.log('valid _images_raw_array_cache_invalid cache')
-    return this._images_raw_array
+    return this._raw_images
   }
-  get uniq_images_raw_array(): OpFile[] {
-    if (this._uniq_images_raw_array_cache_invalid) {
-      console.log('invalid _uniq_images_raw_array_cache_invalid cache')
+  private _uniq_raw_images: OpFile[] = []
+  private _invalid_uniq_raw_images_cache = true
+  get uniq_raw_images(): OpFile[] {
+    if (this._invalid_uniq_raw_images_cache) {
+      console.log('Invalid uniq_raw_images cache')
       const seen = new Set<string>()
-      this._uniq_images_raw_array = []
-      for (const file of this.images_raw_array) {
+      this._uniq_raw_images = []
+      for (const file of this.raw_images) {
         if (!seen.has(file.name)) {
           seen.add(file.name)
-          this._uniq_images_raw_array.push(file)
+          this._uniq_raw_images.push(file)
         }
       }
-      this._uniq_images_raw_array_cache_invalid = false
+      this._invalid_uniq_raw_images_cache = false
     }
-    console.log('valid _uniq_images_raw_array_cache_invalid cache')
-    return this._uniq_images_raw_array
+    return this._uniq_raw_images
   }
 
   constructor(public storage: StorageService, public json: FolderConfigJson) {
@@ -106,8 +104,8 @@ export class FolderConfig {
     watch(
       () => Array.from(this.images_raw_by_token.entries()),
       () => {
-        this._images_raw_array_cache_invalid = true
-        this._uniq_images_raw_array_cache_invalid = true
+        this._invalid_raw_images_cache = true
+        this._invalid_uniq_raw_images_cache = true
       },
       { deep: true },
     )
@@ -303,7 +301,7 @@ export class FolderConfig {
           'delete-removed-files-from-remote',
           cloneDeep({
             remote_files: [
-              ...this.uniq_images_raw_array.map(file => file.serialize()),
+              ...this.uniq_raw_images.map(file => file.serialize()),
             ],
             directory: this.folder_path,
           }),
@@ -322,7 +320,7 @@ export class FolderConfig {
 
   downloadFiles(): void {
     console.log('[downloader] start')
-    if (!this.uniq_images_raw_array.length)
+    if (!this.uniq_raw_images.length)
       return console.log('[downloader] no images')
     if (this.is_downloading)
       return console.log('[downloader] already downloading')
@@ -340,7 +338,7 @@ export class FolderConfig {
       'download-files',
       cloneDeep({
         config_id: this.id,
-        files: this.uniq_images_raw_array.map(file => ({
+        files: this.uniq_raw_images.map(file => ({
           url: file.link(),
           token: file.token,
           name: file.name,

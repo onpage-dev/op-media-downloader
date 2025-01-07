@@ -65,7 +65,7 @@ export class StorageService {
         const c = this.configs.get(data.config_id)
         if (!c) return
         const missing_tokens = new Set(data.missing_files.map(f => f.token))
-        c.images_to_download = c.uniq_images_raw_array.filter(({ token }) =>
+        c.images_to_download = c.uniq_raw_images.filter(({ token }) =>
           missing_tokens.has(token),
         )
       },
