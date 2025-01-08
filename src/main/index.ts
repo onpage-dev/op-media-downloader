@@ -8,6 +8,7 @@ import { OpFileRaw } from 'onpage-js'
 import path from 'path'
 import { ElectronIPC } from './electron-ipc'
 import { processQueue } from './utils'
+import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 
 export interface SyncProgressInfo {
   start_time: string
@@ -68,10 +69,12 @@ function chechMissingTokens(
   generateMissingFolder(directory)
   const base_path = path.normalize(directory)
   console.log(`fs.readdirSync(base_path)`, base_path)
+  /** List of downloaded file names */
   const local_files = fs.readdirSync(base_path)
 
   const data_path = getDataPath(directory)
   console.log(`fs.readdirSync(data_path)`, data_path)
+  /** List of downloaded tokens */
   const local_tokens = fs.readdirSync(data_path)
 
   if (!local_tokens.length) {
@@ -83,16 +86,16 @@ function chechMissingTokens(
     return
   }
 
-  // Check if missing token or file name
-  const difference = remote_files.filter(
+  /** Check if missing token or file name */
+  const missing_files = remote_files.filter(
     file =>
       !local_tokens.includes(file.token) || !local_files.includes(file.name),
   )
-  console.log(`${difference.length} tokens missing`)
-  console.log(difference)
+  console.log(`${missing_files.length} tokens missing`)
+  console.log(missing_files)
   event.sender.send('update-missing-tokens-to-download', {
     config_id,
-    missing_files: difference,
+    missing_files,
   })
 }
 ElectronIPC.on('open-path', (_event, path_to_open) => {
@@ -416,7 +419,7 @@ function getDataPath(directory: string): string {
   return path.normalize(`${directory}/data`)
 }
 
-function createWindow(): void {
+async function createWindow(): Promise<void> {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -454,6 +457,14 @@ function createWindow(): void {
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+
+    // Install Vue Devtools
+    try {
+      await installExtension(VUEJS_DEVTOOLS)
+      console.log('Vue Devtools installed!')
+    } catch (err) {
+      console.error('Failed to install Vue Devtools:', err)
+    }
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
@@ -462,7 +473,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -473,12 +484,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  createWindow()
+  await createWindow()
 
-  app.on('activate', function () {
+  app.on('activate', async function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) await createWindow()
   })
 })
 

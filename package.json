@@ -44,6 +44,7 @@
     "@rushstack/eslint-patch": "^1.2.0",
     "@types/color": "^3.0.3",
     "@types/lodash": "^4.14.191",
+    "electron-devtools-installer": "^4.0.0",
     "@types/node": "16.11.22",
     "@vitejs/plugin-vue": "^3.2.0",
     "@vue/eslint-config-prettier": "^7.0.0",
