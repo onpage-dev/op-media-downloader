@@ -150,29 +150,7 @@ function deleteConfig(): void {
       :key="config.id"
       @close="config.confirmDuplicatesAndContinue()"
     >
-      <div class="modal-size-w-md full-height-scroll gap-unit-double">
-        <!-- Files list -->
-        <StorageDataDuplicateList :config="config" />
-
-        <div class="flex-row-center-unit justify-between">
-          <op-btn @click="config.loadRemoteFiles()">
-            <op-icon icon="arrows-rotate" />
-            {{ $t('refresh') }}
-          </op-btn>
-
-          <op-btn
-            v-tooltip="
-              i18n.t('_storage_data.config_has_duplicates_description_2')
-            "
-            color="warning"
-            @click="config.confirmDuplicatesAndContinue()"
-          >
-            <op-icon icon="circle-info" />
-            {{ $t('continue') }}
-            <op-icon icon="arrow-right" />
-          </op-btn>
-        </div>
-      </div>
+      <StorageDataDuplicateList :config="config" />
     </OpModal>
   </TransitionGroup>
 
