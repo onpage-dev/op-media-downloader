@@ -53,20 +53,14 @@ jobs:
       - name: Prepare signing certificate
         env:
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
-          PRIVATE_KEY: ${{ secrets.MAC_PRIVATE_KEY }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
-          # Decode Base64-encoded certificate and private key
-          echo "$CERTIFICATE" | base64 --decode > certificate.pem
-          echo "$PRIVATE_KEY" | base64 --decode > private_key.pem
-
-          # Combine certificate and private key into a PKCS12 file
-          openssl pkcs12 -export \
-            -inkey private_key.pem \
-            -in certificate.pem \
-            -out certificate.p12 \
-            -password pass:""
+          # Decode Base64-encoded certificate
+          echo "$CERTIFICATE" | base64 --decode > certificate.p12
 
       - name: Configure macOS keychain for signing
+        env:
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           # Create a temporary keychain
           security create-keychain -p "" build.keychain
@@ -74,7 +68,7 @@ jobs:
           security unlock-keychain -p "" build.keychain
 
           # Import the certificate into the keychain
-          security import certificate.p12 -k build.keychain -P "" -T /usr/bin/codesign
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
 
           # Allow codesign to access the key
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
@@ -85,8 +79,25 @@ jobs:
       - name: Build and sign for macOS
         env:
           ARCH: ${{ matrix.arch }}
+          CSC_LINK: certificate.p12
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           yarn run build:mac
+
+      - name: Notarize the macOS app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        run: |
+          xcrun altool --notarize-app \
+            --primary-bundle-id "com.onpage.mediadownloader" \
+            --username "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --file "dist/On Page Media Downloader.dmg"
+
+      - name: Staple notarization ticket
+        run: |
+          xcrun stapler staple "dist/On Page Media Downloader.dmg"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v3
