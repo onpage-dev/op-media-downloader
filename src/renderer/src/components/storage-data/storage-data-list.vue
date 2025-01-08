@@ -35,9 +35,9 @@ const filtered_configs = computed(() => {
   }
   return ret
 })
-const configs_with_duplicate_images = computed(() => {
+const configs_with_duplicate_files = computed(() => {
   return Array.from(props.storage.configs.values()).filter(
-    config => config.duplicated_images.size && !config.loaders.size,
+    config => config.duplicated_files.size && !config.loaders.size,
   )
 })
 
@@ -146,7 +146,7 @@ function deleteConfig(): void {
 
   <TransitionGroup name="modal-fade">
     <OpModal
-      v-for="config in configs_with_duplicate_images"
+      v-for="config in configs_with_duplicate_files"
       :key="config.id"
       @close="config.confirmDuplicatesAndContinue()"
     >
@@ -166,7 +166,7 @@ function deleteConfig(): void {
         <!-- files list -->
         <div class="full-height-scroll gap-unit-double pr-unit-half">
           <div
-            v-for="[name, val] in config.duplicated_images"
+            v-for="[name, val] in config.duplicated_files"
             :key="name"
             class="flex flex-col gap-unit-half"
           >

@@ -1,13 +1,16 @@
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
-import { chunk, cloneDeep, throttle } from 'lodash'
+import { chunk, cloneDeep, throttle, uniqBy } from 'lodash'
 import {
   Api,
   Field,
   FieldID,
+  FieldIdentifier,
   OpFile,
   OpFileRaw,
   Schema,
+  SimpleFieldClause,
+  Thing,
   ThingID,
 } from 'onpage-js'
 import { reactive, watch } from 'vue'
@@ -58,62 +61,62 @@ export class FolderConfig {
   load_fields_error = false
   current_sync?: SyncProgressInfo
 
-  images_raw_by_token: Map<string, OpFile[]> = reactive(new Map())
-  images_by_name: Map<FileName, Map<FileToken, DuplicatedInfo[]>> = reactive(
+  raw_files_by_token: Map<string, OpFile[]> = reactive(new Map())
+  files_by_name: Map<FileName, Map<FileToken, DuplicatedInfo[]>> = reactive(
     new Map(),
   )
   local_file_tokens: string[] = reactive([])
-  images_to_download: OpFile[] = reactive([])
-  calculating_images_to_download = false
+  files_to_download: OpFile[] = reactive([])
+  calculating_files_to_download = false
 
-  /** Images raw array maps with cache */
-  private _raw_images: OpFile[] = []
-  private _invalid_raw_images_cache = true
-  get raw_images(): OpFile[] {
-    if (this._invalid_raw_images_cache) {
-      console.log('Invalid invalid_raw_images cache')
-      this._raw_images = []
-      for (const files of this.images_raw_by_token.values()) {
-        this._raw_images.push(...files)
+  /** Files raw array maps with cache */
+  private _raw_files: OpFile[] = []
+  private _invalid_raw_files_cache = true
+  get raw_files(): OpFile[] {
+    if (this._invalid_raw_files_cache) {
+      console.log('Invalid invalid_raw_files cache')
+      this._raw_files = []
+      for (const files of this.raw_files_by_token.values()) {
+        this._raw_files.push(...files)
       }
-      this._invalid_raw_images_cache = false
+      this._invalid_raw_files_cache = false
     }
-    return this._raw_images
+    return this._raw_files
   }
-  private _uniq_raw_images: OpFile[] = []
-  private _invalid_uniq_raw_images_cache = true
-  get uniq_raw_images(): OpFile[] {
-    if (this._invalid_uniq_raw_images_cache) {
-      console.log('Invalid uniq_raw_images cache')
+  private _uniq_raw_files: OpFile[] = []
+  private _invalid_uniq_raw_files_cache = true
+  get uniq_raw_files(): OpFile[] {
+    if (this._invalid_uniq_raw_files_cache) {
+      console.log('Invalid uniq_raw_files cache')
       const seen = new Set<string>()
-      this._uniq_raw_images = []
-      for (const file of this.raw_images) {
+      this._uniq_raw_files = []
+      for (const file of this.raw_files) {
         if (!seen.has(file.name)) {
           seen.add(file.name)
-          this._uniq_raw_images.push(file)
+          this._uniq_raw_files.push(file)
         }
       }
-      this._invalid_uniq_raw_images_cache = false
+      this._invalid_uniq_raw_files_cache = false
     }
-    return this._uniq_raw_images
+    return this._uniq_raw_files
   }
 
   constructor(public storage: StorageService, public json: FolderConfigJson) {
     this.api = reactive(new Api({ token: this.api_token })) as Api
 
     watch(
-      () => Array.from(this.images_raw_by_token.entries()),
+      () => Array.from(this.raw_files_by_token.entries()),
       () => {
-        this._invalid_raw_images_cache = true
-        this._invalid_uniq_raw_images_cache = true
+        this._invalid_raw_files_cache = true
+        this._invalid_uniq_raw_files_cache = true
       },
       { deep: true },
     )
   }
 
-  get duplicated_images(): Map<FileName, Map<FileToken, DuplicatedInfo[]>> {
+  get duplicated_files(): Map<FileName, Map<FileToken, DuplicatedInfo[]>> {
     return new Map(
-      Array.from(this.images_by_name).filter(([, obj]) => obj.size > 1),
+      Array.from(this.files_by_name).filter(([, obj]) => obj.size > 1),
     )
   }
   get label(): string {
@@ -165,7 +168,7 @@ export class FolderConfig {
       this.loading_schema ||
       !!this.loaders.size ||
       this.is_downloading ||
-      this.calculating_images_to_download
+      this.calculating_files_to_download
     )
   }
   getConfig(): FolderConfigJson {
@@ -182,11 +185,11 @@ export class FolderConfig {
     return dayjs().format('YYYY-MM-DD HH:mm:ss')
   }
   resetRemoteFiles(): void {
-    this.images_raw_by_token.clear()
-    this.images_by_name.clear()
+    this.raw_files_by_token.clear()
+    this.files_by_name.clear()
   }
   confirmDuplicatesAndContinue(): void {
-    this.images_by_name.clear()
+    this.files_by_name.clear()
     this.checkMissingTokens()
   }
   // Load all files of the project
@@ -201,52 +204,66 @@ export class FolderConfig {
     try {
       this.load_fields_error = false
       for (const resource of this.schema.resources) {
-        const media_fields = resource.fields.filter(f => f.isMedia())
+        /** Pick all media fields that will be used to fetch the data */
+        const media_fields: Field[] = resource.fields.filter(f => f.isMedia())
         if (!media_fields.length) continue
         this.loaders.set(resource.id, true)
-        const ids = await resource
+
+        /** Get all the ThingIDs that have a value inside one of the media fields */
+        const thing_ids: ThingID[] = await resource
           .query()
           .filter([
             '_or',
-            ...media_fields.map(f => [f.name, 'not_empty', '']),
-          ] as any[])
+            ...media_fields.map<SimpleFieldClause>(f => [
+              f.name,
+              'not_empty',
+              '',
+            ]),
+          ])
           .ids()
-        const label_field = resource.fields.find(f => f.is_textual)
-        const fields_to_load = media_fields
-        if (label_field) fields_to_load.push(label_field)
 
-        for (const id_chunk of chunk(ids, 10000)) {
-          const things = await resource
+        /**
+         * Check for a field to be used as the Thing label
+         * if found add it to the fields to load array
+         */
+        const label_field = resource.fields.find(f => f.is_textual)
+        const fields_to_load: FieldIdentifier[] = media_fields.map(f => f.name)
+        if (label_field) fields_to_load.push(label_field.name)
+
+        /** Split things load in chunks to avoid timeout */
+        for (const ids_chunk of chunk(thing_ids, 10000)) {
+          const things: Thing[] = await resource
             .query()
-            .setFields(fields_to_load.map(f => f.name))
-            .where('_id', 'in', id_chunk)
+            .setFields(fields_to_load)
+            .where('_id', 'in', ids_chunk)
             .all()
 
           for (const thing of things) {
             for (const field of media_fields) {
-              const langs = field.is_translatable
+              /** If field is translatable get the value for each language of the schema */
+              const langs: (string | undefined)[] = field.is_translatable
                 ? field.schema().langs
                 : [undefined]
 
               langs.forEach(lang => {
-                const images: OpFile[] = thing.files(field, lang)
+                const files: OpFile[] = thing.files(field, lang)
 
-                images.forEach(image => {
-                  const bytoken = this.images_raw_by_token.get(image.token)
-                  if (!bytoken)
-                    this.images_raw_by_token.set(image.token, [image])
-                  else bytoken.push(image)
+                /** Insert fetched files to the relative maps */
+                files.forEach(file => {
+                  const bytoken = this.raw_files_by_token.get(file.token)
+                  if (!bytoken) this.raw_files_by_token.set(file.token, [file])
+                  else bytoken.push(file)
 
-                  let byname = this.images_by_name.get(image.name)
+                  let byname = this.files_by_name.get(file.name)
                   if (!byname) {
                     byname = new Map()
-                    this.images_by_name.set(image.name, byname)
+                    this.files_by_name.set(file.name, byname)
                   }
 
-                  let hastoken = byname.get(image.token)
+                  let hastoken = byname.get(file.token)
                   if (!hastoken) {
                     hastoken = []
-                    byname.set(image.token, hastoken)
+                    byname.set(file.token, hastoken)
                   }
 
                   hastoken.push({
@@ -255,7 +272,7 @@ export class FolderConfig {
                     thing_label: label_field
                       ? thing.val(label_field)
                       : undefined,
-                    file: image,
+                    file,
                     lang,
                   })
                 })
@@ -272,7 +289,7 @@ export class FolderConfig {
       this.loaders.clear()
       this.resetRemoteFiles()
     } finally {
-      this.calculating_images_to_download = true
+      this.calculating_files_to_download = true
     }
   }
 
@@ -301,7 +318,7 @@ export class FolderConfig {
           'delete-removed-files-from-remote',
           cloneDeep({
             remote_files: [
-              ...this.uniq_raw_images.map(file => file.serialize()),
+              ...this.uniq_raw_files.map(file => file.serialize()),
             ],
             directory: this.folder_path,
           }),
@@ -320,8 +337,7 @@ export class FolderConfig {
 
   downloadFiles(): void {
     console.log('[downloader] start')
-    if (!this.uniq_raw_images.length)
-      return console.log('[downloader] no images')
+    if (!this.uniq_raw_files.length) return console.log('[downloader] no files')
     if (this.is_downloading)
       return console.log('[downloader] already downloading')
 
@@ -338,7 +354,7 @@ export class FolderConfig {
       'download-files',
       cloneDeep({
         config_id: this.id,
-        files: this.uniq_raw_images.map(file => ({
+        files: this.uniq_raw_files.map(file => ({
           url: file.link(),
           token: file.token,
           name: file.name,
@@ -373,17 +389,22 @@ export class FolderConfig {
   }
 
   checkMissingTokens(): void {
+    const remote_files = uniqBy(
+      Array.from(this.raw_files_by_token.values()).map<OpFileRaw>(files =>
+        files[0].serialize(),
+      ),
+      f => f.name,
+    )
+
     const params = {
       config_id: this.id,
-      remote_files: Array.from(
-        this.images_raw_by_token.values(),
-      ).map<OpFileRaw>(files => files[0].serialize()),
+      remote_files,
       directory: this.folder_path,
     }
     /** On end this will trigger missingTokensToDownload from main */
     window.electron.ipcRenderer.send('check-missing-tokens', params)
     window.electron.ipcRenderer.on('update-missing-tokens', () => {
-      this.calculating_images_to_download = false
+      this.calculating_files_to_download = false
     })
   }
 

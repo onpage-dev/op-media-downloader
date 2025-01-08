@@ -17,15 +17,15 @@ const props = defineProps<{
 
 function syncOrLoad(): void {
   if (props.config.is_loading) return
-  if (props.config.images_raw_by_token.size) {
-    if (props.config.images_to_download.length) {
+  if (props.config.raw_files_by_token.size) {
+    if (props.config.files_to_download.length) {
       props.config.downloadFiles()
     } else {
-      props.config.images_raw_by_token.clear()
+      props.config.raw_files_by_token.clear()
     }
   } else {
     props.config.loadRemoteFiles().then(() => {
-      if (!props.config.duplicated_images.size) {
+      if (!props.config.duplicated_files.size) {
         props.config.checkMissingTokens()
       }
     })
@@ -114,7 +114,7 @@ watch(
             <op-icon icon="arrows-rotate" />
             {{ i18n.t('_storage_files.error') }}
           </template>
-          <template v-else-if="!config.images_raw_by_token.size">
+          <template v-else-if="!config.raw_files_by_token.size">
             <op-icon icon="arrows-rotate" />
             {{ i18n.t('_storage_files.start_sync') }}
           </template>
@@ -124,10 +124,10 @@ watch(
           <template v-else-if="config.is_loading">
             {{ i18n.t('loading') }}
           </template>
-          <template v-else-if="config.images_to_download.length">
+          <template v-else-if="config.files_to_download.length">
             <op-icon icon="download" />
             {{ i18n.t('_storage_files.download') }}
-            +{{ config.images_to_download.length }}
+            +{{ config.files_to_download.length }}
           </template>
           <template v-else>
             <op-icon icon="check" />
