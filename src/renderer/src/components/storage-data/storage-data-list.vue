@@ -1,14 +1,13 @@
 <script lang="ts" setup>
 import { FolderConfig, FolderConfigJson } from '@classes/folder-config'
 import { StorageService } from '@classes/store'
-import { bytesToString } from '@renderer/helpers'
-import { groupBy } from 'lodash'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, Ref, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import OpCheck from '../op-check.vue'
 import OpModal from '../op-modal.vue'
 import UserSettings from '../user-settings.vue'
+import StorageDataDuplicateList from './storage-data-duplicate-list.vue'
 import StorageServiceForm from './storage-data-form.vue'
 import StorageServiceItem from './storage-data-item.vue'
 
@@ -152,87 +151,9 @@ function deleteConfig(): void {
       @close="config.confirmDuplicatesAndContinue()"
     >
       <div class="modal-size-w-md full-height-scroll gap-unit-double">
-        <h4>
-          <op-icon
-            icon="triangle-exclamation"
-            size="xl"
-            class="text-warning mr-unit"
-          />
-          {{
-            i18n.t('_storage_data.config_has_duplicates', {
-              config: config.label,
-            })
-          }}
-        </h4>
-        <div class="px-unit py-unit-half rounded-md bg-orange bg-opacity-20">
-          {{ i18n.t('_storage_data.config_has_duplicates_description') }}
-        </div>
+        <!-- Files list -->
+        <StorageDataDuplicateList :config="config" />
 
-        <!-- files list -->
-        <div class="full-height-scroll gap-unit-double pr-unit-half">
-          <div
-            v-for="[name, val] in config.duplicated_files"
-            :key="name"
-            class="flex flex-col gap-unit-half"
-          >
-            <b>
-              {{ name }}
-            </b>
-            <op-card
-              v-for="[token, value] in val"
-              :key="token"
-              pad="compact"
-              row
-            >
-              <a :href="value[0].file.link({ inline: true })" target="_blank">
-                <img
-                  class="w-20 h-20 bg-grey block"
-                  :src="value[0].file.link({ x: 100, y: 100, mode: 'contain' })"
-                />
-              </a>
-
-              <div>
-                <div
-                  v-for="duplicates in groupBy(value, x => x.field.id)"
-                  :key="duplicates[0].field.id"
-                >
-                  <div class="font-bold">
-                    {{
-                      duplicates[0].field.resource().getLabel(i18n.locale.value)
-                    }}
-                    →
-                    {{ duplicates[0].field.getLabel(i18n.locale.value) }}
-                  </div>
-
-                  <a
-                    v-for="x in duplicates"
-                    :key="x.thing_id"
-                    class="block sober-link-accent"
-                    :href="`https://app.onpage.it/#/things/edit/${x.thing_id}/${
-                      x.field.schema().id
-                    }/${x.field.resource_id}/${x.field.id}`"
-                    target="_blank"
-                  >
-                    {{ x.thing_label }}
-                    <span class="text-sm opacity-50"> #{{ x.thing_id }} </span>
-                    <span v-if="x.lang"> ({{ x.lang }}) </span>
-                    <div class="text-sm opacity-50">
-                      {{
-                        `${x.file.width}x${x.file.height} (${bytesToString(
-                          x.file.size,
-                        )})`
-                      }}
-                    </div>
-                  </a>
-                </div>
-              </div>
-            </op-card>
-          </div>
-        </div>
-
-        <div class="px-unit py-unit-half rounded-md bg-orange bg-opacity-20">
-          {{ i18n.t('_storage_data.config_has_duplicates_description_2') }}
-        </div>
         <div class="flex-row-center-unit justify-between">
           <op-btn @click="config.loadRemoteFiles()">
             <op-icon icon="arrows-rotate" />
@@ -240,9 +161,13 @@ function deleteConfig(): void {
           </op-btn>
 
           <op-btn
+            v-tooltip="
+              i18n.t('_storage_data.config_has_duplicates_description_2')
+            "
             color="warning"
             @click="config.confirmDuplicatesAndContinue()"
           >
+            <op-icon icon="circle-info" />
             {{ $t('continue') }}
             <op-icon icon="arrow-right" />
           </op-btn>
@@ -295,9 +220,9 @@ function deleteConfig(): void {
       />
       <div
         v-if="!filtered_configs.length"
-        class="flex-col-center italic opacity-20 py-unit text-2xl"
+        class="flex-col-center opacity-20 p-20 text-3xl"
       >
-        {{ i18n.t('no_items') }}
+        {{ storage.configs.size ? i18n.t('no_result') : i18n.t('no_items') }}
       </div>
     </div>
   </div>
