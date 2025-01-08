@@ -73,7 +73,6 @@ const get_placeholder = computed((): string => {
       :placeholder="get_placeholder"
       :radius="radius"
       class="w-full pl-9"
-      type="search"
       :model-value="modelValue"
       :autofocus="autofocus"
       :pad="compact ? 'compact' : pad"
