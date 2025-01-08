@@ -22,8 +22,9 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   target:
     - dmg
-  identity: "OnPage"
-  hardenedRuntime: false
+  identity: "Dinside s.r.l."
+  hardenedRuntime: true
+  appId: "com.onpage.mediadownloader"
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
