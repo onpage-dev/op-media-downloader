@@ -14,7 +14,7 @@ const emit = defineEmits<{
       >
         <op-circle-btn
           class="top-0 right-0 group"
-          position="absolute"
+          position="absolute z-10"
           radius="md"
           size="9"
           @click.stop="emit('close')"
