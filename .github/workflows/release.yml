@@ -95,18 +95,22 @@ jobs:
           DMG_FILE: ${{ env.dmg_file }}
         run: |
           xcrun notarytool store-credentials "AC_PASSWORD" --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "$TEAM_ID"
-          xcrun notarytool submit "$DMG_FILE" --keychain-profile "AC_PASSWORD" --wait
-      
+          xcrun notarytool submit "$DMG_FILE" --keychain-profile "AC_PASSWORD" --wait --output notarization-result.json
+
       - name: Retrieve notarization logs on failure
         if: failure()
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
         run: |
-          # Extract the submission ID from the previous step
-          submission_id=$(grep -oE 'id: [a-f0-9\-]+' "${{ github.run_id }}/_temp/*" | head -n 1 | cut -d' ' -f2)
+          if [ ! -f notarization-result.json ]; then
+            echo "Error: notarization-result.json not found."
+            exit 1
+          fi
+
+          submission_id=$(jq -r '.id' notarization-result.json)
           if [ -z "$submission_id" ]; then
-            echo "No submission ID found. Cannot retrieve logs."
+            echo "No submission ID found in notarization-result.json."
             exit 1
           fi
 

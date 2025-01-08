@@ -19,19 +19,19 @@ nsis:
   createDesktopShortcut: always
 
 mac:
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  identity: "Dinside s.r.l."
+  appId: "com.onpage.mediadownloader"
   target:
     - dmg
-  identity: "Dinside s.r.l."
   hardenedRuntime: true
-  appId: "com.onpage.mediadownloader"
-  extendInfo:
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  gatekeeperAssess: false
   artifactName: ${name}-${version}-${arch}.${ext}
 
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
+  sign: false
 
 linux:
   target:
