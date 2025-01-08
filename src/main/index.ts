@@ -180,20 +180,21 @@ ElectronIPC.on('download-files', async (event, data) => {
 
   data.loader.total = data.files.length
   const to_download = data.files.map(file => file.token)
-  const dataPath = getDataPath(data.directory)
+  const data_path = getDataPath(data.directory)
   generateMissingFolder(data.directory)
-  const links_path = dataPath + '/link.json'
+  const links_path = data_path + '/link.json'
 
   console.log(`fs.readdirSync(dataPath)`)
-  const existing_files = fs.readdirSync(dataPath)
+  const existing_files: OpFileRaw['token'][] = fs.readdirSync(data_path)
 
   console.log(`fs.readdirSync(data.directory)`)
-  const existing_links = fs.readdirSync(data.directory)
+  const existing_links: OpFileRaw['name'][] = fs.readdirSync(data.directory)
 
   console.log(`fs.existsSync(links_path)`)
-  const link_map = fs.existsSync(links_path)
-    ? JSON.parse(fs.readFileSync(links_path, { encoding: 'utf-8' }))
-    : {}
+  const link_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] } =
+    fs.existsSync(links_path)
+      ? JSON.parse(fs.readFileSync(links_path, { encoding: 'utf-8' }))
+      : {}
 
   const emit_progress = (): void => {
     data.loader.is_stopping = !jobs.length
@@ -266,8 +267,8 @@ ElectronIPC.on('download-files', async (event, data) => {
     name: string
   }): Promise<void> => {
     /** Create Path */
-    const filePath = path.normalize(`${dataPath}/${file.token}`)
-    const linkPath = path.normalize(`${data.directory}/${file.name}`)
+    const file_path = path.normalize(`${data_path}/${file.token}`)
+    const link_path = path.normalize(`${data.directory}/${file.name}`)
 
     if (!existing_files.includes(file.token)) {
       /** Invalidate all links pointing to the file we have to download */
@@ -282,10 +283,10 @@ ElectronIPC.on('download-files', async (event, data) => {
         console.log(' ')
         console.log('[download] Downloadinf file:')
         console.log(` - ${file.url}`)
-        console.log(` - ${filePath}`)
+        console.log(` - ${file_path}`)
         await downloadUrlToFile(
           file.url,
-          filePath,
+          file_path,
           (resolve: CallableFunction, reject: CallableFunction) => {
             function doResolve(): void {
               data.loader.downloaded++
@@ -298,7 +299,7 @@ ElectronIPC.on('download-files', async (event, data) => {
             }
 
             try {
-              do_link(linkPath, filePath)
+              do_link(link_path, file_path)
               link_map[file.name] = file.token
               console.log(
                 `fs.writeFileSync(links_path, JSON.stringify(link_map))`,
@@ -322,7 +323,7 @@ ElectronIPC.on('download-files', async (event, data) => {
       }
     } else {
       data.loader.already_exists++
-      do_link(linkPath, filePath)
+      do_link(link_path, file_path)
     }
 
     // Update progress
