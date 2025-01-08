@@ -96,6 +96,25 @@ jobs:
         run: |
           xcrun notarytool store-credentials "AC_PASSWORD" --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "$TEAM_ID"
           xcrun notarytool submit "$DMG_FILE" --keychain-profile "AC_PASSWORD" --wait
+      
+      - name: Retrieve notarization logs on failure
+        if: failure()
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        run: |
+          # Extract the submission ID from the previous step
+          submission_id=$(grep -oE 'id: [a-f0-9\-]+' "${{ github.run_id }}/_temp/*" | head -n 1 | cut -d' ' -f2)
+          if [ -z "$submission_id" ]; then
+            echo "No submission ID found. Cannot retrieve logs."
+            exit 1
+          fi
+
+          echo "Retrieving logs for submission ID: $submission_id"
+          xcrun notarytool log "$submission_id" --keychain-profile "AC_PASSWORD" --output notarization-log.json
+
+          echo "Detailed notarization log:"
+          cat notarization-log.json
 
       - name: Staple notarization ticket
         run: |
