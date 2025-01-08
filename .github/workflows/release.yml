@@ -84,16 +84,17 @@ jobs:
         run: |
           yarn run build:mac
 
-      - name: Notarize the macOS app
+      - name: Notarize the macOS app with notarytool
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcrun altool --notarize-app \
-            --primary-bundle-id "com.onpage.mediadownloader" \
-            --username "$APPLE_ID" \
-            --password "$APPLE_ID_PASSWORD" \
-            --file "dist/On Page Media Downloader.dmg"
+          # Authenticate with notarytool
+          xcrun notarytool store-credentials "AC_PASSWORD" --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "$TEAM_ID"
+
+          # Submit the app for notarization
+          xcrun notarytool submit "dist/On Page Media Downloader.dmg" --keychain-profile "AC_PASSWORD" --wait
 
       - name: Staple notarization ticket
         run: |
