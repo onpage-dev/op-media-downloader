@@ -32,8 +32,11 @@ jobs:
           name: op-media-downloader-windows
           path: dist/*.exe
 
-  build-mac-intel:
+  build-mac:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -47,92 +50,54 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Build for macOS (Intel)
+      - name: Prepare signing certificate
         env:
-          ARCH: x64
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
-          CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
+          PRIVATE_KEY: ${{ secrets.MAC_PRIVATE_KEY }}
         run: |
-          # Create and unlock a temporary keychain
-          security create-keychain -p "$CERT_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$CERT_PASSWORD" build.keychain
+          # Decode Base64-encoded certificate and private key
+          echo "$CERTIFICATE" | base64 --decode > certificate.pem
+          echo "$PRIVATE_KEY" | base64 --decode > private_key.pem
 
-          # Decode the Base64 certificate
-          echo "$CERTIFICATE" | base64 --decode > certificate.p12
+          # Combine certificate and private key into a PKCS12 file
+          openssl pkcs12 -export \
+            -inkey private_key.pem \
+            -in certificate.pem \
+            -out certificate.p12 \
+            -password pass:""
+
+      - name: Configure macOS keychain for signing
+        run: |
+          # Create a temporary keychain
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
 
           # Import the certificate into the keychain
-          security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
+          security import certificate.p12 -k build.keychain -P "" -T /usr/bin/codesign
 
-          # Explicitly trust the imported certificate
-          CERT_HASH=$(security find-identity -v -p codesigning build.keychain | awk '/OnPage/ {print $2}')
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
+          # Allow codesign to access the key
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
 
-          # Verify identities for code signing
+          # Verify the imported identities
           security find-identity -v -p codesigning build.keychain
 
-          # Run the build
-          yarn run build:mac
-
-      - name: Upload macOS Intel artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: op-media-downloader-mac-intel
-          path: dist/*.dmg
-
-  build-mac-arm:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Build for macOS (ARM)
+      - name: Build and sign for macOS
         env:
-          ARCH: arm64
-          CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
-          CERT_PASSWORD: ${{ secrets.MAC_SECRET_KEY }}
+          ARCH: ${{ matrix.arch }}
         run: |
-          # Create and unlock a temporary keychain
-          security create-keychain -p "$CERT_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$CERT_PASSWORD" build.keychain
-
-          # Decode the Base64 certificate
-          echo "$CERTIFICATE" | base64 --decode > certificate.p12
-
-          # Import the certificate into the keychain
-          security import certificate.p12 -A -P "$CERT_PASSWORD" -k build.keychain
-
-          # Explicitly trust the imported certificate
-          CERT_HASH=$(security find-identity -v -p codesigning build.keychain | awk '/OnPage/ {print $2}')
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" build.keychain
-
-          # Verify identities for code signing
-          security find-identity -v -p codesigning build.keychain
-
-          # Run the build
           yarn run build:mac
 
-      - name: Upload macOS ARM artifact
+      - name: Upload macOS artifact
         uses: actions/upload-artifact@v3
         with:
-          name: op-media-downloader-mac-arm
+          name: op-media-downloader-mac-${{ matrix.arch }}
           path: dist/*.dmg
 
   release:
     needs:
       - build-windows
-      - build-mac-intel
-      - build-mac-arm
+      - build-mac
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -144,17 +109,17 @@ jobs:
           name: op-media-downloader-windows
           path: release/windows
 
-      - name: Download macOS Intel artifact
+      - name: Download macOS artifacts
         uses: actions/download-artifact@v3
         with:
-          name: op-media-downloader-mac-intel
-          path: release/mac-intel
+          name: op-media-downloader-mac-x64
+          path: release/mac-x64
 
       - name: Download macOS ARM artifact
         uses: actions/download-artifact@v3
         with:
-          name: op-media-downloader-mac-arm
-          path: release/mac-arm
+          name: op-media-downloader-mac-arm64
+          path: release/mac-arm64
 
       - name: Upload assets to the latest release
         env:
@@ -169,12 +134,9 @@ jobs:
             exit 1
           fi
 
-          # Debug: Validate the files exist
-          ls -R release
-
           # Upload assets
           gh release upload "$LATEST_RELEASE" \
             release/windows/*.exe \
-            release/mac-intel/*.dmg \
-            release/mac-arm/*.dmg \
+            release/mac-x64/*.dmg \
+            release/mac-arm64/*.dmg \
             --clobber
