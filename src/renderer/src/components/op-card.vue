@@ -67,7 +67,7 @@
 import { OpCardColor } from '@classes/color-classes'
 import { formattedColor } from '@renderer/service/theme-service'
 import { debounce, forEach, isArray, isNumber, isString } from 'lodash'
-import { computed, defineComponent, inject, PropType } from 'vue'
+import { computed, defineComponent, PropType } from 'vue'
 import OpIcon from './op-icon.vue'
 
 class Palette {
@@ -279,20 +279,7 @@ export default defineComponent({
     use_solid_colors(): boolean {
       return !!USER_SOLID_COLORS.value
     },
-    injected_classes() {
-      const injected_classes: (x: any) => string | undefined = inject(
-        'op_input_classes',
-        () => undefined,
-      )
-      return injected_classes && injected_classes(this)
-    },
-    parent_color(): string[] | undefined {
-      const parent_color: (x: any) => string[] | undefined = inject(
-        'op_card_bg',
-        () => undefined,
-      )
-      return parent_color && parent_color(this)
-    },
+
     input_value() {
       if (this.undefinedValue !== undefined && this.modelValue === undefined) {
         return this.undefinedValue
@@ -479,9 +466,6 @@ export default defineComponent({
       ret.add('duration-colors-200')
       ret.add('outline-none')
       ret.add('focus:outline-none')
-      if (this.injected_classes) {
-        this.injected_classes.split(' ').forEach(c => ret.add(c))
-      }
       if (this.textSize) {
         ret.add(`text-${this.textSize}`)
       }
