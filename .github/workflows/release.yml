@@ -55,25 +55,17 @@ jobs:
           CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
-          # Decode Base64-encoded certificate
           echo "$CERTIFICATE" | base64 --decode > certificate.p12
 
       - name: Configure macOS keychain for signing
         env:
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
-          # Create a temporary keychain
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
-
-          # Import the certificate into the keychain
           security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-
-          # Allow codesign to access the key
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
-
-          # Verify the imported identities
           security find-identity -v -p codesigning build.keychain
 
       - name: Build and sign for macOS
@@ -84,21 +76,30 @@ jobs:
         run: |
           yarn run build:mac
 
+      - name: Find the generated .dmg file
+        id: find-dmg
+        run: |
+          dmg_file=$(find dist -name "*.dmg" | head -n 1)
+          if [ -z "$dmg_file" ]; then
+            echo "Error: No .dmg file found in the dist directory."
+            exit 1
+          fi
+          echo "Found .dmg file: $dmg_file"
+          echo "dmg_file=$dmg_file" >> $GITHUB_ENV
+
       - name: Notarize the macOS app with notarytool
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DMG_FILE: ${{ env.dmg_file }}
         run: |
-          # Authenticate with notarytool
           xcrun notarytool store-credentials "AC_PASSWORD" --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "$TEAM_ID"
-
-          # Submit the app for notarization
-          xcrun notarytool submit "dist/On Page Media Downloader.dmg" --keychain-profile "AC_PASSWORD" --wait
+          xcrun notarytool submit "$DMG_FILE" --keychain-profile "AC_PASSWORD" --wait
 
       - name: Staple notarization ticket
         run: |
-          xcrun stapler staple "dist/On Page Media Downloader.dmg"
+          xcrun stapler staple "${{ env.dmg_file }}"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v3
