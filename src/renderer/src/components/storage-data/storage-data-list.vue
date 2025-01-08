@@ -144,22 +144,27 @@ function deleteConfig(): void {
     </OpModal>
   </Transition>
 
+  <!-- Duplicates modal -->
   <TransitionGroup name="modal-fade">
     <OpModal
       v-for="config in configs_with_duplicate_files"
       :key="config.id"
       @close="config.confirmDuplicatesAndContinue()"
     >
-      <div class="modal-size-w-sm full-height-scroll gap-unit-double">
-        <h4 class="flex-row-center-unit">
-          <op-icon icon="triangle-exclamation" size="xl" class="text-warning" />
+      <div class="modal-size-w-md full-height-scroll gap-unit-double">
+        <h4>
+          <op-icon
+            icon="triangle-exclamation"
+            size="xl"
+            class="text-warning mr-unit"
+          />
           {{
             i18n.t('_storage_data.config_has_duplicates', {
               config: config.label,
             })
           }}
         </h4>
-        <div>
+        <div class="px-unit py-unit-half rounded-md bg-orange bg-opacity-20">
           {{ i18n.t('_storage_data.config_has_duplicates_description') }}
         </div>
 
@@ -205,7 +210,7 @@ function deleteConfig(): void {
                     class="block sober-link-accent"
                     :href="`https://app.onpage.it/#/things/edit/${x.thing_id}/${
                       x.field.schema().id
-                    }/${x.field.resource_id}`"
+                    }/${x.field.resource_id}/${x.field.id}`"
                     target="_blank"
                   >
                     {{ x.thing_label }}
@@ -225,6 +230,9 @@ function deleteConfig(): void {
           </div>
         </div>
 
+        <div class="px-unit py-unit-half rounded-md bg-orange bg-opacity-20">
+          {{ i18n.t('_storage_data.config_has_duplicates_description_2') }}
+        </div>
         <div class="flex-row-center-unit justify-between">
           <op-btn @click="config.loadRemoteFiles()">
             <op-icon icon="arrows-rotate" />

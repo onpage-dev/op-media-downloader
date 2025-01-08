@@ -70,7 +70,9 @@ function chechMissingTokens(
   const base_path = path.normalize(directory)
   console.log(`fs.readdirSync(base_path)`, base_path)
   /** List of downloaded file names */
-  const local_files = fs.readdirSync(base_path)
+  const local_files = fs
+    .readdirSync(base_path)
+    .map(name => name.toLocaleLowerCase())
 
   const data_path = getDataPath(directory)
   console.log(`fs.readdirSync(data_path)`, data_path)
@@ -89,7 +91,8 @@ function chechMissingTokens(
   /** Check if missing token or file name */
   const missing_files = remote_files.filter(
     file =>
-      !local_tokens.includes(file.token) || !local_files.includes(file.name),
+      !local_tokens.includes(file.token) ||
+      !local_files.includes(file.name.toLocaleLowerCase()),
   )
   console.log(`${missing_files.length} tokens missing`)
   console.log(missing_files)

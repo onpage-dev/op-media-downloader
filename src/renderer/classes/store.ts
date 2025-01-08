@@ -52,20 +52,20 @@ export class StorageService {
   initRenderEvents(): void {
     window.electron.ipcRenderer.on(
       'update-download-progress',
-      (_event, data) => {
-        const c = this.configs.get(data.config_id)
+      (_event, { config_id, progressEvent }) => {
+        const c = this.configs.get(config_id)
         if (!c) return
-        c.onDownloadProgress(data.progressEvent)
+        c.onDownloadProgress(progressEvent)
       },
     )
 
     window.electron.ipcRenderer.on(
       'update-missing-tokens-to-download',
-      (_event, data) => {
-        const c = this.configs.get(data.config_id)
-        if (!c) return
-        const missing_tokens = new Set(data.missing_files.map(f => f.token))
-        c.files_to_download = c.uniq_raw_files.filter(({ token }) =>
+      (_event, { config_id, missing_files }) => {
+        const config = this.configs.get(config_id)
+        if (!config) return
+        const missing_tokens = new Set(missing_files.map(f => f.token))
+        config.files_to_download = config.uniq_name_files.filter(({ token }) =>
           missing_tokens.has(token),
         )
       },

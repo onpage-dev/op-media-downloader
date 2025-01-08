@@ -29,7 +29,8 @@
     "keep_old_files": "Mantieni i vecchi file locali non più presenti su On Page",
     "keep_old_files_msg": "Attivare questa funzione può creare conflitti tra i nuovi ed i vecchi file con lo stesso nome",
     "config_has_duplicates": "Sono presenti file con lo stesso nome in \"{config}\"",
-    "config_has_duplicates_description": "I seguenti file hanno valori diversi collegati allo stesso nome. Ne verrà scaricato solo uno. Si prega di rinominare i file con nomi univoci."
+    "config_has_duplicates_description": "I seguenti file hanno valori diversi collegati allo stesso nome. L'univocità del nome ignora le differenze tra maiuscole e minuscole.",
+    "config_has_duplicates_description_2": "Cliccando su \"Continua\" verrà scaricata una sola versione dei file per nome. Per scaricare tutte le versioni dovrete rinominarli in maniera univoca su On Page."
   },
   "_storage_files": {
     "error": "Errore caricamento",

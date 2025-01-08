@@ -29,7 +29,8 @@
     "keep_old_files": "Keep old local files not present on On Page anymore",
     "keep_old_files_msg": "Enabling this option may cause conflicts between new and old file's name",
     "config_has_duplicates": "Files with the same name in \"{config}\"",
-    "config_has_duplicates_description": "The following files have different values connected to the same name. Only one of them will be downloaded. Please rename the following files with unique names."
+    "config_has_duplicates_description": "The following files have different values connected to the same name. The uniqueness of the name ignores case sensitivity.",
+    "config_has_duplicates_description_2": "By clicking on \"Continue\" only one version of the files per name will be downloaded. To download all versions, you will need to rename them uniquely in On Page."
   },
   "_storage_files": {
     "error": "Loading error",

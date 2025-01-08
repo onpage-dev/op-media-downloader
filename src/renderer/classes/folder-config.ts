@@ -70,35 +70,32 @@ export class FolderConfig {
   calculating_files_to_download = false
 
   /** Files raw array maps with cache */
-  private _raw_files: OpFile[] = []
-  private _invalid_raw_files_cache = true
-  get raw_files(): OpFile[] {
-    if (this._invalid_raw_files_cache) {
-      console.log('Invalid invalid_raw_files cache')
-      this._raw_files = []
-      for (const files of this.raw_files_by_token.values()) {
-        this._raw_files.push(...files)
-      }
-      this._invalid_raw_files_cache = false
+  private _files: OpFile[] = []
+  private _invalid_files_cache = true
+  /** Unique token-name files */
+  get files(): OpFile[] {
+    if (this._invalid_files_cache) {
+      console.log('Invalid files cache')
+      this._files = uniqBy(
+        Array.from(this.raw_files_by_token.values()).flatMap(files => files),
+        f => `${f.token}-${f.name.toLocaleLowerCase()}`,
+      )
+      this._invalid_files_cache = false
     }
-    return this._raw_files
+    return this._files
   }
-  private _uniq_raw_files: OpFile[] = []
-  private _invalid_uniq_raw_files_cache = true
-  get uniq_raw_files(): OpFile[] {
-    if (this._invalid_uniq_raw_files_cache) {
-      console.log('Invalid uniq_raw_files cache')
-      const seen = new Set<string>()
-      this._uniq_raw_files = []
-      for (const file of this.raw_files) {
-        if (!seen.has(file.name)) {
-          seen.add(file.name)
-          this._uniq_raw_files.push(file)
-        }
-      }
-      this._invalid_uniq_raw_files_cache = false
+  private _uniq_name_files: OpFile[] = []
+  private _invalid_uniq_name_files_cache = true
+  /** Uniquely named files */
+  get uniq_name_files(): OpFile[] {
+    if (this._invalid_uniq_name_files_cache) {
+      console.log('Invalid uniq_name_files cache')
+      this._uniq_name_files = uniqBy(this.files, f =>
+        f.name.toLocaleLowerCase(),
+      )
+      this._invalid_uniq_name_files_cache = false
     }
-    return this._uniq_raw_files
+    return this._uniq_name_files
   }
 
   constructor(public storage: StorageService, public json: FolderConfigJson) {
@@ -107,8 +104,8 @@ export class FolderConfig {
     watch(
       () => Array.from(this.raw_files_by_token.entries()),
       () => {
-        this._invalid_raw_files_cache = true
-        this._invalid_uniq_raw_files_cache = true
+        this._invalid_files_cache = true
+        this._invalid_uniq_name_files_cache = true
       },
       { deep: true },
     )
@@ -254,10 +251,11 @@ export class FolderConfig {
                   if (!bytoken) this.raw_files_by_token.set(file.token, [file])
                   else bytoken.push(file)
 
-                  let byname = this.files_by_name.get(file.name)
+                  const file_name = file.name.toLocaleLowerCase()
+                  let byname = this.files_by_name.get(file_name)
                   if (!byname) {
                     byname = new Map()
-                    this.files_by_name.set(file.name, byname)
+                    this.files_by_name.set(file_name, byname)
                   }
 
                   let hastoken = byname.get(file.token)
@@ -318,7 +316,7 @@ export class FolderConfig {
           'delete-removed-files-from-remote',
           cloneDeep({
             remote_files: [
-              ...this.uniq_raw_files.map(file => file.serialize()),
+              ...this.uniq_name_files.map(file => file.serialize()),
             ],
             directory: this.folder_path,
           }),
@@ -337,7 +335,8 @@ export class FolderConfig {
 
   downloadFiles(): void {
     console.log('[downloader] start')
-    if (!this.uniq_raw_files.length) return console.log('[downloader] no files')
+    if (!this.uniq_name_files.length)
+      return console.log('[downloader] no files')
     if (this.is_downloading)
       return console.log('[downloader] already downloading')
 
@@ -354,7 +353,7 @@ export class FolderConfig {
       'download-files',
       cloneDeep({
         config_id: this.id,
-        files: this.uniq_raw_files.map(file => ({
+        files: this.uniq_name_files.map(file => ({
           url: file.link(),
           token: file.token,
           name: file.name,
@@ -389,16 +388,11 @@ export class FolderConfig {
   }
 
   checkMissingTokens(): void {
-    const remote_files = uniqBy(
-      Array.from(this.raw_files_by_token.values()).map<OpFileRaw>(files =>
-        files[0].serialize(),
-      ),
-      f => f.name,
-    )
-
     const params = {
       config_id: this.id,
-      remote_files,
+      remote_files: this.uniq_name_files.map<OpFileRaw>(file =>
+        file.serialize(),
+      ),
       directory: this.folder_path,
     }
     /** On end this will trigger missingTokensToDownload from main */
