@@ -21,17 +21,16 @@ nsis:
 mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  identity: "Dinside s.r.l."
-  appId: "com.onpage.mediadownloader"
+  identity: 'Dinside s.r.l.'
+  appId: 'com.onpage.mediadownloader'
   target:
     - dmg
   hardenedRuntime: true
-  gatekeeperAssess: false
   artifactName: ${name}-${version}-${arch}.${ext}
 
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
-  sign: false
+  sign: true
 
 linux:
   target:
