@@ -2,23 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
-    <!-- Enable App Sandbox -->
+    <!-- Enable Hardened Runtime -->
     <key>com.apple.security.app-sandbox</key>
+    <true/>
+    
+    <!-- Allow JIT compilation (if using WebAssembly or custom runtime) -->
+    <key>com.apple.security.cs.allow-jit</key>
     <true/>
 
     <!-- Allow user-selected file access -->
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
 
-    <!-- Access to the Downloads folder -->
-    <key>com.apple.security.files.downloads.read-write</key>
-    <true/>
-
-    <!-- Access to the Documents folder -->
-    <key>com.apple.security.files.documents.read-write</key>
-    <true/>
-
-    <!-- Network access -->
+    <!-- Enable network access -->
     <key>com.apple.security.network.client</key>
     <true/>
   </dict>
