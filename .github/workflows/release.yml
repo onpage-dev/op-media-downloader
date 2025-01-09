@@ -71,6 +71,7 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
           CSC_LINK: certificate.p12
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           echo "Building for architecture: $ARCH"
           yarn run build:mac
