@@ -109,7 +109,11 @@ ElectronIPC.on('open-path', (_event, path_to_open) => {
 
 ElectronIPC.on('stop-download', (_event, config_id) => {
   console.log('[download-stop] stopping download for config', config_id)
-  queues.get(config_id)?.splice(0)
+  const process = queues.get(config_id)
+  if (process) {
+    process.stop()
+    process.jobs.splice(0)
+  }
 })
 ElectronIPC.on('delete-folder', async (_event, folder_path: string) => {
   try {
@@ -174,7 +178,13 @@ ElectronIPC.on(
 )
 
 /** Files Download */
-const queues: Map<string, (() => Promise<void>)[]> = new Map()
+const queues: Map<
+  string,
+  {
+    jobs: (() => Promise<void>)[]
+    stop: () => void
+  }
+> = new Map()
 function emitDownloadProgress(
   event: Electron.IpcMainEvent,
   data: DownloadFilesPayload,
@@ -266,7 +276,8 @@ async function deleteOldLinks(
     }
   })
 
-  await processQueue(todo, 10)
+  const { promise } = processQueue(todo, 10)
+  await promise
 }
 function createLinkAndUpdateMap(
   link_path: string,
@@ -498,14 +509,22 @@ ElectronIPC.on('download-files', async (event, data) => {
       ),
   )
 
-  queues.set(data.config_id, jobs)
-
   console.log(`[downloadFiles] syncing ${data.files.length} files`)
+
   const concurrent_count =
     Number(store.get('user_properties.simultaneous_downloads')) || 1
+  const { promise, stop } = processQueue(jobs, concurrent_count)
 
-  /** Process queue with limited concurrency */
-  await processQueue(jobs, concurrent_count)
+  queues.set(data.config_id, { jobs, stop })
+
+  /** Wait for queue processing to finish */
+  await promise
+
+  /** Wait for all active downloads to finish */
+  if (active_downloads.size > 0) {
+    console.log('[downloadFiles] Waiting for active downloads to complete...')
+    await Promise.allSettled(Array.from(active_downloads.values()))
+  }
 
   /** Cleanup and finalize */
   queues.delete(data.config_id)

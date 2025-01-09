@@ -1,20 +1,28 @@
-export async function processQueue<T>(
+export function processQueue<T>(
   todo: (() => Promise<T>)[],
   concurrentCount = 1,
-): Promise<void> {
+): { promise: Promise<void>; stop: () => void } {
+  let running = true
   const complete: (() => Promise<T>)[] = []
   const threads: Promise<void>[] = []
+
   for (let i = 0; i < concurrentCount; i++) {
     console.log('start thread')
     threads.push(runThread())
   }
-  await Promise.all(threads)
-  return
+
+  const promise = Promise.all(threads).then(() => {
+    console.log('All threads completed')
+  })
+
+  function stop(): void {
+    console.log('Stopping all threads')
+    running = false
+  }
 
   async function runThread(): Promise<void> {
     let promise: (() => Promise<T>) | undefined
-    while ((promise = todo.shift())) {
-      if (!promise) return
+    while (running && (promise = todo.shift())) {
       try {
         console.log('wait for promise')
         await promise()
@@ -26,4 +34,6 @@ export async function processQueue<T>(
       }
     }
   }
+
+  return { promise, stop }
 }
