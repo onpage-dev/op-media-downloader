@@ -1,14 +1,15 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import axios from 'axios'
 import { BrowserWindow, IpcMainEvent, app, dialog, shell } from 'electron'
+import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 import Store from 'electron-store'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
 import { OpFileRaw } from 'onpage-js'
 import path from 'path'
+import { DownloadFilesPayload } from '../shared/electron-ipc-renderer-models'
 import { ElectronIPC } from './electron-ipc'
 import { processQueue } from './utils'
-import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 
 export interface SyncProgressInfo {
   start_time: string
@@ -66,7 +67,7 @@ function chechMissingTokens(
 ): void {
   console.log(`[checkMissingTokens] triggered for path ${directory}`)
 
-  generateMissingFolder(directory)
+  initFolderStructure(directory)
   const base_path = path.normalize(directory)
   console.log(`fs.readdirSync(base_path)`, base_path)
   /** List of downloaded file names */
@@ -172,185 +173,347 @@ ElectronIPC.on(
   },
 )
 
+/** Files Download */
 const queues: Map<string, (() => Promise<void>)[]> = new Map()
+function emitDownloadProgress(
+  event: Electron.IpcMainEvent,
+  data: DownloadFilesPayload,
+  jobs: (() => Promise<void>)[],
+  stop?: boolean,
+): void {
+  data.loader.is_stopping = !jobs.length
+  const progressEvent = data.loader
+  if (stop) {
+    progressEvent.downloading = false
+    progressEvent.is_stopping = false
+  }
+  event.sender.send('update-download-progress', {
+    config_id: data.config_id,
+    progressEvent,
+  })
+}
+function linkFile(linkPath: string, filePath: string): void {
+  console.log('\n[Link START] File:')
+  console.log(` - Source: ${filePath}`)
+  console.log(` - Target: ${linkPath}`)
 
-ElectronIPC.on('download-files', async (event, data) => {
-  console.log(`[downloadFiles] triggered for folder ${data.directory}`)
-  data.loader.downloading = true
-
-  data.loader.total = data.files.length
-  const to_download = data.files.map(file => file.token)
-  const data_path = getDataPath(data.directory)
-  generateMissingFolder(data.directory)
-  const links_path = data_path + '/link.json'
-
-  console.log(`fs.readdirSync(dataPath)`)
-  const existing_files: OpFileRaw['token'][] = fs.readdirSync(data_path)
-
-  console.log(`fs.readdirSync(data.directory)`)
-  const existing_links: OpFileRaw['name'][] = fs.readdirSync(data.directory)
-
-  console.log(`fs.existsSync(links_path)`)
-  const link_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] } =
-    fs.existsSync(links_path)
-      ? JSON.parse(fs.readFileSync(links_path, { encoding: 'utf-8' }))
-      : {}
-
-  const emit_progress = (): void => {
-    data.loader.is_stopping = !jobs.length
-    event.sender.send('update-download-progress', {
-      config_id: data.config_id,
-      progressEvent: data.loader,
-    })
+  /** Remove existing link if it exists */
+  try {
+    if (fs.existsSync(linkPath)) {
+      console.log(`Removing existing link: ${linkPath}`)
+      fs.unlinkSync(linkPath)
+    }
+  } catch (error) {
+    console.log('Unlink failed, continuing with link creation:')
+    console.error(error)
   }
 
-  const do_link = (linkPath: string, filePath: string): void => {
-    console.log(' ')
-    console.log('[Link START] File:')
-    console.log(` - ${filePath}`)
-    console.log(` - ${linkPath}`)
-    try {
-      if (fs.existsSync(linkPath)) {
-        console.log(`fs.unlinkSync(linkPath)`)
-        fs.unlinkSync(linkPath)
-      }
-    } catch (error) {
-      console.log('Unlink failed:')
-      console.log(error)
-    }
-
-    try {
-      console.log(`fs.linkSync(filePath, linkPath)`)
-      fs.linkSync(filePath, linkPath)
-    } catch (error) {
-      console.log('[Link FAILED] Using Soft Copy as fallback')
-      console.log(error)
-      try {
-        console.log(
-          'fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)',
-        )
-        fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
-      } catch (error) {
-        console.log('[Soft Copy FAILED] Using hard copy as fallback')
-        console.log(error)
-        console.log(' ')
-        console.log(`console.log(fs.readFileSync(filePath))`)
-
-        const buffer: Uint8Array = fs.readFileSync(filePath) as any
-        fs.writeFileSync(linkPath, buffer)
-      }
-    }
+  /** Attempt to create a hard link */
+  try {
+    console.log(`Creating hard link: ${filePath} -> ${linkPath}`)
+    fs.linkSync(filePath, linkPath)
     console.log('[Link END] Linking file successful')
+    return
+  } catch (hardLinkError) {
+    console.log('[Link FAILED] Falling back to soft copy')
+    console.error(hardLinkError)
   }
 
-  // Delete old links
-  if (!data.keep_old_files) {
-    existing_links.forEach(existing_link => {
-      const filename = path.basename(existing_link)
-      if (filename == 'data') return
-      if (!data.files.find(f => f.name == filename)) {
-        console.log('deleting old link', existing_link)
-        try {
-          console.log(`fs.unlinkSync(existing_link)`)
-          fs.unlinkSync(existing_link)
-        } catch (error) {
-          console.log('cannot delete file', error)
-        }
-        delete link_map[filename]
-      }
-    })
+  /** Soft copy fallback */
+  try {
+    console.log('Attempting soft copy with FICLONE')
+    fs.copyFileSync(filePath, linkPath, fs.constants.COPYFILE_FICLONE)
+    console.log('[Link END] Soft copy successful')
+    return
+  } catch (softCopyError) {
+    console.log('[Soft Copy FAILED] Falling back to hard copy')
+    console.error(softCopyError)
   }
 
-  const download_file = async (file: {
-    url: string
-    token: string
-    name: string
-  }): Promise<void> => {
-    /** Create Path */
-    const file_path = path.normalize(`${data_path}/${file.token}`)
-    const link_path = path.normalize(`${data.directory}/${file.name}`)
+  /** Hard copy fallback */
+  try {
+    console.log('Performing hard copy using read/write buffer')
+    /** Set Buffer as any for type validation inside writeFileSync */
+    const buffer: any = fs.readFileSync(filePath)
+    fs.writeFileSync(linkPath, buffer)
+    console.log('[Link END] Hard copy successful')
+  } catch (hardCopyError) {
+    console.error('[Hard Copy FAILED] All attempts to link/copy failed')
+    console.error(hardCopyError)
+  }
+}
+async function deleteOldLinks(
+  links: OpFileRaw['name'][],
+  new_files: Set<string>,
+  link_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] },
+): Promise<void> {
+  // Prepare the queue of deletion tasks
+  const todo = links.map(link => async (): Promise<void> => {
+    try {
+      const name = path.basename(link)
 
-    if (!existing_files.includes(file.token)) {
-      /** Invalidate all links pointing to the file we have to download */
-      for (const i in link_map) {
-        if (link_map[i] == file.name) {
-          delete link_map[i]
+      /** Folder containing tokens */
+      if (name === 'data') return
+
+      /** File still exists inside project so keep it */
+      if (new_files.has(name)) return
+
+      console.log(`fs.unlink(existing_link)`, link)
+      await fs.promises.unlink(link)
+      delete link_map[name]
+    } catch (error) {
+      console.error('Cannot delete file', error)
+    }
+  })
+
+  await processQueue(todo, 10)
+}
+function createLinkAndUpdateMap(
+  link_path: string,
+  file_path: string,
+  file_name: string,
+  token: string,
+  links_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] },
+  links_map_path: string,
+): void {
+  // Create the link
+  linkFile(link_path, file_path)
+
+  // Update the links map
+  links_map[file_name] = token
+  fs.writeFileSync(links_map_path, JSON.stringify(links_map))
+  console.log(`[Create Link] Linked ${file_name} -> ${token}`)
+}
+function updateLoaderAndCleanUp(
+  token: string,
+  token_to_names: Map<string, string[]>,
+  loader: { downloaded: number; failed: number },
+  target: 'downloaded' | 'failed',
+): void {
+  const associated_names = token_to_names.get(token) || []
+  loader[target] += associated_names.length
+  token_to_names.delete(token)
+  console.log(
+    `[Loader Update] ${target.toUpperCase()}: ${
+      associated_names.length
+    } for token ${token}`,
+  )
+}
+async function downloadFile(
+  event: Electron.IpcMainEvent,
+  data: DownloadFilesPayload,
+  file: DownloadFilesPayload['files'][0],
+  jobs: (() => Promise<void>)[],
+  data_path: string,
+  existing_tokens: OpFileRaw['token'][],
+  links_map_path: string,
+  links_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] },
+  active_downloads: Map<string, Promise<void>>,
+  token_to_names: Map<string, string[]>,
+): Promise<void> {
+  const file_path = path.join(data_path, file.token)
+  const link_path = path.join(path.normalize(data.directory), file.name)
+
+  console.log(`[Download File] File: ${file.name}, Token: ${file.token}`)
+
+  /** Add file name to the list of names for this token */
+  if (!token_to_names.has(file.token)) {
+    token_to_names.set(file.token, [])
+  }
+  token_to_names.get(file.token)!.push(file.name)
+
+  /** If the token already exists in the data folder */
+  if (existing_tokens.includes(file.token)) {
+    console.log(`[Download File] Token already exists: ${file.token}`)
+    data.loader.already_exists++
+
+    /** Create the link for the existing token */
+    createLinkAndUpdateMap(
+      link_path,
+      file_path,
+      file.name,
+      file.token,
+      links_map,
+      links_map_path,
+    )
+    return
+  }
+
+  if (!active_downloads.has(file.token)) {
+    const downloadPromise = (async (): Promise<void> => {
+      /** Remove all outdated links */
+      Object.keys(links_map).forEach(link => {
+        if (links_map[link] === file.name) {
+          delete links_map[link]
         }
-      }
+      })
 
       /** Download the file */
       try {
-        console.log(' ')
-        console.log('[download] Downloadinf file:')
-        console.log(` - ${file.url}`)
-        console.log(` - ${file_path}`)
-        await downloadUrlToFile(
-          file.url,
-          file_path,
-          (resolve: CallableFunction, reject: CallableFunction) => {
-            function doResolve(): void {
-              data.loader.downloaded++
-              resolve()
-            }
-            /** Create links */
-            if (link_map[file.name] == file.token) {
-              doResolve()
-              return
-            }
-
-            try {
-              do_link(link_path, file_path)
-              link_map[file.name] = file.token
-              console.log(
-                `fs.writeFileSync(links_path, JSON.stringify(link_map))`,
-              )
-              fs.writeFileSync(links_path, JSON.stringify(link_map))
-              console.log('[download] Downloadinf complete')
-              doResolve()
-            } catch (error) {
-              console.log('[download] cannot copy file:', error)
-              data.loader.failed++
-              reject(error)
-            }
-          },
-        )
+        console.log(`[Download Token] Downloading: ${file.token}`)
+        await downloadUrlToFile(file.url, file_path)
       } catch (error) {
-        console.log('[download] Downloadinf failed:')
-        console.log(error)
-        data.loader.failed++
-        emit_progress()
-        return
-      }
-    } else {
-      data.loader.already_exists++
-      do_link(link_path, file_path)
-    }
+        console.error(`[Download Token] Failed for ${file.token}`, error)
 
-    // Update progress
-    emit_progress()
+        /** Increment failed counter for all associated file names */
+        updateLoaderAndCleanUp(
+          file.token,
+          token_to_names,
+          data.loader,
+          'failed',
+        )
+        throw error
+      }
+    })()
+
+    active_downloads.set(file.token, downloadPromise)
+
+    // Clean up after the download is complete
+    downloadPromise.finally(() => {
+      active_downloads.delete(file.token)
+    })
   }
 
-  const jobs = data.files.map(file => (): Promise<void> => download_file(file))
+  try {
+    /** Wait for the download to complete */
+    await active_downloads.get(file.token)
+
+    /** Create links for all associated file names */
+    createLinkAndUpdateMap(
+      link_path,
+      file_path,
+      file.name,
+      file.token,
+      links_map,
+      links_map_path,
+    )
+
+    /** Increment the downloaded counter by the number of file names for this token */
+    updateLoaderAndCleanUp(
+      file.token,
+      token_to_names,
+      data.loader,
+      'downloaded',
+    )
+  } catch (error) {
+    console.error(`[Create Link] Failed for ${file.name}`, error)
+
+    /** Increment failed counter for all associated file names if linking fails */
+    updateLoaderAndCleanUp(file.token, token_to_names, data.loader, 'failed')
+  }
+
+  /** Update progress */
+  emitDownloadProgress(event, data, jobs)
+}
+async function downloadUrlToFile(
+  fileUrl: string,
+  filePath: string,
+): Promise<void> {
+  const tempPath = `${filePath}.download`
+  console.log(`\n[Download] File: ${fileUrl} -> ${filePath}`)
+  console.log(`[Temp Path] Temp Path for Download: ${tempPath}`)
+
+  try {
+    const response = await axios({
+      method: 'GET',
+      url: fileUrl,
+      responseType: 'stream',
+    })
+
+    console.log(`[Download Stream] Writing to ${tempPath}`)
+    const stream = fs.createWriteStream(`${filePath}.download`)
+
+    return new Promise((resolve, reject) => {
+      response.data.pipe(stream)
+
+      stream.on('finish', () => {
+        console.log(`[Download Stream] Finished writing to ${tempPath}`)
+        stream.close(() => {
+          console.log(`[Renaming] Temp: ${tempPath} -> Final: ${filePath}`)
+          fs.renameSync(tempPath, filePath)
+          resolve()
+        })
+      })
+
+      stream.on('error', error => {
+        console.error(`[Download Stream] Error:`, error)
+        reject(error)
+      })
+    })
+  } catch (error) {
+    console.error('[Download] Failed to fetch URL:', error)
+    throw error
+  }
+}
+ElectronIPC.on('download-files', async (event, data) => {
+  console.log(`[downloadFiles] triggered for folder ${data.directory}`)
+  data.loader.downloading = true
+  data.loader.total = data.files.length
+
+  /** Check and init main folder structure */
+  const directory = data.directory
+  initFolderStructure(directory)
+
+  /** Get existing tokens inside data path */
+  const data_path = getDataPath(directory)
+  const existing_tokens: OpFileRaw['token'][] = fs.readdirSync(data_path)
+
+  /** Get existing links inside links path */
+  const existing_links: OpFileRaw['name'][] = fs.readdirSync(directory)
+
+  /**
+   * Get the link.json file that defines the relation of all generated links
+   * The file content is defined as Record<FileName, FileToken>
+   */
+  const links_map_path = path.join(data_path, 'link.json')
+  const links_map: Record<string, string> = fs.existsSync(links_map_path)
+    ? JSON.parse(fs.readFileSync(links_map_path, { encoding: 'utf-8' }))
+    : {}
+
+  /** Optionally delete old links */
+  if (!data.keep_old_files) {
+    await deleteOldLinks(
+      existing_links,
+      new Set(data.files.map(f => f.name)),
+      links_map,
+    )
+  }
+
+  /** Create download jobs */
+  const active_downloads: Map<string, Promise<void>> = new Map()
+  const token_to_names: Map<string, string[]> = new Map()
+  const jobs = data.files.map(
+    file => (): Promise<void> =>
+      downloadFile(
+        event,
+        data,
+        file,
+        jobs,
+        data_path,
+        existing_tokens,
+        links_map_path,
+        links_map,
+        active_downloads,
+        token_to_names,
+      ),
+  )
 
   queues.set(data.config_id, jobs)
 
-  console.log(`[downloadFiles] sync ${to_download.length} files`)
-  const concurrentCount =
+  console.log(`[downloadFiles] syncing ${data.files.length} files`)
+  const concurrent_count =
     Number(store.get('user_properties.simultaneous_downloads')) || 1
 
-  await processQueue(jobs, concurrentCount)
+  /** Process queue with limited concurrency */
+  await processQueue(jobs, concurrent_count)
 
+  /** Cleanup and finalize */
   queues.delete(data.config_id)
-  event.sender.send('update-download-progress', {
-    config_id: data.config_id,
-    progressEvent: Object.assign(data.loader, {
-      downloading: false,
-    }),
-  })
+  emitDownloadProgress(event, data, jobs, true)
 
-  console.log(` - downloaded: ${data.loader.downloaded}`)
-  console.log(` - failed: ${data.loader.failed}`)
-  console.log(` - already_exists: ${data.loader.already_exists}`)
+  console.log(` - Downloaded: ${data.loader.downloaded}`)
+  console.log(` - Failed: ${data.loader.failed}`)
+  console.log(` - Already exists: ${data.loader.already_exists}`)
   console.log('[downloadFiles] sync over')
 })
 ElectronIPC.handle('pick-folder-path', async () => {
@@ -375,37 +538,13 @@ ElectronIPC.handle('electron-store-delete', async (_Event, key) => {
   return !store.has(key)
 })
 
-async function downloadUrlToFile(
-  url: string,
-  path: string,
-  on_end: CallableFunction,
-): Promise<void> {
-  const response = await axios({
-    method: 'GET',
-    url,
-    responseType: 'stream',
-  })
-
-  try {
-    console.log(`fs.createWriteStream(${path}.download))`)
-    const stream = fs.createWriteStream(`${path}.download`)
-    response.data.pipe(stream)
-    return new Promise((resolve, reject) => {
-      stream.on('finish', async () => {
-        console.log(`fs.renameSync(${path}.download, ${path})`)
-        fs.renameSync(`${path}.download`, path)
-        on_end(resolve, reject)
-      })
-
-      stream.on('error', reject)
-    })
-  } catch (error) {
-    console.log('error creating write stream', error)
-  }
-}
-function generateMissingFolder(directory: string): void {
-  const main_path = path.normalize(directory)
-  const data_path = path.normalize(`${directory}/data`)
+/**
+ * Checks if folder structure is valid
+ * In case some folders are missing generates them
+ */
+function initFolderStructure(directory_path: string): void {
+  const main_path = path.normalize(directory_path)
+  const data_path = getDataPath(directory_path)
 
   console.log(`fs.existsSync(main_path))`)
   if (!fs.existsSync(main_path)) {
@@ -419,8 +558,9 @@ function generateMissingFolder(directory: string): void {
     fs.mkdirSync(data_path)
   }
 }
+/** Returns normalized data folder path */
 function getDataPath(directory: string): string {
-  return path.normalize(`${directory}/data`)
+  return path.normalize(path.join(path.normalize(directory), 'data'))
 }
 
 async function createWindow(): Promise<void> {

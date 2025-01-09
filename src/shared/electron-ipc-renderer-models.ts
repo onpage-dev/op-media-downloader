@@ -8,6 +8,17 @@ interface SyncProgressInfo {
   failed: number
   already_exists: number
 }
+export interface DownloadFilesPayload {
+  config_id: string
+  files: {
+    url: string
+    token: string
+    name: string
+  }[]
+  directory: string
+  loader: SyncProgressInfo
+  keep_old_files: boolean
+}
 // Payload types for send
 export interface IPCSendChannels {
   'get-version-info': undefined
@@ -18,17 +29,7 @@ export interface IPCSendChannels {
     remote_files: OpFileRaw[]
     directory: string
   }
-  'download-files': {
-    config_id: string
-    files: {
-      url: string
-      token: string
-      name: string
-    }[]
-    directory: string
-    loader: SyncProgressInfo
-    keep_old_files: boolean
-  }
+  'download-files': DownloadFilesPayload
   'stop-download': string
   'check-missing-tokens': {
     config_id: string
