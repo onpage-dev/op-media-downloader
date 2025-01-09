@@ -19,14 +19,13 @@ nsis:
   createDesktopShortcut: always
 
 mac:
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  identity: 'Dinside s.r.l.'
-  appId: 'com.onpage.mediadownloader'
+  appId: com.onpage.mediadownloader
   target:
     - dmg
+  identity: 'Dinside s.r.l.'
   hardenedRuntime: true
   artifactName: ${name}-${version}-${arch}.${ext}
+  gatekeeperAssess: false
 
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
