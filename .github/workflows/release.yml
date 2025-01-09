@@ -24,6 +24,8 @@ jobs:
         run: yarn install
 
       - name: Build for Windows
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: yarn run build:win
 
       - name: Upload Windows artifact
@@ -72,6 +74,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           CSC_LINK: certificate.p12
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Building for architecture: $ARCH"
           yarn run build:mac
