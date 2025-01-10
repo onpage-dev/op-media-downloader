@@ -51,7 +51,9 @@ build:mac-with-notarize
 
 ### GitHub Actions
 The actions will trigger whenever a new release or pre-release is created and will attempt to build, sign and notarize the application.
+
 After the build process is over it will automatically attach the files to the release's assets.
+
 To do this it will try to read some secrets in order to complete each step correctly
 
  - MAC_CERTIFICATE: The .p12 certificate obtained from Apple
