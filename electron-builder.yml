@@ -25,7 +25,6 @@ mac:
   identity: 'Dinside s.r.l.'
   hardenedRuntime: true
   artifactName: ${name}-${version}-${arch}.${ext}
-  gatekeeperAssess: false
 
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
