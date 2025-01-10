@@ -31,6 +31,32 @@ yarn dev
 git clone https://github.com/onpage-dev/op-media-downloader.git
 cd op-media-downloader
 yarn
-chmod +x scripts/setup-certificate.sh scripts/sign-dmg.sh
 yarn build:mac
+```
+
+## Notarization
+### Local
+The local notarization process uses the info stored inside AC_PASSWORD from your keychain.
+You can configure it bu running this command 
+```bash
+xcrun notarytool store-credentials "AC_PASSWORD" \
+--apple-id "<YOUR_APPLE_ID>" \
+--team-id "<YOUR_TEAM_ID>" \
+--password "<APP_SPECIFIC_PASSWORD>"
+```
+If you want to build and notarize the app you can run this command
+```bash
+build:mac-with-notarize
+```
+
+### GitHub Actions
+The actions will trigger whenever a new release or pre-release is created and will attempt to build, sign and notarize the application.
+To do this it will try to read some secrets in order to complete each step correctly
+
+```bash
+MAC_CERTIFICATE: The .p12 certificate obtained from Apple
+APPLE_CERTIFICATE_PASSWORD: The password applied to the certificate.p12
+APPLE_ID: User developer id eg. user@test.com
+APPLE_ID_PASSWORD: App Specific password set inside your user account
+APPLE_TEAM_ID: Team ID found inside your company page
 ```
