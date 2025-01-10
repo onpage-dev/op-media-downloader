@@ -51,12 +51,11 @@ build:mac-with-notarize
 
 ### GitHub Actions
 The actions will trigger whenever a new release or pre-release is created and will attempt to build, sign and notarize the application.
+After the build process is over it will automatically attach the files to the release's assets.
 To do this it will try to read some secrets in order to complete each step correctly
 
-```bash
-MAC_CERTIFICATE: The .p12 certificate obtained from Apple
-APPLE_CERTIFICATE_PASSWORD: The password applied to the certificate.p12
-APPLE_ID: User developer id eg. user@test.com
-APPLE_ID_PASSWORD: App Specific password set inside your user account
-APPLE_TEAM_ID: Team ID found inside your company page
-```
+ - MAC_CERTIFICATE: The .p12 certificate obtained from Apple
+ - APPLE_CERTIFICATE_PASSWORD: The password applied to the certificate.p12
+ - APPLE_ID: User developer id eg. user@test.com
+ - APPLE_ID_PASSWORD: App specific password set inside your user account
+ - APPLE_TEAM_ID: Team ID found inside your company page
