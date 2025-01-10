@@ -1,20 +1,26 @@
-# On Page ® Media Downloader
+# [On Page ® Media Downloader](https://app.onpage.it/#/help/On-page-media-k/on-page-media-downloader/)
 
 This program allows to download all files from a given project using an [API Token](https://app.onpage.it/#/help/integrations/token-api-k).
 
 ## Usage
 
-To start, create a new project setting:
+To start, add a new project:
 
-- Name: local project name to identify it
-- Api Token: remote project Api Token that will be used to download the files
-- Target Folder: sets the location where all the files will be downloaded
+- Name: used to identify the project;
+- Api Token: used to fetch data from On Page, if a View is applied to the token then only the visible data will be donwloaded;
+- Target Folder: location where all the files will be downloaded
+- Keep old local files: This options lets you keep onld files that were removed from On Page but downloaded previously.
+  - WARNING It is recommended to keep this option off as it can create conflicts for files with the same name while downloading the data.
 
-Every project enables 3 functions:
+Once you create a project you'll be able to perform 4 actions:
 
-- Sync: aligns the local downloaded files with the remote files
-- Edit: changes the config properties (name/api token/download folder)
-- Delete: deletes the config and all the relative local files and folders
+- Sync: fetches data from On Page to check if new files needs to be downloaded;
+  - Once sync is finished if there are different files with the same name you'll be presented with a modal containing a list with all conflicts. You'll be able to resolve them and reload or just keep downloading
+    - WARNING If you choose to continue while having conflicts only the first file for each name will be downloaded
+  - After starting the download you'll be able to stop it at any given time by clicking Stop download, the process will be stopped as soon as possible.
+- Edit: lets you change every option defined during creation;
+- Delete: deletes the project and optionally all the folders and files related to it;
+- Open Folder: opens the folder defined during creation;
 
 # Develop
 
@@ -31,7 +37,7 @@ yarn dev
 git clone https://github.com/onpage-dev/op-media-downloader.git
 cd op-media-downloader
 yarn
-yarn build:mac
+yarn build:<win | mac | linux>
 ```
 
 ## Notarization
