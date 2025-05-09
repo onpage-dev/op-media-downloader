@@ -48,7 +48,7 @@ const is_outdated = computed(() => {
                 class="link"
                 @click="
                   openURL(
-                    'https://app.onpage.it/#/help/integrations/token-api-k',
+                    'https://app.onpage.it/#/help/advanced-tools/token-api-k',
                   )
                 "
               >
@@ -112,7 +112,7 @@ const is_outdated = computed(() => {
                 class="link"
                 @click="
                   openURL(
-                    'https://app.onpage.it/#/help/integrations/token-api-k',
+                    'https://app.onpage.it/#/help/advanced-tools/token-api-k',
                   )
                 "
               >
@@ -175,7 +175,11 @@ const is_outdated = computed(() => {
           </op-clickable-tag>
           <op-clickable-tag
             pad="px-unit-double py-0"
-            @click="openURL('https://app.onpage.it/#/help/On-page-media-k')"
+            @click="
+              openURL(
+                'https://app.onpage.it/#/help/advanced-tools/on-page-media-downloader/',
+              )
+            "
           >
             <OpLogo
               :dark="dark_mode"
