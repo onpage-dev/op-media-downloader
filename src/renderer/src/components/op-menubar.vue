@@ -47,9 +47,7 @@ const is_outdated = computed(() => {
               <span
                 class="link"
                 @click="
-                  openURL(
-                    'https://app.onpage.it/#/help/advanced-tools/token-api-k',
-                  )
+                  openURL('https://app.onpage.it/#/help/advanced-tools/api')
                 "
               >
                 Token Api</span
@@ -111,9 +109,7 @@ const is_outdated = computed(() => {
               <span
                 class="link"
                 @click="
-                  openURL(
-                    'https://app.onpage.it/#/help/advanced-tools/token-api-k',
-                  )
+                  openURL('https://app.onpage.it/#/help/advanced-tools/api')
                 "
               >
                 API Token</span
