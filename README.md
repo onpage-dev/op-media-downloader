@@ -1,6 +1,6 @@
 # [On Page ® Media Downloader](https://app.onpage.it/#/help/advanced-tools/on-page-media-downloader/)
 
-A desktop app to download all media files from an On Page project using an [API Token](https://app.onpage.it/#/help/advanced-tools/token-api-k).
+A desktop app to download all media files from an On Page project using an [API Token](https://app.onpage.it/#/help/advanced-tools/api).
 
 ## Highlights
 
