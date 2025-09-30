@@ -9,6 +9,7 @@ const emit = defineEmits<{
       <op-overlay-card
         class="op-modal-content m-auto"
         style="max-height: 90vh; max-width: 90vw"
+        radius="xl"
         col
         @click.stop
       >
