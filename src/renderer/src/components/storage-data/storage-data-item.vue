@@ -71,7 +71,6 @@ watch(
         <!-- Edit -->
         <op-btn
           v-tooltip="t('edit')"
-          class="link-opacity"
           color="inherit"
           pad="compact"
           radius="md"
@@ -83,7 +82,7 @@ watch(
         <!-- Delete -->
         <op-btn
           v-tooltip="t('delete')"
-          class="link-opacity group"
+          class="group"
           color="inherit"
           pad="compact"
           radius="md"
@@ -189,7 +188,6 @@ watch(
       >
         <b>{{ t('_storage_files.last_sync') }}</b>
         <span class="opacity-50">
-          <op-icon icon="calendar" />
           {{ dayjs(config.last_sync.start_time).format('DD MMM YYYY HH:mm') }}
           -
           {{ dayjs(config.last_sync.end_time).format('DD MMM YYYY HH:mm') }}
