@@ -4,19 +4,24 @@ import { StorageService } from '@classes/store'
 import dayjs from 'dayjs'
 import en from 'dayjs/locale/en'
 import it from 'dayjs/locale/it'
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SyncLoaderStatus from '../sync-loader-status.vue'
 
-const i18n = useI18n()
-defineEmits(['edit', 'delete', 'abort-download'])
+const { t, locale } = useI18n()
+defineEmits<{
+  edit: []
+  delete: []
+  'abort-download': []
+}>()
 const props = defineProps<{
   storage: StorageService
   config: FolderConfig
 }>()
 
+const is_loading = computed(() => props.config.is_loading)
 function syncOrLoad(): void {
-  if (props.config.is_loading) return
+  if (is_loading.value) return
   if (props.config.raw_files_by_token.size) {
     if (props.config.files_to_download.length) {
       props.config.downloadFiles()
@@ -38,7 +43,7 @@ function openPath(file_name?: string): void {
   )
 }
 function setLocale(): void {
-  switch (i18n.locale.value) {
+  switch (locale.value) {
     case 'en':
       dayjs.locale(en)
       break
@@ -50,7 +55,7 @@ function setLocale(): void {
   }
 }
 watch(
-  () => i18n.locale.value,
+  () => locale.value,
   () => {
     setLocale()
   },
@@ -65,7 +70,7 @@ watch(
       <div class="flex flex-row ml-auto">
         <!-- Edit -->
         <op-btn
-          v-tooltip="i18n.t('edit')"
+          v-tooltip="t('edit')"
           class="link-opacity"
           color="inherit"
           pad="compact"
@@ -76,7 +81,7 @@ watch(
 
         <!-- Delete -->
         <op-btn
-          v-tooltip="i18n.t('delete')"
+          v-tooltip="t('delete')"
           class="link-opacity group"
           color="inherit"
           pad="compact"
@@ -86,7 +91,7 @@ watch(
         </op-btn>
 
         <op-btn
-          v-tooltip="i18n.t('_storage_files.reveal_in_explorer')"
+          v-tooltip="t('_storage_files.reveal_in_explorer')"
           class="min-w-0"
           color="inherit"
           pad="compact"
@@ -100,49 +105,49 @@ watch(
           v-if="!config.failed_schema_load"
           class="min-w-0"
           :class="{
-            'opacity-50': config.is_loading,
+            'opacity-50': is_loading,
           }"
           color="inherit"
           pad="compact"
           :active="config.load_fields_error"
           acolor="red"
-          :disabled="config.is_loading"
-          :loading="config.is_loading"
+          :disabled="is_loading"
+          :loading="is_loading"
           @click="syncOrLoad()"
         >
           <template v-if="config.load_fields_error">
             <op-icon icon="arrows-rotate" />
-            {{ i18n.t('_storage_files.error') }}
+            {{ t('_storage_files.error') }}
           </template>
           <template v-else-if="!config.raw_files_by_token.size">
             <op-icon icon="arrows-rotate" />
-            {{ i18n.t('_storage_files.start_sync') }}
+            {{ t('_storage_files.start_sync') }}
           </template>
           <template v-else-if="config.is_downloading">
-            {{ i18n.t('_storage_files.downloading') }}
+            {{ t('_storage_files.downloading') }}
           </template>
-          <template v-else-if="config.is_loading">
-            {{ i18n.t('loading') }}
+          <template v-else-if="is_loading">
+            {{ t('loading') }}
           </template>
           <template v-else-if="config.files_to_download.length">
             <op-icon icon="download" />
-            {{ i18n.t('_storage_files.download') }}
+            {{ t('_storage_files.download') }}
             +{{ config.files_to_download.length }}
           </template>
           <template v-else>
             <op-icon icon="check" />
-            {{ i18n.t('_storage_files.no_files_to_download') }}
+            {{ t('_storage_files.no_files_to_download') }}
           </template>
         </op-btn>
         <op-btn
           v-else
-          v-tooltip="i18n.t('schema_load_failed_msg')"
+          v-tooltip="t('schema_load_failed_msg')"
           color="inherit"
           :class="{
-            'opacity-50': config.is_loading,
+            'opacity-50': is_loading,
           }"
-          :disabled="config.is_loading"
-          :loading="config.is_loading"
+          :disabled="is_loading"
+          :loading="is_loading"
           acolor="orange"
           active
           pad="compact"
@@ -150,7 +155,7 @@ watch(
         >
           <span>
             <op-icon icon="triangle-exclamation" class="text-orange" />
-            {{ i18n.t('failed_to_load_schema') }}
+            {{ t('failed_to_load_schema') }}
           </span>
         </op-btn>
 
@@ -164,7 +169,7 @@ watch(
         >
           <div class="flex-row-center-unit sober-link-danger">
             <op-icon icon="stop" />
-            {{ i18n.t('_storage_files.abort_download') }}
+            {{ t('_storage_files.abort_download') }}
           </div>
         </op-btn>
       </div>
@@ -178,7 +183,7 @@ watch(
         v-if="config.last_sync"
         class="flex-row-center-unit justify-between text-sm"
       >
-        <b>{{ i18n.t('_storage_files.last_sync') }}</b>
+        <b>{{ t('_storage_files.last_sync') }}</b>
         <span class="opacity-50">
           <op-icon icon="calendar" />
           {{ dayjs(config.last_sync.start_time).format('DD MMM YYYY HH:mm') }}
