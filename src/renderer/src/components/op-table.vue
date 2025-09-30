@@ -1,16 +1,16 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 
-const props = defineProps({
-  radius: {
-    type: String,
-    default: 'md',
+const props = withDefaults(
+  defineProps<{
+    radius?: string
+    tclass?: string
+  }>(),
+  {
+    radius: 'md',
+    tclass: '',
   },
-  tclass: {
-    type: String,
-    default: '',
-  },
-})
+)
 
 const table_classes = computed(() => {
   const classes: string[] = [props.tclass]

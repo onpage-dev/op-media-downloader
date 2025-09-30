@@ -6,7 +6,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import OpSearch from '../op-search.vue'
 
-const i18n = useI18n()
+const { t, locale } = useI18n()
 const props = defineProps<{
   config: FolderConfig
 }>()
@@ -31,7 +31,7 @@ const duplicated_files = computed(() => {
         />
         <div>
           {{
-            i18n.t('_storage_data.config_has_duplicates', {
+            t('_storage_data.config_has_duplicates', {
               config: config.label,
             })
           }}
@@ -41,7 +41,7 @@ const duplicated_files = computed(() => {
         <div
           class="text-sm font-normal px-unit py-unit-half rounded-md bg-orange bg-opacity-20"
         >
-          {{ i18n.t('_storage_data.config_has_duplicates_description') }}
+          {{ t('_storage_data.config_has_duplicates_description') }}
         </div>
         <OpSearch v-model="search_q" />
       </div>
@@ -51,7 +51,7 @@ const duplicated_files = computed(() => {
           v-if="!duplicated_files.size"
           class="flex-col-center opacity-20 p-20 text-3xl"
         >
-          {{ $t('no_result') }}
+          {{ t('no_result') }}
         </div>
         <div
           v-for="[name, val] in duplicated_files"
@@ -75,11 +75,9 @@ const duplicated_files = computed(() => {
                 :key="duplicates[0].field.id"
               >
                 <div class="font-bold">
-                  {{
-                    duplicates[0].field.resource().getLabel(i18n.locale.value)
-                  }}
+                  {{ duplicates[0].field.resource().getLabel(locale) }}
                   →
-                  {{ duplicates[0].field.getLabel(i18n.locale.value) }}
+                  {{ duplicates[0].field.getLabel(locale) }}
                 </div>
 
                 <a
@@ -111,16 +109,16 @@ const duplicated_files = computed(() => {
     <div class="flex-row-center-unit justify-between">
       <op-btn @click="config.loadRemoteFiles()">
         <op-icon icon="arrows-rotate" />
-        {{ $t('refresh') }}
+        {{ t('refresh') }}
       </op-btn>
 
       <op-btn
-        v-tooltip="i18n.t('_storage_data.config_has_duplicates_description_2')"
+        v-tooltip="t('_storage_data.config_has_duplicates_description_2')"
         color="warning"
         @click="config.confirmDuplicatesAndContinue()"
       >
         <op-icon icon="circle-info" />
-        {{ $t('continue') }}
+        {{ t('continue') }}
         <op-icon icon="arrow-right" />
       </op-btn>
     </div>

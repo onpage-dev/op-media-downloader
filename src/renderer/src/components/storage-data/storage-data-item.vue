@@ -63,7 +63,7 @@ watch(
 )
 </script>
 <template>
-  <op-card class="gap-unit" provide>
+  <op-card class="gap-unit" radius="xl" provide>
     <!-- Header and btns -->
     <div class="flex-row-center-unit" col>
       <h5>{{ config.label }}</h5>
@@ -74,6 +74,7 @@ watch(
           class="link-opacity"
           color="inherit"
           pad="compact"
+          radius="md"
           @click="$emit('edit')"
         >
           <op-icon icon="pen-to-square" />
@@ -85,6 +86,7 @@ watch(
           class="link-opacity group"
           color="inherit"
           pad="compact"
+          radius="md"
           @click="$emit('delete')"
         >
           <op-icon icon="trash-can" class="group-hover:text-red duration-100" />
@@ -95,6 +97,7 @@ watch(
           class="min-w-0"
           color="inherit"
           pad="compact"
+          radius="md"
           @click="openPath()"
         >
           <op-icon icon="folder-open" />
@@ -109,6 +112,7 @@ watch(
           }"
           color="inherit"
           pad="compact"
+          radius="md"
           :active="config.load_fields_error"
           acolor="red"
           :disabled="is_loading"

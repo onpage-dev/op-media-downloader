@@ -7,10 +7,10 @@ import OpModal from './op-modal.vue'
 const props = defineProps<{
   storage: StorageService
 }>()
-const i18n = useI18n()
+const { t, locale } = useI18n()
 const show_info = ref(false)
 const dark_mode = computed(() => props.storage.user_properties.dark_mode)
-const italian = computed(() => i18n.locale.value == 'it')
+const italian = computed(() => locale.value == 'it')
 
 function openURL(url: string): void {
   window.electron.ipcRenderer.send('open-url', url)
@@ -167,6 +167,7 @@ const is_outdated = computed(() => {
 
         <div class="flex flex-row gap-unit">
           <op-clickable-tag
+            radius="md"
             @click="
               openURL('https://github.com/onpage-dev/op-media-downloader')
             "
@@ -174,6 +175,7 @@ const is_outdated = computed(() => {
             <op-icon icon="github" type="brand" /> Git
           </op-clickable-tag>
           <op-clickable-tag
+            radius="md"
             pad="px-unit-double py-0"
             @click="
               openURL(
@@ -225,7 +227,7 @@ const is_outdated = computed(() => {
       >
         <op-icon icon="arrow-right" />
         <span class="border-b-2 border-blue" style="padding: 2px">
-          {{ $t('download') }}
+          {{ t('download') }}
           {{ version_info.latest }}
         </span>
       </a>

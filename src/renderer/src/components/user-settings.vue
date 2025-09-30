@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import OpFlag from './op-flag.vue'
 import OpToggle from './op-toggle.vue'
 import { debounce } from 'lodash'
-const i18n = useI18n()
+const { t } = useI18n()
 const props = defineProps<{
   storage: StorageService
 }>()
@@ -51,16 +51,16 @@ function setLang(lang: SupportedLang): void {
 </script>
 <template>
   <div class="full-height-scroll gap-unit-double modal-size-w-sm">
-    <h4>{{ i18n.t('user_settings') }}</h4>
+    <h4>{{ t('user_settings') }}</h4>
     <div class="full-height-scroll gap-unit-double pr-unit-half">
       <OpToggle :model-value="dark_mode" @update:model-value="toggleDarkMode()">
-        <span> {{ i18n.t('dark_mode') }}</span>
+        <span> {{ t('dark_mode') }}</span>
       </OpToggle>
 
       <div v-if="local_simultaneous_downloads" class="flex flex-col">
         <span>
-          {{ $t('simultaneous_downloads') }}
-          <span class="text-sm opacity-50"> ({{ $t('min_1') }}) </span>
+          {{ t('simultaneous_downloads') }}
+          <span class="text-sm opacity-50"> ({{ t('min_1') }}) </span>
         </span>
         <div class="flex flex-row">
           <op-input
@@ -77,7 +77,7 @@ function setLang(lang: SupportedLang): void {
       </div>
 
       <div class="flex flex-col">
-        <div>{{ $t('app_language') }}</div>
+        <div>{{ t('app_language') }}</div>
         <div class="flex-row-center-unit">
           <op-clickable-tag
             v-for="lang in SUPPORTED_LANGS"
@@ -86,7 +86,7 @@ function setLang(lang: SupportedLang): void {
             @click="setLang(lang)"
           >
             <OpFlag :iso="countries[lang]" rounded />
-            {{ $t(`language.${lang}`) }}
+            {{ t(`language.${lang}`) }}
           </op-clickable-tag>
         </div>
       </div>

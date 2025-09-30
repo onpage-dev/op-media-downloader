@@ -10,10 +10,10 @@ import { themes } from './service/theme-service'
 const storage = ref(new StorageService()) as Ref<StorageService>
 
 /** Language */
-const i18n = useI18n()
+const { locale } = useI18n()
 const lang = computed(() => storage.value.user_properties.language)
 watch(lang, () => {
-  i18n.locale.value = lang.value ?? 'it'
+  locale.value = lang.value ?? 'it'
 })
 
 /** Theme */

@@ -11,9 +11,9 @@ import StorageDataDuplicateList from './storage-data-duplicate-list.vue'
 import StorageServiceForm from './storage-data-form.vue'
 import StorageServiceItem from './storage-data-item.vue'
 
-const i18n = useI18n()
+const { t } = useI18n()
 const emit = defineEmits<{
-  (e: 'select', value?: FolderConfigJson): void
+  select: [value?: FolderConfigJson]
 }>()
 const props = defineProps<{
   storage: StorageService
@@ -91,7 +91,7 @@ function deleteConfig(): void {
       <div class="modal-size-w-sm full-height-scroll gap-unit-double">
         <h4 class="text-center">
           {{
-            i18n.t('_storage_files.abort_download_msg', {
+            t('_storage_files.abort_download_msg', {
               label: aborting.label,
             })
           }}
@@ -99,14 +99,14 @@ function deleteConfig(): void {
         <div class="flex-row-center-unit justify-center">
           <op-btn color="inherit" @click="aborting = undefined">
             <op-icon icon="xmark" />
-            {{ i18n.t('cancel') }}
+            {{ t('cancel') }}
           </op-btn>
           <op-btn
             color="red"
             @click="aborting?.stopDownload(), (aborting = undefined)"
           >
             <op-icon icon="stop" />
-            {{ i18n.t('_storage_files.abort_download') }}
+            {{ t('_storage_files.abort_download') }}
           </op-btn>
         </div>
       </div>
@@ -118,25 +118,23 @@ function deleteConfig(): void {
     <OpModal v-if="deleting" @close="clearDelete()">
       <div class="modal-size-w-sm full-height-scroll gap-unit-double">
         <h4>
-          {{
-            i18n.t('_storage_data.delete_storage', { label: deleting.label })
-          }}
+          {{ t('_storage_data.delete_storage', { label: deleting.label }) }}
         </h4>
         <div class="full-height-scroll gap-unit">
           <div class="bg-red bg-opacity-20 p-unit rounded-md">
             <OpCheck v-model="delete_downloaded" color="red">
-              {{ i18n.t('_storage_data.delete_local_files') }}
+              {{ t('_storage_data.delete_local_files') }}
             </OpCheck>
           </div>
         </div>
         <div class="flex-row-center-unit justify-center">
           <op-btn color="inherit" @click="clearDelete()">
             <op-icon icon="xmark" />
-            {{ i18n.t('cancel') }}
+            {{ t('cancel') }}
           </op-btn>
           <op-btn color="red" @click="deleteConfig()">
             <op-icon icon="trash-can" />
-            {{ i18n.t('delete') }}
+            {{ t('delete') }}
           </op-btn>
         </div>
       </div>
@@ -160,12 +158,12 @@ function deleteConfig(): void {
   >
     <!-- Search and add btn -->
     <div class="flex-row-center gap-unit pr-unit-half">
-      <op-search v-model="search_query" grow />
+      <op-search v-model="search_query" grow radius="md" autofocus />
 
       <div class="flex flex-row">
         <op-clickable-card
           :radius="0"
-          class="rounded-l-full border-r-0"
+          class="rounded-l-md border-r-0"
           middle
           col
           @click="show_user_settings = true"
@@ -174,13 +172,13 @@ function deleteConfig(): void {
         </op-clickable-card>
         <op-clickable-card
           :radius="0"
-          class="rounded-r-full"
+          class="rounded-r-md"
           middle
           row
           @click="openForm()"
         >
           <op-icon icon="plus" />
-          {{ i18n.t('_storage_data.add_new_storage') }}
+          {{ t('_storage_data.add_new_storage') }}
         </op-clickable-card>
       </div>
     </div>
@@ -200,7 +198,7 @@ function deleteConfig(): void {
         v-if="!filtered_configs.length"
         class="flex-col-center opacity-20 p-20 text-3xl"
       >
-        {{ storage.configs.size ? i18n.t('no_result') : i18n.t('no_items') }}
+        {{ storage.configs.size ? t('no_result') : t('no_items') }}
       </div>
     </div>
   </div>

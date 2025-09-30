@@ -1,25 +1,15 @@
 <script lang="ts" setup>
 import { SyncProgressInfo } from '@classes/folder-config'
-import { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 const emit = defineEmits<{
-  (
-    e: 'select',
-    value: 'downloaded' | 'failed' | 'already_present' | 'total',
-  ): void
+  select: [value: 'downloaded' | 'failed' | 'already_present' | 'total']
 }>()
-const i18n = useI18n()
-defineProps({
-  loader: {
-    type: Object as PropType<SyncProgressInfo>,
-  },
-  selected: {
-    type: String as PropType<
-      'downloaded' | 'failed' | 'already_present' | 'total'
-    >,
-  },
-  clickable: Boolean,
-})
+const { t } = useI18n()
+defineProps<{
+  loader?: SyncProgressInfo
+  selected?: 'downloaded' | 'failed' | 'already_present' | 'total'
+  clickable?: boolean
+}>()
 </script>
 <template>
   <template v-if="loader">
@@ -32,7 +22,7 @@ defineProps({
       @click="clickable && emit('select', 'downloaded')"
     >
       <op-icon icon="download" class="text-green" />
-      {{ i18n.t('_storage_files.downloaded') }}
+      {{ t('_storage_files.downloaded') }}
       {{ loader.downloaded + loader.already_exists }}
     </div>
     <div
@@ -44,7 +34,7 @@ defineProps({
       @click="clickable && emit('select', 'failed')"
     >
       <op-icon icon="bug" class="text-red" />
-      {{ i18n.t('_storage_files.failed') }}
+      {{ t('_storage_files.failed') }}
       {{ loader.failed ?? 0 }}
     </div>
     <div
@@ -56,7 +46,7 @@ defineProps({
       @click="clickable && emit('select', 'total')"
     >
       <op-icon icon="hashtag" />
-      {{ i18n.t('_storage_files.total') }}
+      {{ t('_storage_files.total') }}
       {{ loader.total ?? 0 }}
     </div>
   </template>

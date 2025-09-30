@@ -31,44 +31,30 @@
 </template>
 <script lang="ts" setup>
 import { cloneDeep, isArray, isObject } from 'lodash'
-import { computed, PropType } from 'vue'
+import { computed } from 'vue'
 
-const emit = defineEmits(['update:modelValue'])
-const props = defineProps({
-  modelValue: {
-    type: [Object, Boolean, Array, String, Number],
+const emit = defineEmits<{
+  'update:modelValue': [val?: object | boolean | any[] | string | number]
+}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue?: object | boolean | any[] | string | number
+    item?: object | boolean | any[] | string | number
+    disabled?: boolean
+    on?: object | boolean | string | number
+    off?: object | boolean | string | number
+    boolean?: boolean
+    color?: string | string[]
+    acolor?: string | string[]
+    scolor?: string | string[]
+    strict?: boolean
+  }>(),
+  {
+    on: true,
+    off: false,
+    scolor: 'white',
   },
-  item: {
-    type: [Object, Boolean, Array, String, Number],
-  },
-  disabled: {
-    type: Boolean,
-  },
-  on: {
-    default: true,
-    type: [Boolean, Number, String, Object],
-  },
-  off: {
-    default: false,
-    type: [Boolean, Number, String, Object],
-  },
-  boolean: {
-    type: Boolean,
-  },
-  color: {
-    type: [String, Array] as PropType<string | string[]>,
-  },
-  acolor: {
-    type: [String, Array] as PropType<string | string[]>,
-  },
-  scolor: {
-    type: [String, Array] as PropType<string | string[]>,
-    default: 'white',
-  },
-  strict: {
-    type: Boolean,
-  },
-})
+)
 const checked = computed(() => {
   if (isArray(props.modelValue)) {
     return props.modelValue.includes(props.item)

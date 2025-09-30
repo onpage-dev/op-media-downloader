@@ -26,45 +26,33 @@
 
 <script lang="ts" setup>
 import { isArray } from 'lodash'
-import { computed, PropType } from 'vue'
-const emit = defineEmits(['update:modelValue', 'on', 'off'])
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
+import { computed } from 'vue'
+const emit = defineEmits<{
+  'update:modelValue': [val?: boolean]
+  on: [val?: boolean]
+  off: [val?: boolean]
+}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue?: boolean
+    item?: any
+    disabled?: boolean
+    radius?: string
+    color?: string
+    on?: boolean
+    off?: boolean
+    strict?: boolean
+    icon?: string
+    only_check?: boolean
+  }>(),
+  {
+    radius: 'sm',
+    color: 'dark light',
+    on: true,
+    off: false,
+    icon: 'check',
   },
-  item: {
-    type: Object as PropType<any>,
-  },
-  disabled: {
-    type: Boolean,
-  },
-  radius: {
-    type: String,
-    default: 'sm',
-  },
-  color: {
-    type: String,
-    default: 'dark light',
-  },
-  on: {
-    type: Boolean,
-    default: true,
-  },
-  off: {
-    type: Boolean,
-    default: false,
-  },
-  strict: {
-    type: Boolean,
-  },
-  icon: {
-    type: String,
-    default: 'check',
-  },
-  only_check: {
-    type: Boolean,
-  },
-})
+)
 
 const classes = computed(() => {
   let classes = ''
@@ -87,6 +75,6 @@ function toggle(): void {
   if (props.disabled) return
 
   emit('update:modelValue', checked.value ? props.off : props.on)
-  emit(checked.value ? 'on' : 'off', checked.value ? props.off : props.on)
+  checked.value ? emit('on', props.off) : emit('off', props.on)
 }
 </script>

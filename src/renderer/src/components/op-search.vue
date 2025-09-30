@@ -1,58 +1,38 @@
 <script lang="ts" setup>
-import { computed, PropType } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const i18n = useI18n()
-defineEmits(['update:modelValue'])
-const props = defineProps({
-  modelValue: {
-    type: [Object, String, Number] as PropType<any>,
+const { t } = useI18n()
+defineEmits<{
+  'update:modelValue': [val?: string]
+}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string
+    icon?: string
+    autofocus?: boolean
+    placeholder?: string
+    color?: string
+    action?: (payload: Event) => void
+    radius?: string
+    border?: boolean | number
+    bcolor?: string | string[]
+    hbcolor?: string | string[]
+    compact?: boolean
+    pad?: string
+    grow?: boolean
+  }>(),
+  {
+    icon: 'search',
+    radius: 'full',
+    border: true,
   },
-  icon: {
-    type: String,
-    default: 'search',
-  },
-  autofocus: {
-    type: Boolean,
-  },
-  placeholder: {
-    type: String,
-  },
-  color: {
-    type: String,
-  },
-  action: {
-    type: Function as PropType<(payload: Event) => void>,
-  },
-  radius: {
-    type: String,
-    default: 'full',
-  },
-  border: {
-    type: [Boolean, Number],
-    default: true,
-  },
-  bcolor: {
-    type: [String, Array] as PropType<string | string[]>,
-  },
-  hbcolor: {
-    type: [String, Array] as PropType<string | string[]>,
-  },
-  compact: {
-    type: Boolean,
-  },
-  pad: {
-    type: String,
-  },
-  grow: {
-    type: Boolean,
-  },
-})
+)
 const get_placeholder = computed((): string => {
   if (props.placeholder) {
     return props.placeholder
   }
-  return i18n.t('search_placeholder')
+  return t('search_placeholder')
 })
 </script>
 <template>
