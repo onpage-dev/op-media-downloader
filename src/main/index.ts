@@ -354,7 +354,7 @@ async function downloadFile(
     const downloadPromise = (async (): Promise<void> => {
       /** Remove all outdated links */
       Object.keys(links_map).forEach(link => {
-        if (links_map[link] === file.name) {
+        if (links_map[link] === file.token) {
           delete links_map[link]
         }
       })
