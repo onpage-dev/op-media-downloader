@@ -7,6 +7,7 @@ import fs from 'fs'
 import fsPromises from 'fs/promises'
 import { OpFileRaw } from 'onpage-js'
 import path from 'path'
+import { pipeline } from 'stream/promises'
 import { DownloadFilesPayload } from '../shared/electron-ipc-renderer-models'
 import { ElectronIPC } from './electron-ipc'
 import { processQueue } from './utils'
@@ -25,6 +26,17 @@ const store = new Store({
   name: 'op-media-downloader-config',
   watch: true,
   clearInvalidConfig: true,
+})
+
+/**
+ * Safety net: a stray error inside an async callback must never crash the
+ * main process or silently freeze the app — log it and stay responsive.
+ */
+process.on('uncaughtException', error => {
+  console.error('[uncaughtException]', error)
+})
+process.on('unhandledRejection', error => {
+  console.error('[unhandledRejection]', error)
 })
 ElectronIPC.on('open-url', (event, url) => {
   event.preventDefault()
@@ -347,6 +359,9 @@ async function downloadFile(
       links_map,
       links_map_path,
     )
+
+    /** Update progress: already-existing files must advance the counter too */
+    emitDownloadProgress(event, data, jobs)
     return
   }
 
@@ -379,10 +394,16 @@ async function downloadFile(
 
     active_downloads.set(file.token, downloadPromise)
 
-    // Clean up after the download is complete
-    downloadPromise.finally(() => {
-      active_downloads.delete(file.token)
-    })
+    /**
+     * Clean up after the download settles. The real rejection is handled at
+     * the `await` below; the trailing .catch only prevents an unhandled
+     * rejection warning on this derived promise.
+     */
+    downloadPromise
+      .finally(() => {
+        active_downloads.delete(file.token)
+      })
+      .catch(() => undefined)
   }
 
   try {
@@ -416,6 +437,32 @@ async function downloadFile(
   /** Update progress */
   emitDownloadProgress(event, data, jobs)
 }
+/**
+ * Rename the downloaded temp file to its final path, retrying transient
+ * Windows locks (antivirus / OneDrive / indexer -> EPERM/EBUSY/EACCES)
+ * so a lockable file is not counted as a failed download.
+ */
+async function renameWithRetry(
+  from: string,
+  to: string,
+  tries = 5,
+): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await fsPromises.rename(from, to)
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      const transient =
+        code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
+      if (!transient || attempt >= tries) throw error
+      console.log(
+        `[Renaming] ${code} on attempt ${attempt}/${tries}, retrying...`,
+      )
+      await new Promise(resolve => setTimeout(resolve, 100 * attempt))
+    }
+  }
+}
 async function downloadUrlToFile(
   fileUrl: string,
   filePath: string,
@@ -432,27 +479,26 @@ async function downloadUrlToFile(
     })
 
     console.log(`[Download Stream] Writing to ${tempPath}`)
-    const stream = fs.createWriteStream(`${filePath}.download`)
+    const stream = fs.createWriteStream(tempPath)
 
-    return new Promise((resolve, reject) => {
-      response.data.pipe(stream)
+    /**
+     * pipeline() forwards both source and destination stream errors and
+     * resolves only once the file is fully written, so a failed connection
+     * rejects here instead of leaving a Promise that never settles.
+     */
+    await pipeline(response.data, stream)
 
-      stream.on('finish', () => {
-        console.log(`[Download Stream] Finished writing to ${tempPath}`)
-        stream.close(() => {
-          console.log(`[Renaming] Temp: ${tempPath} -> Final: ${filePath}`)
-          fs.renameSync(tempPath, filePath)
-          resolve()
-        })
-      })
-
-      stream.on('error', error => {
-        console.error(`[Download Stream] Error:`, error)
-        reject(error)
-      })
-    })
+    /** Rename inside the try so a failure rejects instead of hanging the queue */
+    console.log(`[Renaming] Temp: ${tempPath} -> Final: ${filePath}`)
+    await renameWithRetry(tempPath, filePath)
   } catch (error) {
-    console.error('[Download] Failed to fetch URL:', error)
+    console.error('[Download] Failed:', error)
+    /** Remove the half-written temp file so the next sync starts clean */
+    try {
+      await fsPromises.rm(tempPath, { force: true })
+    } catch (cleanupError) {
+      console.error('[Download] Temp cleanup failed:', cleanupError)
+    }
     throw error
   }
 }
