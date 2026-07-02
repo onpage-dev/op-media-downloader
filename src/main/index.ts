@@ -82,17 +82,17 @@ function chechMissingTokens(
   initFolderStructure(directory)
   const base_path = path.normalize(directory)
   console.log(`fs.readdirSync(base_path)`, base_path)
-  /** List of downloaded file names */
-  const local_files = fs
-    .readdirSync(base_path)
-    .map(name => name.toLocaleLowerCase())
+  /** Set of downloaded file names (lower-cased) for O(1) lookups */
+  const local_files = new Set(
+    fs.readdirSync(base_path).map(name => name.toLocaleLowerCase()),
+  )
 
   const data_path = getDataPath(directory)
   console.log(`fs.readdirSync(data_path)`, data_path)
-  /** List of downloaded tokens */
-  const local_tokens = fs.readdirSync(data_path)
+  /** Set of downloaded tokens for O(1) lookups */
+  const local_tokens = new Set(fs.readdirSync(data_path))
 
-  if (!local_tokens.length) {
+  if (!local_tokens.size) {
     console.log('All tokens missing')
     event.sender.send('update-missing-tokens-to-download', {
       config_id,
@@ -104,8 +104,8 @@ function chechMissingTokens(
   /** Check if missing token or file name */
   const missing_files = remote_files.filter(
     file =>
-      !local_tokens.includes(file.token) ||
-      !local_files.includes(file.name.toLocaleLowerCase()),
+      !local_tokens.has(file.token) ||
+      !local_files.has(file.name.toLocaleLowerCase()),
   )
   console.log(`${missing_files.length} tokens missing`)
   console.log(missing_files)
@@ -149,18 +149,18 @@ ElectronIPC.on(
     )
     const links_path = path.normalize(directory)
     const data_path = getDataPath(directory)
+    const remote_tokens = new Set(remote_files.map(f => f.token))
+    const remote_names = new Set(remote_files.map(f => f.name))
     const tokens_to_delete = fs
       .readdirSync(data_path)
-      .filter(token => !remote_files.find(f => f.token == token))
+      .filter(token => token !== 'link.json' && !remote_tokens.has(token))
     console.log(
       `[deleteRemovedFilesFromRemote] ${tokens_to_delete.length} tokens to remove`,
     )
 
     const links_to_delete = fs
       .readdirSync(links_path)
-      .filter(
-        name => name !== 'data' && !remote_files.find(f => f.name == name),
-      )
+      .filter(name => name !== 'data' && !remote_names.has(name))
     console.log(
       `[deleteRemovedFilesFromRemote] ${links_to_delete.length} links to remove`,
     )
@@ -268,7 +268,8 @@ async function deleteOldLinks(
   links: OpFileRaw['name'][],
   new_files: Set<string>,
   link_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] },
-): Promise<void> {
+): Promise<number> {
+  let deleted = 0
   // Prepare the queue of deletion tasks
   const todo = links.map(link => async (): Promise<void> => {
     try {
@@ -283,6 +284,7 @@ async function deleteOldLinks(
       console.log(`fs.unlink(existing_link)`, link)
       await fs.promises.unlink(link)
       delete link_map[name]
+      deleted++
     } catch (error) {
       console.error('Cannot delete file', error)
     }
@@ -290,6 +292,7 @@ async function deleteOldLinks(
 
   const { promise } = processQueue(todo, 10)
   await promise
+  return deleted
 }
 function createLinkAndUpdateMap(
   link_path: string,
@@ -297,14 +300,12 @@ function createLinkAndUpdateMap(
   file_name: string,
   token: string,
   links_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] },
-  links_map_path: string,
 ): void {
   // Create the link
   linkFile(link_path, file_path)
 
-  // Update the links map
+  // Update the links map (persisted once at the end of the download)
   links_map[file_name] = token
-  fs.writeFileSync(links_map_path, JSON.stringify(links_map))
   console.log(`[Create Link] Linked ${file_name} -> ${token}`)
 }
 function updateLoaderAndCleanUp(
@@ -328,8 +329,7 @@ async function downloadFile(
   file: DownloadFilesPayload['files'][0],
   jobs: (() => Promise<void>)[],
   data_path: string,
-  existing_tokens: OpFileRaw['token'][],
-  links_map_path: string,
+  existing_tokens: Set<OpFileRaw['token']>,
   links_map: { [key: OpFileRaw['name']]: OpFileRaw['token'] },
   active_downloads: Map<string, Promise<void>>,
   token_to_names: Map<string, string[]>,
@@ -346,7 +346,7 @@ async function downloadFile(
   token_to_names.get(file.token)!.push(file.name)
 
   /** If the token already exists in the data folder */
-  if (existing_tokens.includes(file.token)) {
+  if (existing_tokens.has(file.token)) {
     console.log(`[Download File] Token already exists: ${file.token}`)
     data.loader.already_exists++
 
@@ -357,7 +357,6 @@ async function downloadFile(
       file.name,
       file.token,
       links_map,
-      links_map_path,
     )
 
     /** Update progress: already-existing files must advance the counter too */
@@ -417,7 +416,6 @@ async function downloadFile(
       file.name,
       file.token,
       links_map,
-      links_map_path,
     )
 
     /** Increment the downloaded counter by the number of file names for this token */
@@ -513,10 +511,14 @@ ElectronIPC.on('download-files', async (event, data) => {
 
   /** Get existing tokens inside data path */
   const data_path = getDataPath(directory)
-  const existing_tokens: OpFileRaw['token'][] = fs.readdirSync(data_path)
+  const existing_tokens = new Set<OpFileRaw['token']>(fs.readdirSync(data_path))
 
   /** Get existing links inside links path */
   const existing_links: OpFileRaw['name'][] = fs.readdirSync(directory)
+  /** Lower-cased set of existing link names for case-insensitive lookups */
+  const existing_link_names = new Set(
+    existing_links.map(name => name.toLocaleLowerCase()),
+  )
 
   /**
    * Get the link.json file that defines the relation of all generated links
@@ -527,19 +529,41 @@ ElectronIPC.on('download-files', async (event, data) => {
     ? JSON.parse(fs.readFileSync(links_map_path, { encoding: 'utf-8' }))
     : {}
 
-  /** Optionally delete old links */
+  /** Optionally delete old links (uses the full remote name set) */
+  let links_changed = false
   if (!data.keep_old_files) {
-    await deleteOldLinks(
+    const removed = await deleteOldLinks(
       existing_links,
       new Set(data.files.map(f => f.name)),
       links_map,
     )
+    if (removed > 0) links_changed = true
   }
 
-  /** Create download jobs */
+  /**
+   * Only process files that actually need work: missing blob, missing link,
+   * or a link.json pointing at a different token (new / replaced / re-linked
+   * files). Files already present with a correct link are skipped with no I/O,
+   * so a project with thousands of files and a single new file stays fast.
+   */
+  const to_process = data.files.filter(file => {
+    const has_blob = existing_tokens.has(file.token)
+    const has_link = existing_link_names.has(file.name.toLocaleLowerCase())
+    const is_mapped = links_map[file.name] === file.token
+    return !(has_blob && has_link && is_mapped)
+  })
+  /** Files already present count as "already exists" up front */
+  data.loader.already_exists = data.files.length - to_process.length
+  if (to_process.length) links_changed = true
+
+  console.log(
+    `[downloadFiles] ${to_process.length}/${data.files.length} files need work`,
+  )
+
+  /** Create download jobs only for the files that need work */
   const active_downloads: Map<string, Promise<void>> = new Map()
   const token_to_names: Map<string, string[]> = new Map()
-  const jobs = data.files.map(
+  const jobs = to_process.map(
     file => (): Promise<void> =>
       downloadFile(
         event,
@@ -548,14 +572,14 @@ ElectronIPC.on('download-files', async (event, data) => {
         jobs,
         data_path,
         existing_tokens,
-        links_map_path,
         links_map,
         active_downloads,
         token_to_names,
       ),
   )
 
-  console.log(`[downloadFiles] syncing ${data.files.length} files`)
+  /** Reflect the already-present count in the UI immediately */
+  if (jobs.length) emitDownloadProgress(event, data, jobs)
 
   const concurrent_count =
     Number(store.get('user_properties.simultaneous_downloads')) || 1
@@ -570,6 +594,15 @@ ElectronIPC.on('download-files', async (event, data) => {
   if (active_downloads.size > 0) {
     console.log('[downloadFiles] Waiting for active downloads to complete...')
     await Promise.allSettled(Array.from(active_downloads.values()))
+  }
+
+  /** Persist the links map once, instead of once per file */
+  if (links_changed) {
+    try {
+      fs.writeFileSync(links_map_path, JSON.stringify(links_map))
+    } catch (error) {
+      console.error('[downloadFiles] Failed to write link.json', error)
+    }
   }
 
   /** Cleanup and finalize */
