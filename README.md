@@ -14,18 +14,18 @@ A desktop app to download all media files from an On Page project using an [API 
 
 1. Add a new project:
 
-   - Name — display name for the project
-   - API Token — token used to fetch files (respects token view filters if applied)
-   - Target Folder — where files are saved
-   - Keep old local files — when enabled, previously downloaded files not present remotely are kept (use with caution as it can create conflicts between new and old files with the same name)
+   - Name: display name for the project
+   - API Token: token used to fetch files (respects token view filters if applied)
+   - Target Folder: where files are saved
+   - Keep old local files: when enabled, previously downloaded files not present remotely are kept (use with caution as it can create conflicts between new and old files with the same name)
 
 2. Actions available per project:
-   - Sync — compares remote files and prepares downloads; shows conflict modal if duplicate names exist
-   - Download — starts downloading synced files
-   - Stop download — stops the active download process as soon as possible
-   - Edit — modify project settings
-   - Delete — remove project and optionally local files
-   - Open Folder — open target folder in OS file explorer
+   - Sync: compares remote files and prepares downloads; shows conflict modal if duplicate names exist
+   - Download: starts downloading synced files
+   - Stop download: stops the active download process as soon as possible
+   - Edit: modify project settings
+   - Delete: remove project and optionally local files
+   - Open Folder: open target folder in OS file explorer
 
 Notes:
 
