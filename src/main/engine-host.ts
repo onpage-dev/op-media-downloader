@@ -40,6 +40,8 @@ export class EngineHost {
     const child = utilityProcess.fork(path.join(__dirname, 'engine.js'), [], {
       serviceName: 'Media Downloader sync engine',
       stdio: 'pipe',
+      /** More libuv threads: on network folders every file system call waits for the server */
+      env: { ...process.env, UV_THREADPOOL_SIZE: '16' },
     })
     child.stdout?.on('data', data => log('debug', `[engine] ${String(data).trimEnd()}`))
     child.stderr?.on('data', data => log('warn', `[engine] ${String(data).trimEnd()}`))

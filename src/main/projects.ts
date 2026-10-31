@@ -45,7 +45,7 @@ const PERSISTED_ISSUES: IssueCode[] = [
 ]
 
 /** Folder problems that make a project impossible to save */
-const BLOCKING_PROBLEMS: FolderProblem[] = ['protected', 'used_by_other_project']
+const BLOCKING_PROBLEMS: FolderProblem[] = ['protected', 'used_by_other_project', 'foreign_data']
 
 const AUTO_RETRY_DELAY_MS = 60_000
 
@@ -284,8 +284,16 @@ export class ProjectService {
     return this.engine.request<TokenCheck>({ type: 'verify_token', token: value }, 60_000)
   }
 
-  inspect(folder: string, project_id?: ProjectId): Promise<FolderInfo> {
-    return this.engine.request<FolderInfo>({ type: 'inspect_folder', path: normalizeFolder(folder), project_id }, 60_000)
+  async inspect(folder: string, project_id?: ProjectId): Promise<FolderInfo> {
+    const info = await this.engine.request<FolderInfo>(
+      { type: 'inspect_folder', path: normalizeFolder(folder), project_id },
+      60_000,
+    )
+    /** The engine names the other project by id: the user knows it by its label */
+    if (info.problems.includes('used_by_other_project') && info.problem_detail) {
+      info.problem_detail = this.store.project(info.problem_detail)?.label ?? info.problem_detail
+    }
+    return info
   }
 
   /** Refreshes kind, free space and hard links of every folder, one at a time */

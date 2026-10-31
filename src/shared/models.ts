@@ -43,6 +43,8 @@ export type FolderProblem =
   | 'used_by_other_project'
   /** Another computer or instance is syncing this folder right now */
   | 'locked'
+  /** The folder already has a `data` folder the app did not create: never used, emptied or deleted */
+  | 'foreign_data'
 
 export interface FolderInfo {
   path: string
