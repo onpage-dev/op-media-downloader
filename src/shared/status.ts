@@ -130,7 +130,8 @@ export function matchesFilter(project: ProjectView, filter: ProjectFilter): bool
     case 'running':
       return project.runtime.phase != 'idle'
     case 'todo':
-      return (project.runtime.plan?.to_download_names ?? 0) > 0
+      /** A project already downloading is «In corso», not waiting for «Scarica» */
+      return project.runtime.phase == 'idle' && (project.runtime.plan?.to_download_names ?? 0) > 0
     case 'errors':
       return status.tone == 'danger'
     case 'done':

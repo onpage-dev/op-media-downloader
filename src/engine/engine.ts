@@ -864,8 +864,14 @@ export class Engine {
       slot.runtime.plan = this.summaryAfter(plan, executed, slot)
       return this.resultOf('sync', started_at, slot, 'completed')
     } finally {
-      await prepared.lock.release()
+      await this.release(prepared)
     }
+  }
+
+  /** Frees the folder: the lock goes, and data/ too when a first job left it empty */
+  private async release(prepared: Prepared): Promise<void> {
+    await prepared.lock.release()
+    await fs.rmdir(prepared.data_dir).catch(() => undefined)
   }
 
   /** After a stop: what is left becomes the plan for the next «Scarica» */
@@ -943,7 +949,7 @@ export class Engine {
       }
       return result
     } finally {
-      await prepared.lock.release()
+      await this.release(prepared)
     }
   }
 
@@ -966,7 +972,7 @@ export class Engine {
       slot.runtime.plan = this.summaryAfter(plan, executed, slot)
       return this.resultOf('cleanup', started_at, slot, 'completed')
     } finally {
-      await prepared.lock.release()
+      await this.release(prepared)
     }
   }
 

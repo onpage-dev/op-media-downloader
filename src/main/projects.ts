@@ -330,8 +330,8 @@ export class ProjectService {
         if (!project) return
         const runtime: ProjectRuntime = {
           ...message.runtime,
-          /** The engine may not know runs older than this session */
-          last_result: message.runtime.last_result ?? this.runtime(project).last_result,
+          /** Main decides what counts as the last completed run (see handleResult) */
+          last_result: this.runtime(project).last_result,
         }
         this.runtimes.set(message.project_id, runtime)
         if (runtime.phase == 'idle') this.persist(project, runtime)
@@ -351,13 +351,18 @@ export class ProjectService {
     const project = this.store.project(id)
     if (!project) return
     const runtime = this.runtime(project)
-    /** A comparison that leaves files to download is not a finished sync */
-    const finished = result.job != 'sync' || !(runtime.plan && runtime.plan.to_download_names > 0)
+    /**
+     * «Sincronizzato» is the last run that completed: a comparison that leaves
+     * files to download, a stop or a failure (shown by the issues) do not count
+     */
+    const finished =
+      result.outcome == 'completed' &&
+      (result.job != 'sync' || !(runtime.plan && runtime.plan.to_download_names > 0))
     const next_runtime: ProjectRuntime = {
       ...runtime,
       phase: 'idle',
       progress: undefined,
-      last_result: finished || result.outcome == 'failed' ? result : runtime.last_result,
+      last_result: finished ? result : runtime.last_result,
     }
     this.runtimes.set(id, next_runtime)
     const saved = this.persist(project, next_runtime)

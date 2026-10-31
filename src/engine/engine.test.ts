@@ -164,7 +164,8 @@ describe('engine: the core flow', () => {
     expect(phases).toEqual(
       expect.arrayContaining(['preparing', 'listing', 'comparing', 'idle']),
     )
-    expect(await listDir(folder)).toEqual(['data'])
+    // Nothing written yet: «Sincronizza» leaves no trace in the folder
+    expect(await listDir(folder)).toEqual([])
 
     // «Scarica»
     result = await run({ type: 'download', project: project(folder) })

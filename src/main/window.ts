@@ -90,6 +90,12 @@ export function createMainWindow(store: AppStore): BrowserWindow {
   }
 
   secureContents(window)
+  if (!app.isPackaged) {
+    /** Development: F12 opens the developer tools (there is no menu on Windows) */
+    window.webContents.on('before-input-event', (_event, input) => {
+      if (input.type == 'keyDown' && input.key == 'F12') window.webContents.toggleDevTools()
+    })
+  }
   loadRenderer(window)
   return window
 }
