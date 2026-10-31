@@ -177,7 +177,7 @@ export async function listRemote(
     cache_age < (options.max_cache_age_ms ?? MAX_CACHE_AGE_MS)
   const since = incremental
     ? formatServerDate(
-        Date.parse(cache!.checkpoint) - (options.margin_ms ?? MARGIN_MS),
+        Date.parse(cache.checkpoint) - (options.margin_ms ?? MARGIN_MS),
       )
     : undefined
 
@@ -213,7 +213,7 @@ export async function listRemote(
         await item.resource.query().filter(notEmptyFilter(item.fields)).ids()
       ).map(Number)
       const cached = incremental
-        ? cache!.resources.find(r => r.id == item.resource.id)
+        ? cache.resources.find(r => r.id == item.resource.id)
         : undefined
       if (cached) {
         const current = new Set(ids)

@@ -11,6 +11,7 @@
   ],
   "compilerOptions": {
     "composite": true,
+    "noImplicitAny": true,
     "paths": {
       "@shared/*": ["./src/shared/*"]
     }

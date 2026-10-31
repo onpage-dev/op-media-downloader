@@ -22,7 +22,7 @@ function post(message: EngineToMain): void {
 
 const electronFetch: FetchLike | undefined =
   typeof net?.fetch == 'function'
-    ? (url, init): Promise<Response> => net.fetch(url, init as never)
+    ? (url, init): Promise<Response> => net.fetch(url, init)
     : undefined
 
 const engine = new Engine({
@@ -48,7 +48,7 @@ process.on('unhandledRejection', error => {
   post({
     kind: 'log',
     level: 'error',
-    message: `Engine unhandled rejection: ${(error as Error)?.stack ?? error}`,
+    message: `Engine unhandled rejection: ${describe(error)}`,
   })
 })
 
@@ -59,7 +59,7 @@ port.on('message', ({ data }: { data: MainToEngine }) => {
     post({
       kind: 'log',
       level: 'error',
-      message: `Engine message failed: ${(error as Error)?.stack ?? error}`,
+      message: `Engine message failed: ${describe(error)}`,
     })
   }
 })
@@ -70,3 +70,9 @@ if (!electronFetch)
     level: 'warn',
     message: 'net.fetch not available: using Node fetch (no system proxy)',
   })
+
+/** An error for the log: its stack, or what it is */
+function describe(error: unknown): string {
+  if (error instanceof Error) return error.stack ?? error.message
+  return typeof error == 'string' ? error : JSON.stringify(error)
+}

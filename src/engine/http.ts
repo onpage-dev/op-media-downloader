@@ -149,7 +149,7 @@ function flattenHeaders(
   const out: Record<string, string> = {}
   for (const [key, value] of Object.entries(raw)) {
     if (value === undefined || value === null || value === false) continue
-    if (typeof value == 'object') continue
+    if (typeof value != 'string' && typeof value != 'number' && typeof value != 'boolean') continue
     out[key] = String(value)
   }
   return out

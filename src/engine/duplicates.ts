@@ -60,7 +60,7 @@ export async function duplicatesPage(
         for (const thing of things) {
           const value = thing.val(label_field)
           if (value !== undefined && value !== null)
-            labels.set(Number(thing.id), String(value))
+            labels.set(Number(thing.id), typeof value == 'object' ? JSON.stringify(value) : String(value))
         }
       } catch (error) {
         log(`Labels not read: ${errorDetail(error)}`)
@@ -82,7 +82,7 @@ export async function duplicatesPage(
       variants: group.variants.map(variant => {
         const file = new OpFile(
           { token: variant.token, name: variant.remote_name },
-          schema.api as never,
+          schema.api,
         )
         return {
           token: variant.token,

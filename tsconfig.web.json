@@ -10,6 +10,7 @@
   "exclude": ["src/renderer/**/*.test.ts"],
   "compilerOptions": {
     "composite": true,
+    "noImplicitAny": true,
     "paths": {
       "#icons": ["./src/renderer/src/lib/icons/free.ts"],
       "@renderer/*": ["./src/renderer/src/*"],

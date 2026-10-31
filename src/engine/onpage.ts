@@ -45,7 +45,7 @@ export function createApi(token: string, ctx: OnPageContext): Api {
     token,
     domain: (ctx.domain ?? DEFAULT_DOMAIN) as ApiOptions['domain'],
   })
-  useAdapter(api as unknown as { http: AxiosLike }, ctx)
+  useAdapter(api, ctx)
   return api
 }
 

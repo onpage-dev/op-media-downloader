@@ -32,7 +32,7 @@ async function start(): Promise<void> {
   const vue = createApp(root).use(i18n).directive('tooltip', vTooltip)
   vue.config.errorHandler = (error, _instance, info) => logError(`vue (${info})`, error)
   vue.mount('#app')
-  if (alone) (await import('./dev/scenes')).playScene()
+  if (alone) void (await import('./dev/scenes')).playScene()
 }
 
 void start().catch(error => logError('start', error))

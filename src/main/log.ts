@@ -38,7 +38,12 @@ export function oneLine(text: string): string {
 }
 
 export function log(level: Level, message: string, error?: unknown): void {
-  const detail = error instanceof Error ? ` ${error.stack ?? error.message}` : error ? ` ${String(error)}` : ''
+  const detail =
+    error instanceof Error
+      ? ` ${error.stack ?? error.message}`
+      : error
+        ? ` ${typeof error == 'string' ? error : JSON.stringify(error)}`
+        : ''
   const line = `${new Date().toISOString()} ${level.toUpperCase()} ${oneLine(message + detail)}\n`
   if (!app.isPackaged || level == 'error') {
     try {
