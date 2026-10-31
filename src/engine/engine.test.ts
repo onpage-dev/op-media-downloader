@@ -6,7 +6,12 @@ import {
   EngineProject,
   EngineToMain,
 } from '../shared/engine-protocol'
-import { DuplicateGroup, ProjectRuntime, SyncResult } from '../shared/models'
+import {
+  DuplicatePage,
+  FailedPage,
+  ProjectRuntime,
+  SyncResult,
+} from '../shared/models'
 import { Engine, EngineTimings } from './engine'
 import { RetryPolicy } from './http'
 import {
@@ -229,10 +234,12 @@ describe('engine: the core flow', () => {
       project_id: 'p1',
     })
     expect(activity.some(a => a.outcome == 'removed')).toBe(true)
-    const duplicates = await ask<DuplicateGroup[]>({
+    const page = await ask<DuplicatePage>({
       type: 'get_duplicates',
       project: project(folder),
     })
+    expect(page).toMatchObject({ total: 2, language_variants: 0 })
+    const duplicates = page.groups
     expect(duplicates).toHaveLength(2)
     expect(duplicates[0].variants[0]).toMatchObject({ chosen: true })
     expect(duplicates[0].variants[0].uses[0]).toMatchObject({
@@ -318,6 +325,66 @@ describe('engine: the core flow', () => {
       await fs.readFile(path.join(folder, 'prodotto-4-retro.jpg')),
     ).toEqual(fileContent(gallery[0]))
     expect(await listDir(path.join(folder, 'data'))).not.toContain(old_token)
+  })
+
+  it('duplicates come a page at a time, by name, also after a restart; translated files with one name are counted', async () => {
+    // The Italian and the English datasheet of one item uploaded with the same name
+    const sheets = fake.project.things.find(t => t.id == 5001)!.files
+      .pdf as Record<string, FakeFile[]>
+    sheets.en[0].name = sheets.it[0].name
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    const page = (extra: object): Promise<DuplicatePage> =>
+      ask<DuplicatePage>({
+        type: 'get_duplicates',
+        project: project(folder),
+        ...extra,
+      })
+    const first = await page({ offset: 0, limit: 2 })
+    expect(first).toMatchObject({ total: 3, language_variants: 1 })
+    expect(first.groups.map(g => g.name)).toEqual([
+      'prodotto-1.jpg',
+      'prodotto-2.jpg',
+    ])
+    expect((await page({ offset: 2, limit: 2 })).groups.map(g => g.name)).toEqual(
+      ['scheda-1-it.pdf'],
+    )
+    const found = await page({ offset: 0, limit: 50, query: ' SCHEDA ' })
+    expect(found.total).toBe(1)
+    expect(found.groups[0].variants.map(v => v.uses[0].lang)).toEqual([
+      'it',
+      'en',
+    ])
+
+    // A new engine (the app restarted): the names come from the listing cache
+    const restarted = new Engine({
+      fetch: (url, init): Promise<Response> => fetch(url, init),
+      post: (m): void => {
+        messages.push(m)
+      },
+      timings: TIMINGS,
+    })
+    restarted.command({
+      type: 'init',
+      init: {
+        cache_dir,
+        project_folders: [],
+        concurrency: 4,
+        app_version: 'test',
+        instance_id: 'test-restarted',
+        api_domain: fake.url,
+      },
+    })
+    await restarted.request(9999, {
+      type: 'get_duplicates',
+      project: project(folder),
+      offset: 0,
+      limit: 50,
+    })
+    const response = messages.find(
+      m => m.kind == 'response' && m.request_id == 9999,
+    )
+    expect(response).toMatchObject({ ok: true, data: { total: 3 } })
   })
 
   it('a folder from 1.x is taken over without downloading or removing anything', async () => {
@@ -420,11 +487,12 @@ describe('engine: the core flow', () => {
     expect(lastState().issues.find(i => i.code == 'failed_files')?.count).toBe(
       2,
     )
-    const failed = await ask<{ name: string; reason: string }[]>({
+    const failed = await ask<FailedPage>({
       type: 'get_failed',
       project_id: 'p1',
     })
-    expect(failed.map(f => f.reason)).toEqual(['http_error', 'http_error'])
+    expect(failed.total).toBe(2)
+    expect(failed.entries.map(f => f.reason)).toEqual(['http_error', 'http_error'])
     fake.storage.set(broken.token, {})
     const retry = await run({ type: 'retry_failed', project: project(folder) })
     expect(retry).toMatchObject({

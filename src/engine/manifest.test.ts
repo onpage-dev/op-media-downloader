@@ -1,9 +1,11 @@
 import { promises as fs } from 'fs'
+import os from 'os'
 import path from 'path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { JobError } from './errors'
 import { FolderLock, readLock } from './lock'
 import { LINK_JSON_FILE, Manifest, MANIFEST_FILE } from './manifest'
+import { injectFaults } from './testing/faults'
 import { cleanupTempDirs, listDir, tempDir } from './testing/tmp'
 
 afterAll(cleanupTempDirs)
@@ -158,8 +160,81 @@ describe('folder lock', () => {
     const lock = await FolderLock.acquire(dir, {
       instance_id: 'A',
       project_id: 'p1',
+      confirm_ms: 50,
     })
     expect((await readLock(dir))?.host).not.toBe('altro-pc')
+    await lock.release()
+  })
+
+  const other = (beat: Date, host = 'altro-pc', pid = 1): string =>
+    JSON.stringify({
+      host,
+      pid,
+      instance_id: 'X',
+      project_id: 'p1',
+      started_at: beat.toISOString(),
+      heartbeat_at: beat.toISOString(),
+    })
+
+  it('a lock that looks stale but keeps beating (a computer with its clock behind) is respected', async () => {
+    const dir = await tempDir()
+    const file = path.join(dir, '.lock')
+    await fs.writeFile(file, other(new Date(Date.now() - 10 * 60_000)))
+    const acquiring = FolderLock.acquire(dir, {
+      instance_id: 'A',
+      project_id: 'p1',
+      confirm_ms: 300,
+    })
+    // Its clock says ten minutes ago, but it beats
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await fs.writeFile(file, other(new Date(Date.now() - 9 * 60_000)))
+    await expect(acquiring).rejects.toMatchObject({ issue: 'folder_locked' })
+  })
+
+  it('a lock of this computer whose process is gone (a crash) is taken at once', async () => {
+    const dir = await tempDir()
+    await fs.writeFile(path.join(dir, '.lock'), other(new Date(), os.hostname(), 2 ** 22 - 7))
+    const started = Date.now()
+    const lock = await FolderLock.acquire(dir, { instance_id: 'A', project_id: 'p1' })
+    expect(Date.now() - started).toBeLessThan(1000)
+    await lock.release()
+  })
+
+  it('a lock still being written is waited for and respected; a broken one is taken', async () => {
+    const dir = await tempDir()
+    const file = path.join(dir, '.lock')
+    await fs.writeFile(file, '')
+    const acquiring = FolderLock.acquire(dir, {
+      instance_id: 'A',
+      project_id: 'p1',
+      confirm_ms: 300,
+    })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await fs.writeFile(file, other(new Date()))
+    await expect(acquiring).rejects.toMatchObject({ issue: 'folder_locked' })
+
+    await fs.writeFile(file, '{"host": "alt')
+    const lock = await FolderLock.acquire(dir, {
+      instance_id: 'A',
+      project_id: 'p1',
+      confirm_ms: 100,
+    })
+    expect((await readLock(dir))?.instance_id).toBe('A')
+    await lock.release()
+  })
+
+  it('a heartbeat that cannot be written for most of the stale time means the lock is lost', async () => {
+    const dir = await tempDir()
+    const lock = await FolderLock.acquire(dir, {
+      instance_id: 'A',
+      project_id: 'p1',
+      heartbeat_ms: 20,
+      stale_ms: 200,
+    })
+    injectFaults([{ op: 'open', path: f => path.basename(f).startsWith('.lock.'), code: 'EIO' }])
+    await new Promise(resolve => setTimeout(resolve, 400))
+    vi.restoreAllMocks()
+    expect(lock.lost).toBe(true)
     await lock.release()
   })
 

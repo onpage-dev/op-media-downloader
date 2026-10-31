@@ -7,7 +7,9 @@
     "cancel": "Cancel",
     "close": "Close",
     "save": "Save",
-    "retry": "Retry"
+    "retry": "Retry",
+    "loading": "Loading…",
+    "load_error": "The list could not be read."
   },
   "toolbar": {
     "new": "New project",
@@ -82,6 +84,7 @@
     "error_locked": "Folder in use by another computer",
     "error_disk": "Disk full",
     "error_listing": "File list not read",
+    "error_unexpected": "Unexpected error",
     "offline": "Waiting for the network",
     "never": "Never synced"
   },
@@ -202,6 +205,10 @@
       "title": "Sync interrupted",
       "text": "The last sync did not reach the end: it needs to run again."
     },
+    "unexpected": {
+      "title": "Unexpected error",
+      "text": "The sync stopped: {detail}. Try again."
+    },
     "action": {
       "retry": "Retry",
       "sync": "Sync",
@@ -249,7 +256,9 @@
     "link_error": "link failed",
     "invalid_name": "the name is not valid on Windows",
     "name_conflict": "another file already has this name",
-    "aborted": "stopped"
+    "aborted": "stopped",
+    "in_use": "the file is open in another program",
+    "file_too_large": "the file is too large for this disk"
   },
   "duplicates": {
     "rule": "Only the first file of each name is downloaded: rename the others on On Page to get them all.",
@@ -257,6 +266,9 @@
     "chosen": "Downloaded",
     "skipped": "Not downloaded",
     "empty": "No name with different files",
+    "search": "Search a name…",
+    "no_results": "No name found",
+    "languages": "1 name is the same field in different languages | {count} names are the same field in different languages",
     "refresh": "Sync again"
   },
   "project": {
@@ -446,9 +458,7 @@
     },
     "language": {
       "title": "App language",
-      "text": "Italiano or English.",
-      "it": "Italiano",
-      "en": "English"
+      "text": "The language of windows, menus and notifications."
     },
     "updates": {
       "version": "Version {version}",
@@ -478,5 +488,10 @@
     "less_than_minute": "less than a minute",
     "about_minutes": "about a minute | about {n} minutes",
     "about_hours": "about {h} h {m} min"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Shift",
+    "delete": "Del"
   }
 }

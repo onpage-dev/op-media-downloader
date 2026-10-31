@@ -6,6 +6,7 @@
 import { safeStorage } from 'electron'
 import Store from 'electron-store'
 import {
+  AppLanguage,
   AppSettings,
   DEFAULT_SETTINGS,
   FolderInfo,
@@ -74,7 +75,8 @@ export class AppStore {
     clearInvalidConfig: false,
   })
 
-  constructor() {
+  /** default_language: the language of a new install, the system's one */
+  constructor(private readonly default_language: AppLanguage = DEFAULT_SETTINGS.language) {
     this.migrate()
   }
 
@@ -163,7 +165,8 @@ export class AppStore {
     const settings: AppSettings = {
       ...DEFAULT_SETTINGS,
       theme: v1_user.dark_mode ? 'dark' : 'system',
-      language: v1_user.language ?? DEFAULT_SETTINGS.language,
+      /** 1.x showed Italian unless told otherwise */
+      language: v1_user.language ?? ('storage_data' in raw || 'user_properties' in raw ? 'it' : this.default_language),
       /** 1 was the 1.x default, not a choice: start from the 2.0 default */
       concurrency:
         v1_user.simultaneous_downloads && v1_user.simultaneous_downloads > 1

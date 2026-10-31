@@ -119,6 +119,11 @@ export function adoptionCandidates(
   return out
 }
 
+/** The same name as on disk: macOS disks in HFS+ give names back decomposed (NFD) */
+function sameName(on_disk: string, name: string): boolean {
+  return on_disk == name || on_disk.normalize('NFC') == name.normalize('NFC')
+}
+
 export function buildPlan(input: PlanInput): Plan {
   const { desired, manifest, scan } = input
   const downloads = new Map<string, DownloadTask>()
@@ -173,7 +178,7 @@ export function buildPlan(input: PlanInput): Plan {
             : target,
         )
       } else if (entry.token == file.token) {
-        if (on_disk.name == file.local_name) up_to_date++
+        if (sameName(on_disk.name, file.local_name)) up_to_date++
         else
           renames.push({
             from: on_disk.name,
@@ -212,7 +217,7 @@ export function buildPlan(input: PlanInput): Plan {
         mode: same_file ? 'link' : 'adopted',
         remote_name: file.remote_name,
       })
-      if (on_disk.name == file.local_name) up_to_date++
+      if (sameName(on_disk.name, file.local_name)) up_to_date++
       else {
         renames.push({
           from: on_disk.name,
@@ -249,7 +254,7 @@ export function buildPlan(input: PlanInput): Plan {
     }
     if (input.keep_old_files || !input.listing_complete) continue
     // The name on disk must be exactly ours and a plain file
-    if (on_disk.name == name && on_disk.type == 'file') remove_names.push(name)
+    if (sameName(on_disk.name, name) && on_disk.type == 'file') remove_names.push(name)
     else drop_entries.push(name)
   }
 

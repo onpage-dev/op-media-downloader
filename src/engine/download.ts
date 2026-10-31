@@ -1,8 +1,11 @@
 /**
- * One file from the storage to data/<token>: stream to <token>.download with
- * a timeout before the first byte and between chunks, check the size, then
- * rename (retrying transient Windows locks). Nothing is left behind on error.
+ * One file from the storage to data/<token>: stream to a temporary
+ * `<token>.<random>.download` (a leftover another program still holds never
+ * blocks a new attempt) with a timeout before the first byte and between
+ * chunks, check the size, flush it to the disk, then rename (retrying
+ * transient Windows locks). Nothing is left behind on error.
  */
+import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
 import type { FileHandle } from 'fs/promises'
 import {
@@ -11,7 +14,7 @@ import {
   SizeMismatchError,
   TimeoutError,
 } from './errors'
-import { renameWithRetry, unlinkQuiet } from './fsx'
+import { flushToDisk, renameWithRetry, unlinkQuiet, writeAll } from './fsx'
 import {
   abortReason,
   FetchLike,
@@ -49,7 +52,7 @@ function isAbortError(error: unknown): boolean {
 export async function downloadToFile(
   options: DownloadOptions,
 ): Promise<number> {
-  const temp = `${options.target}.download`
+  const temp = `${options.target}.${randomBytes(4).toString('hex')}.download`
   const { controller, dispose } = linkedController(options.signal)
   const headers_timeout = options.headers_timeout_ms ?? HEADERS_TIMEOUT_MS
   const idle_timeout = options.idle_timeout_ms ?? IDLE_TIMEOUT_MS
@@ -97,19 +100,20 @@ export async function downloadToFile(
         // share, an antivirus) must not look like a silent server
         if (timer) clearTimeout(timer)
         timer = undefined
-        await handle.write(value)
+        await writeAll(handle, value)
         written += value.byteLength
         options.onBytes?.(value.byteLength)
         arm()
       }
     }
-    // The network part is over: closing and renaming are disk work
+    // The network part is over: checking, flushing and renaming are disk work
     if (timer) clearTimeout(timer)
     timer = undefined
-    await handle.close()
-    handle = undefined
     if (expected !== undefined && written != expected)
       throw new SizeMismatchError(expected, written)
+    await flushToDisk(handle)
+    await handle.close()
+    handle = undefined
     await renameWithRetry(temp, options.target)
     return written
   } catch (error) {

@@ -10,6 +10,7 @@ withDefaults(defineProps<{ icon: IconDefinition; label: string; size?: number; d
   <button
     v-tooltip="label"
     type="button"
+    :aria-label="label"
     :disabled="disabled"
     class="inline-flex shrink-0 items-center justify-center rounded-md text-text transition-colors duration-100 enabled:hover:bg-text/[.06] disabled:text-disabled"
     :style="{ width: `${size}px`, height: `${size}px` }"

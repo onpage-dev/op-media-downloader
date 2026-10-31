@@ -4,7 +4,7 @@
  * dialog is open) and the actions on the selected project. Everything goes
  * through `window.desktop`.
  */
-import { computed, reactive, watch } from 'vue'
+import { computed, markRaw, reactive, watch } from 'vue'
 import type { AppCommand, InspectorTab, NewProjectInput, ProjectPatch, SettingsSection } from '@shared/desktop-api'
 import {
   DEFAULT_SETTINGS,
@@ -30,6 +30,25 @@ export interface DialogState {
 }
 export const DESTINATIONS = ['local', 'network', 'removable'] as const
 
+/**
+ * A long list (tens of thousands of failed files or duplicate names) shown a
+ * page at a time: the next page comes when the end of the list is in view.
+ * The entries are raw objects: no reactive proxy for each of them.
+ */
+export interface PagedList<T> {
+  items: T[]
+  total: number
+  loading: boolean
+  error: boolean
+  query: string
+  /** Bumped by every new search or reload: the answers of an older one are dropped */
+  version: number
+  /** Duplicates only: names that are one field in different languages */
+  language_variants?: number
+}
+export type PagedKind = 'failed' | 'duplicates'
+const PAGE_SIZE = 50
+
 const SPEED_SAMPLES = 40
 const ACTIVITY_KEPT = 200
 
@@ -46,8 +65,8 @@ export const app = reactive({
   sort: { key: 'created' as SortKey, dir: 1 as 1 | -1 },
   tab: 'general' as InspectorTab,
   activity: {} as Record<ProjectId, ActivityEntry[]>,
-  failed: {} as Record<ProjectId, FailedEntry[]>,
-  duplicates: {} as Record<ProjectId, DuplicateGroup[]>,
+  failed: {} as Record<ProjectId, PagedList<FailedEntry>>,
+  duplicates: {} as Record<ProjectId, PagedList<DuplicateGroup>>,
   /** The last speeds of each running project, for the sparkline */
   speeds: {} as Record<ProjectId, number[]>,
   wizard: undefined as undefined | { folder?: string; step?: number; token?: string },
@@ -206,14 +225,52 @@ watch(visible, rows => {
 async function loadTab(id: ProjectId, tab: InspectorTab): Promise<void> {
   try {
     if (tab == 'activity') app.activity[id] = (await desktop().sync.getActivity(id, ACTIVITY_KEPT)).sort((a, b) => b.id - a.id)
-    if (tab == 'failed') app.failed[id] = await desktop().sync.getFailed(id)
-    if (tab == 'duplicates') app.duplicates[id] = await desktop().sync.getDuplicates(id)
   } catch (error) {
     console.error(`Cannot load ${tab} of ${id}`, error)
   }
+  if (tab == 'failed' || tab == 'duplicates') await loadPage(tab, id, true)
 }
+
+function pagedList<T>(lists: Record<ProjectId, PagedList<T>>, id: ProjectId): PagedList<T> {
+  if (!lists[id]) lists[id] = { items: [], total: 0, loading: false, error: false, query: '', version: 0 }
+  // Read back through the reactive record: changes made on the object assigned above would not be seen
+  return lists[id]
+}
+
+/** The first page again (`reset`: a new search, a reload), or the next one */
+async function loadPage(kind: PagedKind, id: ProjectId, reset: boolean): Promise<void> {
+  const list: PagedList<FailedEntry | DuplicateGroup> = pagedList<FailedEntry | DuplicateGroup>(app[kind], id)
+  if (!reset && (list.loading || list.error || list.items.length >= list.total)) return
+  const version = reset ? ++list.version : list.version
+  list.loading = true
+  list.error = false
+  try {
+    const query = { offset: reset ? 0 : list.items.length, limit: PAGE_SIZE, query: list.query || undefined }
+    const page = kind == 'failed' ? await desktop().sync.getFailed(id, query) : await desktop().sync.getDuplicates(id, query)
+    if (version != list.version) return
+    const items = 'groups' in page ? page.groups : page.entries
+    list.items = markRaw(reset ? items : [...list.items, ...items])
+    list.total = page.total
+    if ('language_variants' in page) list.language_variants = page.language_variants
+  } catch (error) {
+    console.error(`Cannot load ${kind} of ${id}`, error)
+    if (version == list.version) list.error = true
+  } finally {
+    if (version == list.version) list.loading = false
+  }
+}
+
+export const loadMore = (kind: PagedKind, id: ProjectId): Promise<void> => loadPage(kind, id, false)
+export const reloadList = (kind: PagedKind, id: ProjectId): Promise<void> => loadPage(kind, id, true)
+
+export function searchDuplicates(id: ProjectId, query: string): Promise<void> {
+  pagedList(app.duplicates, id).query = query
+  return loadPage('duplicates', id, true)
+}
+// One source per value: a getter returning a new array would fire on every state pushed by
+// main (several a second during a sync) and reload the whole tab each time
 watch(
-  () => [app.selectedId, app.tab, selected.value?.runtime.last_result?.ended_at, selected.value?.runtime.plan?.created_at] as const,
+  [() => app.selectedId, () => app.tab, () => selected.value?.runtime.last_result?.ended_at, () => selected.value?.runtime.plan?.created_at],
   ([id, tab]) => {
     if (id) void loadTab(id, tab)
   },

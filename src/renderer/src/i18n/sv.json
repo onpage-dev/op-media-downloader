@@ -1,0 +1,497 @@
+{
+  "app": {
+    "name": "On Page Media Downloader",
+    "short": "Media Downloader"
+  },
+  "common": {
+    "cancel": "Avbryt",
+    "close": "Stäng",
+    "save": "Spara",
+    "retry": "Försök igen",
+    "loading": "Läser in…",
+    "load_error": "Det gick inte att läsa in listan."
+  },
+  "toolbar": {
+    "new": "Nytt projekt",
+    "sync": "Synkronisera",
+    "download": "Ladda ner",
+    "stop": "Stoppa",
+    "sync_all": "Synkronisera alla",
+    "open": "Öppna mapp",
+    "edit": "Redigera",
+    "delete": "Ta bort",
+    "settings": "Inställningar",
+    "search": "Sök projekt..."
+  },
+  "filters": {
+    "state": "Status",
+    "destinations": "Mål",
+    "all": "Alla",
+    "running": "Pågående",
+    "todo": "Att ladda ner",
+    "errors": "Med fel",
+    "done": "Uppdaterade",
+    "never": "Ej synkroniserade",
+    "local": "Lokala",
+    "network": "Nätverk",
+    "removable": "Externa diskar"
+  },
+  "table": {
+    "status": "Status",
+    "project": "Projekt",
+    "destination": "Mål",
+    "progress": "Förlopp",
+    "files": "Filer",
+    "speed": "Hastighet",
+    "last": "Synkroniserad",
+    "never": "aldrig",
+    "no_results": "Inga projekt matchar de här filtren",
+    "show_all": "Visa alla"
+  },
+  "kind": {
+    "local": "Lokal mapp",
+    "network": "Nätverksmapp",
+    "removable": "Extern disk",
+    "unknown": "Mapp"
+  },
+  "group": {
+    "done": "Uppdaterad",
+    "todo": "Att ladda ner",
+    "running": "Pågår",
+    "stopping": "Stoppar",
+    "warning": "Varning",
+    "error": "Fel",
+    "never": "Aldrig synkroniserad",
+    "offline": "Offline"
+  },
+  "status": {
+    "done": "Uppdaterad",
+    "todo": "{count} fil att ladda ner | {count} filer att ladda ner",
+    "listing": "Läser från On Page…",
+    "listing_progress": "Läser från On Page: {done} av {total}",
+    "comparing": "Jämför…",
+    "downloading": "Laddar ner",
+    "finishing": "Länkar och rensar…",
+    "stopping": "Stoppar…",
+    "warning_failed": "{count} fil laddades inte ner | {count} filer laddades inte ner",
+    "warning_duplicates": "{count} namn med olika filer | {count} namn med olika filer",
+    "warning_conflicts": "{count} namn redan upptaget | {count} namn redan upptagna",
+    "warning_copies": "Kopior i stället för länkar",
+    "warning_cleanup": "{count} filer att ta bort: kräver bekräftelse",
+    "warning_interrupted": "Synkronisering avbruten",
+    "error_token": "Ogiltig token",
+    "error_folder": "Mappen kan inte nås",
+    "error_locked": "Mappen används av en annan dator",
+    "error_disk": "Disken är full",
+    "error_listing": "Fillistan kunde inte läsas",
+    "error_unexpected": "Oväntat fel",
+    "offline": "Väntar på nätverket",
+    "never": "Aldrig synkroniserad"
+  },
+  "menu": {
+    "sync_now": "Synkronisera nu",
+    "download": "Ladda ner",
+    "stop": "Stoppa",
+    "open": "Öppna mapp",
+    "copy_path": "Kopiera sökväg",
+    "edit": "Redigera…",
+    "delete": "Ta bort…"
+  },
+  "tabs": {
+    "general": "Allmänt",
+    "activity": "Aktivitet",
+    "failed": "Misslyckade",
+    "duplicates": "Dubbletter",
+    "settings": "Inställningar"
+  },
+  "general": {
+    "onpage": "On Page-projekt",
+    "remote": "{files} filer · {size}",
+    "remote_unknown": "Filerna räknas vid den första synkroniseringen",
+    "to": "laddar ner till",
+    "free": "{free} ledigt",
+    "hardlinks_yes": "hårda länkar: ja",
+    "hardlinks_no": "hårda länkar: nej",
+    "hardlinks_unknown": "hårda länkar: ska testas",
+    "double_space": "Varje fil tar dubbel plats",
+    "downloaded": "Nedladdade",
+    "present": "Fanns redan",
+    "failed": "Misslyckade",
+    "total": "Totalt",
+    "size": "På On Page",
+    "speed": "Hastighet",
+    "running": "Startade kl. {time} · steg {step} av 4, {phase} · {eta} · {concurrency} åt gången",
+    "running_short": "Startade kl. {time} · steg {step} av 4, {phase}",
+    "last": "Senaste synkronisering: {when}, {result}",
+    "never": "Har inte synkroniserats än",
+    "phase": {
+      "idle": "inaktiv",
+      "preparing": "förbereder",
+      "listing": "läser från On Page",
+      "comparing": "jämför med mappen",
+      "downloading": "laddar ner",
+      "finishing": "länkar och rensar",
+      "stopping": "stoppar"
+    },
+    "outcome": {
+      "completed": "slutförd",
+      "stopped": "stoppad",
+      "failed": "misslyckad"
+    },
+    "stopping": "Startade kl. {time} · stoppar"
+  },
+  "issue": {
+    "token_invalid": {
+      "title": "Ogiltig token",
+      "text": "On Page godkänner inte projektets token: den kan ha återkallats. Klistra in en ny i projektets inställningar."
+    },
+    "project_unavailable": {
+      "title": "Projektet är inte tillgängligt",
+      "text": "On Page svarar inte för det här projektet. Försök igen om en stund."
+    },
+    "listing_failed": {
+      "title": "Fillistan kunde inte läsas",
+      "text": "Läsningen från On Page avbröts: inga filer togs bort från mappen."
+    },
+    "rate_limited": {
+      "title": "On Page ber om färre anrop",
+      "text": "Synkroniseringen fortsätter av sig själv."
+    },
+    "folder_unreachable": {
+      "title": "Mappen kan inte nås",
+      "text": "{folder} svarar inte: kontrollera nätverket eller disken."
+    },
+    "folder_not_writable": {
+      "title": "Mappen är inte skrivbar",
+      "text": "Appen kan inte skapa filer i {folder}."
+    },
+    "folder_protected": {
+      "title": "Skyddad mapp",
+      "text": "Välj en egen mapp: diskarnas rotmappar, användarmappen och systemmappar används inte."
+    },
+    "folder_locked": {
+      "title": "Mappen används",
+      "text": "En annan dator synkroniserar den här mappen. {detail}"
+    },
+    "disk_full": {
+      "title": "Disken är full",
+      "text": "Frigör utrymme och försök igen: filer som redan har laddats ner finns kvar."
+    },
+    "offline": {
+      "title": "Du är offline",
+      "text": "Synkroniseringen startar igen när nätverket är tillbaka."
+    },
+    "duplicates": {
+      "title": "{count} namn med olika filer | {count} namn med olika filer",
+      "text": "För varje namn laddar appen ner den första filen den hittar."
+    },
+    "failed_files": {
+      "title": "{count} fil laddades inte ner | {count} filer laddades inte ner",
+      "text": "De kan laddas ner igen: övriga filer är i ordning."
+    },
+    "copies_instead_of_links": {
+      "title": "Mappen får kopior i stället för länkar",
+      "text": "Hårda länkar fungerar inte här: varje fil tar dubbelt så mycket plats."
+    },
+    "name_conflicts": {
+      "title": "{count} namn är redan upptaget | {count} namn är redan upptagna",
+      "text": "I mappen finns filer med samma namn som inte kommer från appen: de ligger kvar där de är och filerna från On Page med de namnen laddas inte ner."
+    },
+    "cleanup_needs_confirmation": {
+      "title": "{count} filer att ta bort",
+      "text": "De finns inte längre på On Page och de är många: appen väntar på att du bekräftar."
+    },
+    "interrupted": {
+      "title": "Synkronisering avbruten",
+      "text": "Den senaste synkroniseringen blev inte klar: den behöver köras igen."
+    },
+    "unexpected": {
+      "title": "Oväntat fel",
+      "text": "Synkroniseringen avbröts: {detail}. Försök igen."
+    },
+    "action": {
+      "retry": "Försök igen",
+      "sync": "Synkronisera",
+      "change_token": "Byt token",
+      "change_folder": "Byt mapp",
+      "retry_failed": "Försök igen med misslyckade",
+      "see": "Visa",
+      "see_duplicates": "Visa dubbletter",
+      "confirm": "Bekräfta"
+    }
+  },
+  "activity": {
+    "time": "Tid",
+    "file": "Fil",
+    "size": "Storlek",
+    "outcome": "Resultat",
+    "same_as": "samma fil som {name}",
+    "empty": "Ingen aktivitet nyligen",
+    "result": {
+      "downloading": "Pågår",
+      "downloaded": "Nedladdad",
+      "linked": "Länkad",
+      "removed": "Borttagen",
+      "failed": "Misslyckad",
+      "conflict": "Konflikt"
+    },
+    "removed_why": "finns inte längre på On Page"
+  },
+  "failed": {
+    "summary": "{count} fil laddades inte ner i den senaste synkroniseringen | {count} filer laddades inte ner i den senaste synkroniseringen",
+    "retry_all": "Försök igen med alla",
+    "attempts": "{count} försök | {count} försök",
+    "empty": "Inga misslyckade filer",
+    "summary_running": "{count} fil har inte laddats ner i den här synkroniseringen | {count} filer har inte laddats ner i den här synkroniseringen"
+  },
+  "reason": {
+    "not_found": "finns inte längre på On Page (404)",
+    "http_error": "On Page svarade med ett fel",
+    "rate_limited": "On Page bad om färre anrop",
+    "network": "anslutningen bröts",
+    "timeout": "inget svar i tid",
+    "size_mismatch": "filen som kom fram är ofullständig",
+    "disk_full": "disken är full",
+    "write_error": "mappen tar inte emot filen",
+    "link_error": "länkningen misslyckades",
+    "invalid_name": "namnet är ogiltigt i Windows",
+    "name_conflict": "en annan fil har redan det här namnet",
+    "aborted": "stoppad",
+    "in_use": "filen är öppen i ett annat program",
+    "file_too_large": "filen är för stor för den här disken"
+  },
+  "duplicates": {
+    "rule": "För varje namn laddar appen bara ner den första filen: byt namn på de andra på On Page för att få med alla.",
+    "variants": "{count} olika filer",
+    "chosen": "Nedladdad",
+    "skipped": "Inte nedladdad",
+    "empty": "Inga namn med olika filer",
+    "search": "Sök namn…",
+    "no_results": "Inga namn hittades",
+    "languages": "{count} namn hör till samma fält på olika språk | {count} namn hör till samma fält på olika språk",
+    "refresh": "Synkronisera igen"
+  },
+  "project": {
+    "name": "Namn",
+    "token": "API-token",
+    "folder": "Mapp",
+    "keep": "Behåll gamla lokala filer som inte längre finns på On Page",
+    "keep_note": "Filer som tas bort från On Page ligger kvar i mappen.",
+    "token_note": "Token avgör vad som laddas ner: även filtren i dess vy gäller.",
+    "show": "Visa",
+    "hide": "Dölj",
+    "verify": "Verifiera",
+    "change_folder": "Byt…",
+    "copies_network": "Nätverk: filerna kopieras",
+    "copies": "Filerna kopieras"
+  },
+  "status_bar": {
+    "online": "Ansluten",
+    "offline": "Offline",
+    "running": "{count} pågår",
+    "files": "{count} filer",
+    "empty": "Inga projekt",
+    "update": "Uppdatering tillgänglig: {version}"
+  },
+  "empty": {
+    "title": "Lägg till ditt första projekt",
+    "text": "Dra hit mappen som filerna ska laddas ner till, eller börja med projektets API-token.",
+    "drop_title": "Släpp mappen för att skapa ett projekt",
+    "drop_text": "Mappen blir målet; sedan behövs token och namn.",
+    "drop_on_table": "Släpp för att skapa ett projekt"
+  },
+  "wizard": {
+    "title": "Nytt projekt",
+    "step": {
+      "token": "Token",
+      "folder": "Mapp",
+      "options": "Alternativ"
+    },
+    "token_placeholder": "Klistra in projektets token",
+    "checking": "Verifierar token…",
+    "ok_title": "Projekt ”{label}”",
+    "ok_text": "{count} samling har filer | {count} samlingar har filer",
+    "langs": "språk: {langs}",
+    "error": {
+      "token_invalid": {
+        "title": "Ogiltig token",
+        "text": "Kontrollera den på On Page, i projektets API-inställningar."
+      },
+      "offline": {
+        "title": "Du är offline",
+        "text": "Token verifieras när nätverket är tillbaka."
+      },
+      "project_unavailable": {
+        "title": "Projektet är inte tillgängligt",
+        "text": "On Page svarar inte för det här projektet: försök igen om en stund."
+      }
+    },
+    "folder_placeholder": "Ingen mapp vald",
+    "pick": "Välj mapp",
+    "inspecting": "Kontrollerar mappen…",
+    "name_note": "Från On Page-projektet: du kan ändra det.",
+    "sync_now": "Synkronisera direkt när det har skapats",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "create": "Skapa projekt"
+  },
+  "check": {
+    "network": {
+      "title": "Nätverksmapp",
+      "text": "Kan nås från den här datorn; synkroniseringen beror på nätverket."
+    },
+    "removable": {
+      "title": "Extern disk",
+      "text": "Projektet synkroniseras när disken är ansluten."
+    },
+    "local": {
+      "title": "Lokal mapp",
+      "text": "På den här datorns disk."
+    },
+    "missing": {
+      "title": "Mappen finns inte än",
+      "text": "Den skapas vid den första synkroniseringen."
+    },
+    "hardlinks_no": {
+      "title": "Hårda länkar stöds inte",
+      "text": "Varje fil kopieras och tar dubbelt så mycket plats."
+    },
+    "hardlinks_yes": {
+      "title": "Hårda länkar stöds",
+      "text": "En fil som används med flera namn tar bara plats en gång."
+    },
+    "free": {
+      "title": "Ledigt utrymme: {free}",
+      "text": "Det behövs cirka {needed}.",
+      "text_unknown": "Utrymmet som behövs blir känt vid den första synkroniseringen."
+    },
+    "foreign": {
+      "title": "Mappen är inte tom",
+      "text": "Det finns redan {count} objekt: det ligger kvar där det är, appen tar bara bort filer som den själv laddar ner. | Det finns redan {count} objekt: de ligger kvar där de är, appen tar bara bort filer som den själv laddar ner."
+    },
+    "unreachable": {
+      "title": "Mappen kan inte nås",
+      "text": "Kontrollera nätverket eller disken."
+    },
+    "not_writable": {
+      "title": "Mappen är inte skrivbar",
+      "text": "Appen kan inte skapa filer här."
+    },
+    "protected": {
+      "title": "Skyddad mapp",
+      "text": "Diskarnas rotmappar, användarmappen och systemmappar kan inte användas."
+    },
+    "used_by_other_project": {
+      "title": "Mappen används redan",
+      "text": "Projektet ”{detail}” laddar redan ner hit eller till en närliggande mapp."
+    },
+    "locked": {
+      "title": "Mappen används",
+      "text": "{detail} synkroniserar den just nu."
+    },
+    "foreign_data": {
+      "title": "Det finns redan en mapp ”data” som appen inte har skapat",
+      "text": "Appen kommer aldrig att använda, tömma eller ta bort den: välj en annan mapp."
+    }
+  },
+  "delete": {
+    "title": "Ta bort projektet?",
+    "text": "”{label}” tas bort från listan.",
+    "files": "Ta även bort de nedladdade filerna",
+    "removes": "{count} fil som appen har laddat ner och dess mapp ”data” | {count} filer som appen har laddat ner och dess mapp ”data”",
+    "removes_unknown": "Filerna som appen har laddat ner och dess mapp ”data”",
+    "keeps": "{count} objekt som inte kommer från On Page finns kvar; mappen {folder} finns kvar | {count} objekt som inte kommer från On Page finns kvar; mappen {folder} finns kvar",
+    "keeps_none": "Mappen {folder} tas bort om den blir tom",
+    "keeps_all": "Filerna ligger kvar i mappen.",
+    "removes_size": "{count} fil som appen har laddat ner ({size}) och dess mapp ”data” | {count} filer som appen har laddat ner ({size}) och dess mapp ”data”"
+  },
+  "stop": {
+    "title": "Stoppa synkroniseringen?",
+    "text": "Filer från ”{label}” som redan har laddats ner ligger kvar i mappen.",
+    "title_download": "Stoppa nedladdningen?"
+  },
+  "cleanup": {
+    "title": "Ta bort {count} filer?",
+    "text": "De finns inte längre på On Page. Appen tar bara bort filer som den själv har laddat ner: de andra ligger kvar.",
+    "confirm": "Ta bort filerna"
+  },
+  "settings": {
+    "title": "Inställningar",
+    "section": {
+      "general": "Allmänt",
+      "download": "Nedladdningar",
+      "appearance": "Utseende",
+      "language": "Språk",
+      "updates": "Uppdateringar"
+    },
+    "open_at_login": {
+      "title": "Starta vid systemstart",
+      "text": "Appen startar med systemet och visas i meddelandefältet.",
+      "text_win32": "Appen startar med Windows och visas i meddelandefältet.",
+      "text_darwin": "Appen startar med macOS och visas i menyraden."
+    },
+    "close_to_tray": {
+      "title": "Ikon i meddelandefältet",
+      "text": "När du stänger fönstret ligger appen kvar där och fortsätter att synkronisera.",
+      "title_darwin": "Ikon i menyraden"
+    },
+    "notifications": {
+      "title": "Meddelanden",
+      "text": "I slutet av en synkronisering, för misslyckade filer och för fel."
+    },
+    "concurrency": {
+      "title": "Samtidiga nedladdningar",
+      "text": "Hur många filer som laddas ner samtidigt, från 1 till 10."
+    },
+    "auto_retry": {
+      "title": "Försök automatiskt igen med misslyckade",
+      "text": "En gång, efter en minut, för filer som inte laddades ner på grund av nätverket."
+    },
+    "theme": {
+      "title": "Tema",
+      "text": "”System” följer operativsystemets tema.",
+      "system": "System",
+      "light": "Ljust",
+      "dark": "Mörkt",
+      "text_win32": "”System” följer temat i Windows.",
+      "text_darwin": "”System” följer utseendet i macOS."
+    },
+    "language": {
+      "title": "Appens språk",
+      "text": "Språket i fönster, menyer och meddelanden."
+    },
+    "updates": {
+      "version": "Version {version}",
+      "available": "Version {version} är tillgänglig.",
+      "latest": "Det här är den senaste versionen.",
+      "download": "Ladda ner {version}",
+      "check": "Kontrollera nu",
+      "check_updates": {
+        "title": "Sök efter uppdateringar",
+        "text": "Vid start, på GitHub."
+      }
+    }
+  },
+  "tray": {
+    "running": "{count} pågår · {speed}",
+    "idle": "Allt i ordning",
+    "empty": "Inga projekt",
+    "open": "Öppna",
+    "quit": "Avsluta",
+    "comparing": "Jämför med mappen…"
+  },
+  "time": {
+    "now": "nyss",
+    "minutes_ago": "för {n} min sedan",
+    "today": "i dag, {time}",
+    "yesterday": "i går, {time}",
+    "less_than_minute": "mindre än en minut",
+    "about_minutes": "cirka {n} minut | cirka {n} minuter",
+    "about_hours": "cirka {h} h {m} min"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Skift",
+    "delete": "Delete"
+  }
+}

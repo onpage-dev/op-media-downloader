@@ -16,13 +16,14 @@ import {
   errorCode,
   errorDetail,
   failureCode,
+  FOLDER_GONE_CODES,
   HttpError,
-  isDiskFull,
   JobError,
+  NOT_WRITABLE_CODES,
 } from './errors'
-import { pathExists, unlinkQuiet } from './fsx'
+import { freeSpace, reachable, unlinkQuiet } from './fsx'
 import { DOWNLOAD_RETRY, FetchLike, RetryPolicy, withRetry } from './http'
-import { LinkCapability, placeName, renameName } from './link'
+import { LinkCapability, placeName, removeName, renameName } from './link'
 import { Manifest } from './manifest'
 import { DownloadTask, LinkTask, Plan } from './plan'
 import { ProgressTracker } from './progress'
@@ -51,6 +52,10 @@ export interface ExecuteContext {
   onStage?: (stage: 'links' | 'downloads' | 'removals') => void
   onRateLimited?: (delay_ms: number) => void
   log?: (level: 'debug' | 'info' | 'warn' | 'error', message: string) => void
+  /** The reason to stop writing, when there is one: the folder lock went to another computer */
+  lost?: () => JobError | undefined
+  /** How long a folder may take to answer before it counts as gone */
+  reach_timeout_ms?: number
 }
 
 export interface ExecuteResult {
@@ -63,56 +68,54 @@ export interface ExecuteResult {
   bytes: number
 }
 
-const FOLDER_GONE = new Set([
-  'ENOENT',
-  'EIO',
-  'ENETUNREACH',
-  'EHOSTUNREACH',
-  'ENOTCONN',
-  'ESTALE',
-  'UNKNOWN',
-  'EBADF',
-])
-const NOT_WRITABLE = new Set(['EACCES', 'EPERM', 'EROFS'])
+/** A disk with less than this left is full, whatever it said */
+const FULL_MARGIN = 16 * 1024 * 1024
 
-/** Turns a file system error into the end of the run when it is not about one file */
+/**
+ * Turns a file system error into the end of the run when it is not about one
+ * file: the disk is full, the folder is gone (a share, an unplugged disk) or
+ * read-only. ENOSPC with plenty of room left is a limit on one file (4 GB on
+ * FAT32): that file fails, the run goes on.
+ */
 async function fatalError(
   error: unknown,
   ctx: ExecuteContext,
+  size?: number,
 ): Promise<JobError | undefined> {
   if (error instanceof JobError) return error
-  if (isDiskFull(error))
-    return new JobError('disk_full', 'The disk is full', errorDetail(error))
   const code = errorCode(error) ?? ''
-  if (FOLDER_GONE.has(code) && !(await pathExists(ctx.data_dir))) {
-    return new JobError(
-      'folder_unreachable',
-      'The folder cannot be reached',
-      errorDetail(error),
-    )
+  const detail = errorDetail(error)
+  if (code == 'EDQUOT') return new JobError('disk_full', 'The quota is used up', detail)
+  if (code == 'ENOSPC') {
+    const free = await freeSpace(ctx.folder)
+    return free !== undefined && free > (size ?? 0) + FULL_MARGIN
+      ? undefined
+      : new JobError('disk_full', 'The disk is full', detail)
   }
-  if (NOT_WRITABLE.has(code) && !(await canWrite(ctx.data_dir))) {
-    return new JobError(
-      'folder_not_writable',
-      'The folder is read-only',
-      errorDetail(error),
-    )
+  if (FOLDER_GONE_CODES.has(code) && !(await reachable(ctx.data_dir, ctx.reach_timeout_ms ?? 5000))) {
+    return new JobError('folder_unreachable', 'The folder cannot be reached', detail)
+  }
+  if (NOT_WRITABLE_CODES.has(code) && !(await canWrite(ctx.data_dir))) {
+    return new JobError('folder_not_writable', 'The folder is read-only', detail)
   }
   return undefined
 }
 
+/** A name that could not be placed: the reasons the user can act on stay, the rest is a link error */
+function linkFailure(reason: FailureCode): FailureCode {
+  return reason == 'in_use' || reason == 'file_too_large' ? reason : 'link_error'
+}
+
+/** Can a file be created? (Removing the probe is a courtesy: it is a leftover the next run clears) */
 async function canWrite(dir: string): Promise<boolean> {
-  const probe = path.join(
-    dir,
-    `.opmd-probe-${randomBytes(4).toString('hex')}.tmp`,
-  )
+  const probe = path.join(dir, `.opmd-probe-${randomBytes(4).toString('hex')}.tmp`)
   try {
     await fs.writeFile(probe, '')
-    await unlinkQuiet(probe)
-    return true
   } catch {
     return false
   }
+  await unlinkQuiet(probe).catch(() => undefined)
+  return true
 }
 
 export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
@@ -156,15 +159,22 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
 
   const changed = (): void => ctx.onChange?.()
 
-  /** Every error of a worker goes through here: fatal ones end the run */
-  const handle = async (error: unknown): Promise<FailureCode | undefined> => {
+  /** Every error of a worker goes through here: fatal ones end the run (decided once) */
+  const handle = async (error: unknown, size?: number): Promise<FailureCode | undefined> => {
     if (error instanceof AbortedError || ctx.signal.aborted) return undefined
-    const end = await fatalError(error, ctx)
+    if (fatal) throw fatal
+    const end = await fatalError(error, ctx, size)
     if (end) {
       fatal ??= end
-      throw end
+      throw fatal
     }
-    return failureCode(error)
+    return errorCode(error) == 'ENOSPC' ? 'file_too_large' : failureCode(error)
+  }
+
+  /** Before each item: stop writing when the folder went to another computer */
+  const checkLock = (): void => {
+    const lost = ctx.lost?.()
+    if (lost) throw lost
   }
 
   // Manifest-only changes: no disk work
@@ -226,6 +236,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
       fs_lanes,
       async task => {
         try {
+          checkLock()
           await renameName(ctx.folder, task.from, task.to)
           manifest.set(task.to, task.entry)
           result.linked++
@@ -238,12 +249,12 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
             same_as: task.from,
           })
         } catch (error) {
-          const reason = await handle(error)
+          const reason = await handle(error, task.entry.size)
           if (reason)
             fail(
               task.to,
               task.token,
-              'link_error',
+              linkFailure(reason),
               errorDetail(error),
               task.entry.size,
             )
@@ -260,6 +271,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
       fs_lanes,
       async task => {
         try {
+          checkLock()
           await place(task)
           result.linked++
           progress.count('linked')
@@ -280,22 +292,17 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
             })
             fail(task.name, task.token, 'name_conflict', undefined, task.size)
           } else {
-            const reason = await handle(error)
+            const reason = await handle(error, task.size)
             if (reason) {
+              const code = linkFailure(reason)
               activity.add({
                 name: task.name,
                 token: task.token,
                 size: task.size,
                 outcome: 'failed',
-                reason: 'link_error',
+                reason: code,
               })
-              fail(
-                task.name,
-                task.token,
-                'link_error',
-                errorDetail(error),
-                task.size,
-              )
+              fail(task.name, task.token, code, errorDetail(error), task.size)
             }
           }
         }
@@ -324,7 +331,8 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
         async name => {
           const entry = manifest.get(name)
           try {
-            await unlinkQuiet(path.join(ctx.folder, name))
+            checkLock()
+            await removeName(ctx.folder, name)
             manifest.delete(name)
             result.removed++
             progress.count('removed')
@@ -335,9 +343,18 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
               outcome: 'removed',
             })
           } catch (error) {
-            const reason = await handle(error)
-            if (reason)
+            // Not removed: it stays in the manifest and the next run tries again
+            const reason = await handle(error, entry?.size)
+            if (reason) {
+              activity.add({
+                name,
+                token: entry?.token,
+                size: entry?.size,
+                outcome: 'failed',
+                reason: reason == 'in_use' ? reason : 'write_error',
+              })
               ctx.log?.('warn', `Cannot remove ${name}: ${errorDetail(error)}`)
+            }
           }
           await manifest.checkpoint().catch(() => undefined)
           changed()
@@ -349,7 +366,8 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
         fs_lanes,
         async token => {
           try {
-            await unlinkQuiet(path.join(ctx.data_dir, token))
+            checkLock()
+            await removeName(ctx.data_dir, token)
           } catch (error) {
             const reason = await handle(error)
             if (reason)
@@ -369,6 +387,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
   return result
 
   async function download(task: DownloadTask): Promise<void> {
+    checkLock()
     const first = task.names[0]
     const entry = activity.add({
       name: first.name,
@@ -442,7 +461,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
         changed()
         return
       }
-      const reason = await handle(error)
+      const reason = await handle(error, task.size)
       if (!reason) return
       activity.update(entry.id, {
         outcome: 'failed',
@@ -498,22 +517,17 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
           fail(target.name, task.token, 'name_conflict', undefined, task.size)
           continue
         }
-        const reason = await handle(error)
+        const reason = await handle(error, task.size)
         if (!reason) return
+        const code = linkFailure(reason)
         activity.add({
           name: target.name,
           token: task.token,
           size: task.size,
           outcome: 'failed',
-          reason: 'link_error',
+          reason: code,
         })
-        fail(
-          target.name,
-          task.token,
-          'link_error',
-          errorDetail(error),
-          task.size,
-        )
+        fail(target.name, task.token, code, errorDetail(error), task.size)
       }
     }
     if (!placed_first)

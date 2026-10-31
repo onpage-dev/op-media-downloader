@@ -47,8 +47,9 @@ The main process never does file system work on project folders and never blocks
 3. **Removals above a threshold wait for the user**: more than 50 names *and* more than 25% of the manifest → the plan stops at `cleanup_needs_confirmation` (protects against a wrong token, a changed View or a half-read listing).
 4. **No removal after an incomplete listing**: if any resource could not be read, the plan has downloads and links only.
 5. **Never on protected folders**: drive roots, the home folder, system folders, a folder used by (or nested in / around) another project.
-6. **One writer per folder**: `data/.lock` with host, pid, instance and a heartbeat every 30 s; a lock older than 2 minutes without heartbeat can be taken over.
-7. **Downloads land atomically**: write `<token>.download`, check the size when known, rename (retrying EPERM/EBUSY/EACCES), then link.
+6. **One writer per folder**: `data/.lock` with host, pid, instance and a heartbeat every 30 s. A lock that looks stale (no heartbeat for 2 minutes by its own clock) is watched for one more heartbeat before it is taken, because two computers' clocks can differ; a lock of this computer whose process is gone is taken at once. A run whose heartbeat cannot be written for most of the stale time, or whose lock was taken by another computer, stops writing (`folder_locked`) and leaves the registry to the new owner.
+7. **Nothing half-written under a name**: a download goes to `<token>.<random>.download`, every byte written, the size checked, the file flushed to the disk, then renamed (retrying the transient Windows locks EPERM/EBUSY/EACCES); copies go through a `.opmd-` temporary name the same way; the manifest and the lock are written to a temporary file, flushed, then renamed. After a power cut or an unplugged disk a name holds its whole file or is not there.
+8. **Never act on partial knowledge**: a manifest that exists but cannot be read now (an antivirus, a share that hiccups) stops the job instead of starting from an empty registry; a broken one (cut by a power cut) is rebuilt by adoption (rule 2), removing nothing.
 
 ## Core flows
 
@@ -67,7 +68,26 @@ Re-plans first when the plan is older than 30 minutes, then:
 3. **Remove** what the plan allows.
 4. Checkpoint the manifest every 500 operations or 5 seconds; at the end write it, release the lock and send the result.
 
-Disk full stops the run (`disk_full`); a folder that disappears stops it (`folder_unreachable`) keeping the work done. **Stop** aborts the transfers in flight, deletes their temp files and saves the manifest.
+**Stop** aborts the transfers in flight, deletes their temp files and saves the manifest.
+
+### Faults of folders and disks
+Every case below has a fault-injection test (`src/engine/faults.test.ts`): after it, no name holds half a file, the issue is the right one, and the next run ends the work.
+
+| Fault | What happens |
+|---|---|
+| Not enough free space for the plan | Checked before downloading: `disk_full` with the bytes needed, nothing downloaded |
+| Disk full during the run (ENOSPC, EDQUOT) | The run stops: `disk_full`; the files done stay |
+| ENOSPC with room left (4 GB limit of FAT32), EFBIG | That file fails (`file_too_large`), the run goes on |
+| A share drops or stops answering, a disk is unplugged, the folder is deleted (ENOENT, EIO, ENXIO, ENODEV, ESTALE, ECONNRESET, ETIMEDOUT, UNKNOWN…) | When the folder does not answer within 5 s: `folder_unreachable`; otherwise that file fails and the run goes on |
+| Read-only folder (EACCES, EPERM, EROFS) | When a probe file cannot be created: `folder_not_writable`; otherwise that file fails |
+| An antivirus or the indexer holding a new file | Retried for up to ~8 s |
+| Windows: a file open in another program | Not replaced or removed now (`in_use`); it stays in the registry and the next run retries |
+| A write that takes fewer bytes than given | Written in a loop |
+| A content with more than 1023 names (NTFS) | That name gets a copy; the others stay links |
+| FAT, exFAT, SMB without hard links | Every name is a copy (through a temporary name); `copies_instead_of_links` |
+| Leftovers of a crash (`*.download`, `.opmd-*`, temporary manifest and lock) | Removed at the next run; one that cannot be removed never blocks a download |
+| Manifest that cannot be saved at the end | The run fails (the files stay); the next run registers them by adoption |
+| Errors of the file system before the work starts (lock, manifest, scan) | Mapped to the issues above, never «file list not read»; unknown errors are `unexpected` with the detail |
 
 ### Progress and activity
 - Counters per name, bytes from `Content-Length` or the known size, speed smoothed over ~5 s, ETA from the remaining bytes. State sent at most 4 times per second per project.

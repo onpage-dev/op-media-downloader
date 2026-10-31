@@ -46,6 +46,10 @@ describe('data/ ownership', () => {
     expect(isOwnDataEntry(`${TOKEN}.webp`)).toBe(true)
     expect(isOwnDataEntry('manifest.json')).toBe(true)
     expect(isOwnDataEntry('.opmd-1a2b3c')).toBe(true)
+    // Temporary files of writes cut by a crash or a dropped share
+    expect(isOwnDataEntry('.lock.4242-0a1b2c3d.tmp')).toBe(true)
+    expect(isOwnDataEntry('manifest.json.4242-0a1b2c3d.tmp')).toBe(true)
+    expect(isOwnDataEntry(`${TOKEN}.0a1b2c3d.download`)).toBe(true)
     expect(isOwnDataEntry('report.pdf')).toBe(false)
     expect(isOwnDataEntry('Thumbs.db')).toBe(false)
   })

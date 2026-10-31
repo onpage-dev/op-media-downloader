@@ -195,6 +195,8 @@ export type IssueCode =
   | 'cleanup_needs_confirmation'
   /** The last job stopped unexpectedly (the engine restarted): run it again */
   | 'interrupted'
+  /** An error the engine does not know: the detail says which */
+  | 'unexpected'
 
 export interface Issue {
   code: IssueCode
@@ -245,6 +247,10 @@ export type FailureCode =
   | 'invalid_name'
   | 'name_conflict'
   | 'aborted'
+  /** Open in another program (Windows): it cannot be replaced or removed now */
+  | 'in_use'
+  /** More than the disk takes in one file (4 GB on FAT32) */
+  | 'file_too_large'
 
 export interface FailedEntry {
   name: string
@@ -287,6 +293,27 @@ export interface DuplicateGroup {
   variants: DuplicateVariant[]
 }
 
+/** Long lists (tens of thousands of entries) travel a page at a time */
+export interface PageQuery {
+  offset: number
+  limit: number
+  /** Part of the name, any case */
+  query?: string
+}
+
+export interface DuplicatePage {
+  /** Groups matching the query */
+  total: number
+  /** Of all the groups: names whose files are one field of one item in different languages */
+  language_variants: number
+  groups: DuplicateGroup[]
+}
+
+export interface FailedPage {
+  total: number
+  entries: FailedEntry[]
+}
+
 /* ------------------------------------------------------------------ Token check */
 
 export interface TokenCheck {
@@ -301,7 +328,9 @@ export interface TokenCheck {
 /* ------------------------------------------------------------------ Settings */
 
 export type ThemeSetting = 'system' | 'light' | 'dark'
-export type AppLanguage = 'it' | 'en'
+/** The languages of On Page UI */
+export const LANGUAGES = ['it', 'en', 'de', 'es', 'fr', 'ru', 'sv', 'zh'] as const
+export type AppLanguage = (typeof LANGUAGES)[number]
 
 export interface AppSettings {
   theme: ThemeSetting

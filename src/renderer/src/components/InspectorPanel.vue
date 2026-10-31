@@ -51,7 +51,7 @@ const counts = computed(() => {
   const { issues, progress, plan, last_result } = props.project.runtime
   const failed = progress
     ? progress.failed
-    : (issues.find(i => i.code == 'failed_files')?.count ?? app.failed[props.project.id]?.length ?? last_result?.failed ?? 0)
+    : (issues.find(i => i.code == 'failed_files')?.count ?? app.failed[props.project.id]?.total ?? last_result?.failed ?? 0)
   const duplicates = issues.find(i => i.code == 'duplicates')?.count ?? plan?.duplicates ?? 0
   return { failed: [failed, 'bg-danger-soft'], duplicates: [duplicates, 'bg-warning-soft'] } as Partial<Record<InspectorTab, [number, string]>>
 })

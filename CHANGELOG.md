@@ -11,7 +11,8 @@ A new app: a desktop sync manager for On Page media, rebuilt around a sync engin
 - Downloads through Chromium's network stack (system proxy and PAC), 4 at a time by default, with timeouts, retries, size checks and atomic renames; **Stop** aborts the transfers in flight.
 - **Safe removals**: the app only removes what it created (`data/manifest.json`); files of other people or apps in the folder are never touched, also when a project is deleted. Large removals wait for a confirmation.
 - The registry of created files is saved during the run (atomically), so an interrupted session resumes without redoing the work.
-- A folder lock prevents two computers from syncing the same folder at the same time.
+- A folder lock prevents two computers from syncing the same folder at the same time, also when their clocks differ.
+- Built for real folders: full disks, shares that drop, unplugged disks, read-only folders, antivirus and files open in other programs, disks without hard links. Files are flushed to the disk before they get their name, free space is checked before downloading, and every case is covered by a fault-injection test.
 - Folder checks: network or local, hard link support (copies take twice the space), free space, protected and overlapping folders.
 - File names made safe for every file system; names already used by other files are reported, never overwritten.
 
@@ -20,6 +21,8 @@ A new app: a desktop sync manager for On Page media, rebuilt around a sync engin
 - On Page design system: colours, type, icons and components; light and dark theme, following the system by default.
 - New project in three steps: the token is verified and the folder checked before saving.
 - Settings in sections: start with the system, notification area icon, notifications, parallel downloads, automatic retry, theme, language, updates.
+- The languages of On Page UI: Italian, English, German, Spanish, French, Russian, Swedish and Chinese; a new install starts in the system's language.
+- Failed files and duplicate names come a page at a time, with a search: projects with tens of thousands of them stay fast.
 
 ### Desktop integration
 - Integrated title bar, remembered window size and position, a single instance.

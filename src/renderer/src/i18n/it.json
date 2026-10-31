@@ -7,7 +7,9 @@
     "cancel": "Annulla",
     "close": "Chiudi",
     "save": "Salva",
-    "retry": "Riprova"
+    "retry": "Riprova",
+    "loading": "Caricamento…",
+    "load_error": "Non è stato possibile leggere l’elenco."
   },
   "toolbar": {
     "new": "Nuovo progetto",
@@ -82,6 +84,7 @@
     "error_locked": "Cartella in uso da un altro computer",
     "error_disk": "Disco pieno",
     "error_listing": "Elenco dei file non letto",
+    "error_unexpected": "Errore imprevisto",
     "offline": "In attesa della rete",
     "never": "Mai sincronizzato"
   },
@@ -202,6 +205,10 @@
       "title": "Sincronizzazione interrotta",
       "text": "L’ultima sincronizzazione non è arrivata alla fine: va rifatta."
     },
+    "unexpected": {
+      "title": "Errore imprevisto",
+      "text": "La sincronizzazione si è fermata: {detail}. Riprova."
+    },
     "action": {
       "retry": "Riprova",
       "sync": "Sincronizza",
@@ -249,7 +256,9 @@
     "link_error": "collegamento non riuscito",
     "invalid_name": "il nome non è valido su Windows",
     "name_conflict": "un altro file ha già questo nome",
-    "aborted": "interrotto"
+    "aborted": "interrotto",
+    "in_use": "il file è aperto in un altro programma",
+    "file_too_large": "il file è troppo grande per questo disco"
   },
   "duplicates": {
     "rule": "Per ogni nome si scarica solo il primo file: rinomina gli altri su On Page per averli tutti.",
@@ -257,6 +266,9 @@
     "chosen": "Scaricato",
     "skipped": "Non scaricato",
     "empty": "Nessun nome con file diversi",
+    "search": "Cerca un nome…",
+    "no_results": "Nessun nome trovato",
+    "languages": "1 nome è lo stesso campo in lingue diverse | {count} nomi sono lo stesso campo in lingue diverse",
     "refresh": "Sincronizza di nuovo"
   },
   "project": {
@@ -446,9 +458,7 @@
     },
     "language": {
       "title": "Lingua dell’applicazione",
-      "text": "Italiano o English.",
-      "it": "Italiano",
-      "en": "English"
+      "text": "La lingua di finestre, menu e notifiche."
     },
     "updates": {
       "version": "Versione {version}",
@@ -478,5 +488,10 @@
     "less_than_minute": "meno di un minuto",
     "about_minutes": "circa un minuto | circa {n} minuti",
     "about_hours": "circa {h} h {m} min"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Maiusc",
+    "delete": "Canc"
   }
 }

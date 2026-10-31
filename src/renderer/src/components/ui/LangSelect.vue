@@ -1,17 +1,31 @@
 <script setup lang="ts">
-/** OpLangSelect: the flag, the language and the chevron; the two languages in a menu under it */
+/** OpLangSelect: the flag, the language and the chevron; the languages in a menu under it */
 import { onBeforeUnmount, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import cn from 'flag-icons/flags/4x3/cn.svg'
+import de from 'flag-icons/flags/4x3/de.svg'
+import es from 'flag-icons/flags/4x3/es.svg'
+import fr from 'flag-icons/flags/4x3/fr.svg'
 import gb from 'flag-icons/flags/4x3/gb.svg'
 import it from 'flag-icons/flags/4x3/it.svg'
-import type { AppLanguage } from '@shared/models'
+import ru from 'flag-icons/flags/4x3/ru.svg'
+import se from 'flag-icons/flags/4x3/se.svg'
+import { type AppLanguage, LANGUAGES } from '@shared/models'
 import { faCheck, faChevronDown } from '../../lib/icons'
 import AppIcon from './AppIcon.vue'
 
 const model = defineModel<AppLanguage>({ required: true })
-const { t } = useI18n()
-const FLAGS: Record<AppLanguage, string> = { it, en: gb }
-const LANGUAGES: AppLanguage[] = ['it', 'en']
+const FLAGS: Record<AppLanguage, string> = { it, en: gb, de, es, fr, ru, sv: se, zh: cn }
+/** Each language in its own name, as language menus do */
+const NAMES: Record<AppLanguage, string> = {
+  it: 'Italiano',
+  en: 'English',
+  de: 'Deutsch',
+  es: 'Español',
+  fr: 'Français',
+  ru: 'Русский',
+  sv: 'Svenska',
+  zh: '中文',
+}
 const open = ref(false)
 const root = ref<HTMLElement>()
 
@@ -37,7 +51,7 @@ const choose = (language: AppLanguage): void => {
       @click="open = !open"
     >
       <img :src="FLAGS[model]" class="h-[17px] w-6 rounded-[2px] object-cover" alt="" />
-      <span class="flex-1 text-left">{{ t(`settings.language.${model}`) }}</span>
+      <span class="flex-1 text-left">{{ NAMES[model] }}</span>
       <AppIcon :icon="faChevronDown" />
     </button>
     <ul v-if="open" role="listbox" class="absolute left-0 right-0 top-[43px] z-20 rounded-xl border border-line bg-box p-xs shadow-popover">
@@ -51,7 +65,7 @@ const choose = (language: AppLanguage): void => {
         @click="choose(language)"
       >
         <img :src="FLAGS[language]" class="h-[17px] w-6 rounded-[2px] object-cover" alt="" />
-        <span class="flex-1">{{ t(`settings.language.${language}`) }}</span>
+        <span class="flex-1">{{ NAMES[language] }}</span>
         <AppIcon v-if="language == model" :icon="faCheck" />
       </li>
     </ul>

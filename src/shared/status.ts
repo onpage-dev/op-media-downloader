@@ -45,6 +45,8 @@ export type StatusKey =
   | 'error_disk'
   /** Errore: elenco dei file non letto */
   | 'error_listing'
+  /** Errore imprevisto */
+  | 'error_unexpected'
   /** In attesa della rete */
   | 'offline'
   /** Mai sincronizzato */
@@ -65,6 +67,7 @@ const ERROR_KEYS: [IssueCode[], StatusKey][] = [
   [['folder_unreachable', 'folder_not_writable', 'folder_protected'], 'error_folder'],
   [['disk_full'], 'error_disk'],
   [['listing_failed'], 'error_listing'],
+  [['unexpected'], 'error_unexpected'],
 ]
 
 const WARNING_KEYS: [IssueCode, StatusKey][] = [

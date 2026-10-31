@@ -7,9 +7,10 @@ import {
   ActivityEntry,
   AppSettings,
   AppStatus,
-  DuplicateGroup,
-  FailedEntry,
+  DuplicatePage,
+  FailedPage,
   FolderInfo,
+  PageQuery,
   ProjectId,
   ProjectView,
   TokenCheck,
@@ -80,8 +81,8 @@ export interface DesktopApi {
     stop(id: ProjectId): Promise<void>
     getActivity(id: ProjectId, limit?: number): Promise<ActivityEntry[]>
     onActivity(listener: (id: ProjectId, entries: ActivityEntry[]) => void): Unsubscribe
-    getFailed(id: ProjectId): Promise<FailedEntry[]>
-    getDuplicates(id: ProjectId): Promise<DuplicateGroup[]>
+    getFailed(id: ProjectId, page: PageQuery): Promise<FailedPage>
+    getDuplicates(id: ProjectId, page: PageQuery): Promise<DuplicatePage>
   }
 
   folders: {

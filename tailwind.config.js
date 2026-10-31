@@ -52,9 +52,10 @@ module.exports = {
       current: 'currentColor',
       ...Object.fromEntries(roles.map(name => [name, role(name)])),
     },
+    /** Manrope has Cyrillic, Rethink Sans does not; Chinese comes from the system's font */
     fontFamily: {
-      sans: ['Manrope', 'system-ui', 'sans-serif'],
-      title: ['Rethink Sans', 'Manrope', 'system-ui', 'sans-serif'],
+      sans: ['Manrope', 'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans CJK SC', 'system-ui', 'sans-serif'],
+      title: ['Rethink Sans', 'Manrope', 'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans CJK SC', 'system-ui', 'sans-serif'],
       mono: ['ui-monospace', 'Cascadia Mono', 'Menlo', 'monospace'],
     },
     fontSize: {

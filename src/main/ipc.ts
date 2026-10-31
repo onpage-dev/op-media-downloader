@@ -12,7 +12,7 @@ import {
   SettingsSection,
 } from '../shared/desktop-api'
 import { INVOKE, SEND } from '../shared/ipc-channels'
-import { AppLanguage, AppSettings, AppStatus, ProjectId, ThemeSetting } from '../shared/models'
+import { AppSettings, AppStatus, LANGUAGES, PageQuery, ProjectId, ThemeSetting } from '../shared/models'
 import { ProjectService } from './projects'
 import { AppStore } from './store'
 import { checkForUpdates, versionInfo } from './updates'
@@ -52,8 +52,8 @@ export function registerIpc(deps: IpcDeps): void {
   handle(INVOKE.syncGetActivity, (_e, id, limit) =>
     projects.getActivity(text(id), typeof limit == 'number' ? limit : undefined),
   )
-  handle(INVOKE.syncGetFailed, (_e, id) => projects.getFailed(text(id)))
-  handle(INVOKE.syncGetDuplicates, (_e, id) => projects.getDuplicates(text(id)))
+  handle(INVOKE.syncGetFailed, (_e, id, page) => projects.getFailed(text(id), pageQuery(page)))
+  handle(INVOKE.syncGetDuplicates, (_e, id, page) => projects.getDuplicates(text(id), pageQuery(page)))
 
   handle(INVOKE.foldersPick, async (event, default_path) => {
     const window = BrowserWindow.fromWebContents(event.sender) ?? undefined
@@ -113,6 +113,17 @@ export function registerIpc(deps: IpcDeps): void {
 function text(value: unknown): string {
   if (typeof value != 'string') throw new Error('invalid_input')
   return value
+}
+
+/** A page of a long list: at most 200 entries, a query of at most 200 characters */
+function pageQuery(value: unknown): PageQuery {
+  const page = (value ?? {}) as Partial<PageQuery>
+  const whole = (n: unknown, fallback: number): number => (typeof n == 'number' && Number.isFinite(n) ? Math.floor(n) : fallback)
+  return {
+    offset: Math.max(0, whole(page.offset, 0)),
+    limit: Math.min(200, Math.max(1, whole(page.limit, 50))),
+    query: typeof page.query == 'string' ? page.query.slice(0, 200) : undefined,
+  }
 }
 
 function optionalText(value: unknown): string | undefined {
@@ -179,14 +190,13 @@ function appCommand(value: unknown): AppCommand | undefined {
 }
 
 const THEMES: ThemeSetting[] = ['system', 'light', 'dark']
-const LANGUAGES: AppLanguage[] = ['it', 'en']
 const FLAGS = ['auto_retry_failed', 'notifications', 'close_to_tray', 'open_at_login', 'check_updates'] as const
 
 function settingsPatch(patch: Partial<AppSettings>): Partial<AppSettings> {
   if (!patch || typeof patch != 'object') throw new Error('invalid_input')
   const clean: Partial<AppSettings> = {}
   if (patch.theme !== undefined && THEMES.includes(patch.theme)) clean.theme = patch.theme
-  if (patch.language !== undefined && LANGUAGES.includes(patch.language)) clean.language = patch.language
+  if (patch.language !== undefined && (LANGUAGES as readonly string[]).includes(patch.language)) clean.language = patch.language
   if (typeof patch.concurrency == 'number' && Number.isFinite(patch.concurrency)) clean.concurrency = patch.concurrency
   for (const flag of FLAGS) {
     if (typeof patch[flag] == 'boolean') clean[flag] = patch[flag]

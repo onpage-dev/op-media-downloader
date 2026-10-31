@@ -1,0 +1,497 @@
+{
+  "app": {
+    "name": "On Page Media Downloader",
+    "short": "Media Downloader"
+  },
+  "common": {
+    "cancel": "取消",
+    "close": "关闭",
+    "save": "保存",
+    "retry": "重试",
+    "loading": "正在加载…",
+    "load_error": "无法加载列表。"
+  },
+  "toolbar": {
+    "new": "新建项目",
+    "sync": "同步",
+    "download": "下载",
+    "stop": "停止",
+    "sync_all": "全部同步",
+    "open": "打开文件夹",
+    "edit": "编辑",
+    "delete": "删除",
+    "settings": "设置",
+    "search": "搜索项目..."
+  },
+  "filters": {
+    "state": "状态",
+    "destinations": "目标位置",
+    "all": "全部",
+    "running": "进行中",
+    "todo": "待下载",
+    "errors": "有错误",
+    "done": "已是最新",
+    "never": "从未同步",
+    "local": "本地",
+    "network": "网络",
+    "removable": "外置磁盘"
+  },
+  "table": {
+    "status": "状态",
+    "project": "项目",
+    "destination": "目标位置",
+    "progress": "进度",
+    "files": "文件",
+    "speed": "速度",
+    "last": "上次同步",
+    "never": "从未",
+    "no_results": "没有符合这些筛选条件的项目",
+    "show_all": "显示全部"
+  },
+  "kind": {
+    "local": "本地文件夹",
+    "network": "网络文件夹",
+    "removable": "外置磁盘",
+    "unknown": "文件夹"
+  },
+  "group": {
+    "done": "已是最新",
+    "todo": "待下载",
+    "running": "进行中",
+    "stopping": "正在停止",
+    "warning": "注意",
+    "error": "错误",
+    "never": "从未同步",
+    "offline": "离线"
+  },
+  "status": {
+    "done": "已是最新",
+    "todo": "{count} 个文件待下载",
+    "listing": "正在从 On Page 读取…",
+    "listing_progress": "正在从 On Page 读取：{done}/{total}",
+    "comparing": "正在比较…",
+    "downloading": "正在下载",
+    "finishing": "正在链接和清理…",
+    "stopping": "正在停止…",
+    "warning_failed": "{count} 个文件未下载",
+    "warning_duplicates": "{count} 个名称对应不同文件",
+    "warning_conflicts": "{count} 个名称已被其他文件占用",
+    "warning_copies": "复制而非链接",
+    "warning_cleanup": "{count} 个文件待删除：需要确认",
+    "warning_interrupted": "同步已中断",
+    "error_token": "令牌无效",
+    "error_folder": "文件夹无法访问",
+    "error_locked": "文件夹正被另一台计算机使用",
+    "error_disk": "磁盘已满",
+    "error_listing": "未能读取文件列表",
+    "error_unexpected": "意外错误",
+    "offline": "正在等待网络",
+    "never": "从未同步"
+  },
+  "menu": {
+    "sync_now": "立即同步",
+    "download": "下载",
+    "stop": "停止",
+    "open": "打开文件夹",
+    "copy_path": "复制路径",
+    "edit": "编辑…",
+    "delete": "删除…"
+  },
+  "tabs": {
+    "general": "常规",
+    "activity": "活动",
+    "failed": "失败",
+    "duplicates": "重名",
+    "settings": "设置"
+  },
+  "general": {
+    "onpage": "On Page 项目",
+    "remote": "{files} 个文件 · {size}",
+    "remote_unknown": "首次同步时统计文件数",
+    "to": "下载到",
+    "free": "可用 {free}",
+    "hardlinks_yes": "硬链接：支持",
+    "hardlinks_no": "硬链接：不支持",
+    "hardlinks_unknown": "硬链接：待检测",
+    "double_space": "每个文件占用双倍空间",
+    "downloaded": "已下载",
+    "present": "已存在",
+    "failed": "失败",
+    "total": "总计",
+    "size": "On Page 上",
+    "speed": "速度",
+    "running": "{time} 开始 · 第 {step}/4 步，{phase} · {eta} · 同时下载 {concurrency} 个文件",
+    "running_short": "{time} 开始 · 第 {step}/4 步，{phase}",
+    "last": "上次同步：{when}，{result}",
+    "never": "尚未同步",
+    "phase": {
+      "idle": "空闲",
+      "preparing": "准备中",
+      "listing": "从 On Page 读取",
+      "comparing": "与文件夹比较",
+      "downloading": "下载中",
+      "finishing": "链接和清理",
+      "stopping": "正在停止"
+    },
+    "outcome": {
+      "completed": "已完成",
+      "stopped": "已停止",
+      "failed": "失败"
+    },
+    "stopping": "{time} 开始 · 正在停止"
+  },
+  "issue": {
+    "token_invalid": {
+      "title": "令牌无效",
+      "text": "On Page 不接受该令牌：它可能已被撤销。请在项目设置中粘贴新的令牌。"
+    },
+    "project_unavailable": {
+      "title": "项目不可用",
+      "text": "On Page 没有响应此项目。请稍后重试。"
+    },
+    "listing_failed": {
+      "title": "未能读取文件列表",
+      "text": "从 On Page 读取时中断：没有从文件夹中删除任何文件。"
+    },
+    "rate_limited": {
+      "title": "On Page 要求放慢速度",
+      "text": "同步会自动恢复。"
+    },
+    "folder_unreachable": {
+      "title": "文件夹无法访问",
+      "text": "{folder} 没有响应：请检查网络或磁盘。"
+    },
+    "folder_not_writable": {
+      "title": "文件夹不可写入",
+      "text": "应用无法在 {folder} 中创建文件。"
+    },
+    "folder_protected": {
+      "title": "受保护的文件夹",
+      "text": "请选择专用文件夹：磁盘根目录、用户文件夹和系统文件夹均不使用。"
+    },
+    "folder_locked": {
+      "title": "文件夹正在使用中",
+      "text": "另一台计算机正在同步此文件夹。{detail}"
+    },
+    "disk_full": {
+      "title": "磁盘已满",
+      "text": "请释放空间后重试：已下载的文件会保留。"
+    },
+    "offline": {
+      "title": "您已离线",
+      "text": "网络恢复后，同步会重新开始。"
+    },
+    "duplicates": {
+      "title": "{count} 个名称对应不同文件",
+      "text": "每个名称下载找到的第一个文件。"
+    },
+    "failed_files": {
+      "title": "{count} 个文件未下载",
+      "text": "可以重试：其他文件均正常。"
+    },
+    "copies_instead_of_links": {
+      "title": "此文件夹以复制代替链接",
+      "text": "此处无法使用硬链接：每个文件占用双倍空间。"
+    },
+    "name_conflicts": {
+      "title": "{count} 个名称已被占用",
+      "text": "文件夹中有同名文件并非由本应用创建：它们保留原处，对应的文件不会下载。"
+    },
+    "cleanup_needs_confirmation": {
+      "title": "{count} 个文件待删除",
+      "text": "这些文件已不在 On Page 上，而且数量较多：应用正在等待您确认。"
+    },
+    "interrupted": {
+      "title": "同步已中断",
+      "text": "上次同步未能完成：需要重新同步。"
+    },
+    "unexpected": {
+      "title": "意外错误",
+      "text": "同步已停止：{detail}。请重试。"
+    },
+    "action": {
+      "retry": "重试",
+      "sync": "同步",
+      "change_token": "更换令牌",
+      "change_folder": "更换文件夹",
+      "retry_failed": "重试失败项",
+      "see": "查看",
+      "see_duplicates": "查看重名文件",
+      "confirm": "确认"
+    }
+  },
+  "activity": {
+    "time": "时间",
+    "file": "文件",
+    "size": "大小",
+    "outcome": "结果",
+    "same_as": "与 {name} 是同一文件",
+    "empty": "暂无最近活动",
+    "result": {
+      "downloading": "下载中",
+      "downloaded": "已下载",
+      "linked": "已链接",
+      "removed": "已删除",
+      "failed": "失败",
+      "conflict": "冲突"
+    },
+    "removed_why": "已不在 On Page 上"
+  },
+  "failed": {
+    "summary": "上次同步中有 {count} 个文件未下载",
+    "retry_all": "全部重试",
+    "attempts": "已尝试 {count} 次",
+    "empty": "没有失败的文件",
+    "summary_running": "本次同步中有 {count} 个文件未下载"
+  },
+  "reason": {
+    "not_found": "已不在 On Page 上（404）",
+    "http_error": "On Page 返回了错误",
+    "rate_limited": "On Page 要求放慢速度",
+    "network": "连接已中断",
+    "timeout": "响应超时",
+    "size_mismatch": "收到的文件不完整",
+    "disk_full": "磁盘已满",
+    "write_error": "文件夹不接受该文件",
+    "link_error": "链接失败",
+    "invalid_name": "该名称在 Windows 上无效",
+    "name_conflict": "已有其他文件使用此名称",
+    "aborted": "已中断",
+    "in_use": "文件已在另一个程序中打开",
+    "file_too_large": "对于此磁盘，文件过大"
+  },
+  "duplicates": {
+    "rule": "每个名称只下载第一个文件：如需全部获取，请在 On Page 上重命名其他文件。",
+    "variants": "{count} 个不同文件",
+    "chosen": "已下载",
+    "skipped": "未下载",
+    "empty": "没有重名文件",
+    "search": "搜索名称…",
+    "no_results": "未找到匹配的名称",
+    "languages": "{count} 个名称是同一字段的不同语言版本",
+    "refresh": "重新同步"
+  },
+  "project": {
+    "name": "名称",
+    "token": "API 令牌",
+    "folder": "文件夹",
+    "keep": "保留 On Page 上已不存在的旧本地文件",
+    "keep_note": "从 On Page 移除的文件会保留在文件夹中。",
+    "token_note": "令牌决定下载哪些内容：其视图的筛选条件同样适用。",
+    "show": "显示",
+    "hide": "隐藏",
+    "verify": "验证",
+    "change_folder": "更换…",
+    "copies_network": "网络：文件会被复制",
+    "copies": "文件会被复制"
+  },
+  "status_bar": {
+    "online": "已连接",
+    "offline": "离线",
+    "running": "{count} 个进行中",
+    "files": "{count} 个文件",
+    "empty": "没有项目",
+    "update": "有可用更新：{version}"
+  },
+  "empty": {
+    "title": "添加第一个项目",
+    "text": "将用于存放下载文件的文件夹拖到这里，或从 API 令牌开始。",
+    "drop_title": "松开文件夹即可创建项目",
+    "drop_text": "该文件夹将作为目标位置；之后还需要令牌和名称。",
+    "drop_on_table": "松开即可创建项目"
+  },
+  "wizard": {
+    "title": "新建项目",
+    "step": {
+      "token": "令牌",
+      "folder": "文件夹",
+      "options": "选项"
+    },
+    "token_placeholder": "粘贴项目的令牌",
+    "checking": "正在验证令牌…",
+    "ok_title": "项目“{label}”",
+    "ok_text": "{count} 个集合包含文件",
+    "langs": "语言：{langs}",
+    "error": {
+      "token_invalid": {
+        "title": "令牌无效",
+        "text": "请在 On Page 的项目 API 设置中检查。"
+      },
+      "offline": {
+        "title": "您已离线",
+        "text": "网络恢复后将验证令牌。"
+      },
+      "project_unavailable": {
+        "title": "项目不可用",
+        "text": "On Page 没有响应此项目：请稍后重试。"
+      }
+    },
+    "folder_placeholder": "未选择文件夹",
+    "pick": "选择文件夹",
+    "inspecting": "正在检查文件夹…",
+    "name_note": "来自 On Page 项目，可以更改。",
+    "sync_now": "创建后立即同步",
+    "back": "上一步",
+    "next": "下一步",
+    "create": "创建项目"
+  },
+  "check": {
+    "network": {
+      "title": "网络文件夹",
+      "text": "可从这台计算机访问；同步取决于网络。"
+    },
+    "removable": {
+      "title": "外置磁盘",
+      "text": "磁盘连接时，项目才会同步。"
+    },
+    "local": {
+      "title": "本地文件夹",
+      "text": "位于这台计算机的磁盘上。"
+    },
+    "missing": {
+      "title": "文件夹尚不存在",
+      "text": "将在首次同步时创建。"
+    },
+    "hardlinks_no": {
+      "title": "不支持硬链接",
+      "text": "每个文件都会被复制，占用双倍空间。"
+    },
+    "hardlinks_yes": {
+      "title": "支持硬链接",
+      "text": "以多个名称使用的文件只占用一份空间。"
+    },
+    "free": {
+      "title": "可用空间：{free}",
+      "text": "大约需要 {needed}。",
+      "text_unknown": "所需空间将在首次同步时得知。"
+    },
+    "foreign": {
+      "title": "文件夹不为空",
+      "text": "已有 {count} 个条目：它们会保留原处，应用只删除自己下载的文件。"
+    },
+    "unreachable": {
+      "title": "文件夹无法访问",
+      "text": "请检查网络或磁盘。"
+    },
+    "not_writable": {
+      "title": "文件夹不可写入",
+      "text": "应用无法在此处创建文件。"
+    },
+    "protected": {
+      "title": "受保护的文件夹",
+      "text": "不能使用磁盘根目录、用户文件夹和系统文件夹。"
+    },
+    "used_by_other_project": {
+      "title": "文件夹已被使用",
+      "text": "项目“{detail}”已经下载到这里或附近的文件夹。"
+    },
+    "locked": {
+      "title": "文件夹正在使用中",
+      "text": "{detail} 正在同步此文件夹。"
+    },
+    "foreign_data": {
+      "title": "已有一个并非由本应用创建的“data”文件夹",
+      "text": "本应用绝不会使用、清空或删除它：请选择其他文件夹。"
+    }
+  },
+  "delete": {
+    "title": "删除项目？",
+    "text": "“{label}”将从列表中移除。",
+    "files": "同时删除已下载的文件",
+    "removes": "应用下载的 {count} 个文件及其“data”文件夹",
+    "removes_unknown": "应用下载的文件及其“data”文件夹",
+    "keeps": "将保留 {count} 个并非来自 On Page 的条目；文件夹 {folder} 也会保留",
+    "keeps_none": "如果文件夹 {folder} 变为空，将被删除",
+    "keeps_all": "文件会保留在文件夹中。",
+    "removes_size": "应用下载的 {count} 个文件（{size}）及其“data”文件夹"
+  },
+  "stop": {
+    "title": "停止同步？",
+    "text": "“{label}”已下载的文件会保留在文件夹中。",
+    "title_download": "停止下载？"
+  },
+  "cleanup": {
+    "title": "删除 {count} 个文件？",
+    "text": "这些文件已不在 On Page 上。应用只删除自己下载的文件：其他文件会保留。",
+    "confirm": "删除文件"
+  },
+  "settings": {
+    "title": "设置",
+    "section": {
+      "general": "常规",
+      "download": "下载",
+      "appearance": "外观",
+      "language": "语言",
+      "updates": "更新"
+    },
+    "open_at_login": {
+      "title": "随系统启动",
+      "text": "应用随系统启动，并显示在通知区域。",
+      "text_win32": "应用随 Windows 启动，并显示在通知区域。",
+      "text_darwin": "应用随 macOS 启动，并显示在菜单栏中。"
+    },
+    "close_to_tray": {
+      "title": "在通知区域显示图标",
+      "text": "关闭窗口后，应用会留在那里并继续同步。",
+      "title_darwin": "在菜单栏显示图标"
+    },
+    "notifications": {
+      "title": "通知",
+      "text": "同步结束时，以及有文件下载失败或出错时。"
+    },
+    "concurrency": {
+      "title": "同时下载数",
+      "text": "同时下载的文件数量，1 到 10。"
+    },
+    "auto_retry": {
+      "title": "自动重试失败项",
+      "text": "因网络原因未下载的文件，会在一分钟后重试一次。"
+    },
+    "theme": {
+      "title": "主题",
+      "text": "“跟随系统”使用操作系统的主题。",
+      "system": "跟随系统",
+      "light": "浅色",
+      "dark": "深色",
+      "text_win32": "“跟随系统”使用 Windows 的主题。",
+      "text_darwin": "“跟随系统”使用 macOS 的外观。"
+    },
+    "language": {
+      "title": "应用语言",
+      "text": "窗口、菜单和通知所用的语言。"
+    },
+    "updates": {
+      "version": "版本 {version}",
+      "available": "新版本 {version} 已可用。",
+      "latest": "已是最新版本。",
+      "download": "下载 {version}",
+      "check": "立即检查",
+      "check_updates": {
+        "title": "检查更新",
+        "text": "启动时在 GitHub 上检查。"
+      }
+    }
+  },
+  "tray": {
+    "running": "{count} 个进行中 · {speed}",
+    "idle": "一切正常",
+    "empty": "没有项目",
+    "open": "打开",
+    "quit": "退出",
+    "comparing": "正在与文件夹比较…"
+  },
+  "time": {
+    "now": "刚刚",
+    "minutes_ago": "{n} 分钟前",
+    "today": "今天 {time}",
+    "yesterday": "昨天 {time}",
+    "less_than_minute": "不到 1 分钟",
+    "about_minutes": "约 {n} 分钟",
+    "about_hours": "约 {h} 小时 {m} 分钟"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Shift",
+    "delete": "Del"
+  }
+}

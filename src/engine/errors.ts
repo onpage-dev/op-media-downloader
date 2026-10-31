@@ -47,6 +47,17 @@ export class ConflictError extends Error {
   }
 }
 
+/** Windows: the file is open in another program, it cannot be replaced or removed now */
+export class InUseError extends Error {
+  constructor(
+    public file_name: string,
+    cause?: unknown,
+  ) {
+    super(`"${file_name}" is open in another program`, { cause })
+    this.name = 'InUseError'
+  }
+}
+
 /** An error that ends the whole job, with the issue to show */
 export class JobError extends Error {
   constructor(
@@ -123,9 +134,51 @@ export function isDiskFull(error: unknown): boolean {
   return code == 'ENOSPC' || code == 'EDQUOT'
 }
 
+/**
+ * The folder went away (a share, a disk unplugged), not a problem of one
+ * file. Windows reports a dropped share as ECONNRESET (NETNAME_DELETED),
+ * ETIMEDOUT (SEM_TIMEOUT) or UNKNOWN; a removed disk as EIO, ENXIO or ENODEV.
+ */
+export const FOLDER_GONE_CODES = new Set([
+  'ENOENT',
+  'EIO',
+  'ENXIO',
+  'ENODEV',
+  'ENOMEDIUM',
+  'ESTALE',
+  'ENOTCONN',
+  'ENETUNREACH',
+  'ENETDOWN',
+  'EHOSTUNREACH',
+  'EHOSTDOWN',
+  'ECONNRESET',
+  'ECONNABORTED',
+  'ETIMEDOUT',
+  'EPIPE',
+  'EBADF',
+  'UNKNOWN',
+])
+
+export const NOT_WRITABLE_CODES = new Set(['EACCES', 'EPERM', 'EROFS'])
+
+/** A file system error as the end of a job: disk full, read-only, gone */
+export function folderJobError(error: unknown): JobError | undefined {
+  if (error instanceof JobError) return error
+  const detail = errorDetail(error)
+  if (isDiskFull(error)) return new JobError('disk_full', 'The disk is full', detail)
+  const code = errorCode(error) ?? ''
+  if (NOT_WRITABLE_CODES.has(code))
+    return new JobError('folder_not_writable', 'The folder cannot be written', detail)
+  if (FOLDER_GONE_CODES.has(code))
+    return new JobError('folder_unreachable', 'The folder cannot be reached', detail)
+  return undefined
+}
+
 export function failureCode(error: unknown): FailureCode {
   if (error instanceof AbortedError) return 'aborted'
   if (error instanceof ConflictError) return 'name_conflict'
+  if (error instanceof InUseError) return 'in_use'
+  if (errorCode(error) == 'EFBIG') return 'file_too_large'
   if (error instanceof TimeoutError) return 'timeout'
   if (error instanceof SizeMismatchError) return 'size_mismatch'
   if (error instanceof HttpError) {

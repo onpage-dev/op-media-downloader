@@ -41,8 +41,9 @@ const desktop: DesktopApi = {
     getActivity: (id, limit) =>
       ipcRenderer.invoke(INVOKE.syncGetActivity, id, limit),
     onActivity: listener => listen(EVENTS.syncActivity, listener),
-    getFailed: id => ipcRenderer.invoke(INVOKE.syncGetFailed, id),
-    getDuplicates: id => ipcRenderer.invoke(INVOKE.syncGetDuplicates, id),
+    getFailed: (id, page) => ipcRenderer.invoke(INVOKE.syncGetFailed, id, page),
+    getDuplicates: (id, page) =>
+      ipcRenderer.invoke(INVOKE.syncGetDuplicates, id, page),
   },
 
   folders: {

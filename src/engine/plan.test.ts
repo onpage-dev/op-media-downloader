@@ -95,6 +95,19 @@ describe('plan: what to download and link', () => {
     expect(p.up_to_date).toBe(1)
   })
 
+  it('a disk that gives names back decomposed (macOS, HFS+): up to date, and removed when they leave', () => {
+    const nfc = 'caffè.jpg'
+    const nfd = nfc.normalize('NFD')
+    const p = plan({
+      desired: [want(nfc, 't1')],
+      manifest: manifest({ [nfc]: 't1', 'città.jpg': 't2' }),
+      scan: scan([nfd, 'città.jpg'.normalize('NFD')], ['t1', 't2']),
+    })
+    expect(p.renames).toHaveLength(0)
+    expect(p.up_to_date).toBe(1)
+    expect(p.remove_names).toEqual(['città.jpg'])
+  })
+
   it('a name of ours deleted by hand is linked again from data/', () => {
     const p = plan({
       desired: [want('a.jpg', 't1')],

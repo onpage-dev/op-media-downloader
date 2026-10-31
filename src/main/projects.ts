@@ -11,12 +11,13 @@ import { DeleteFilesResult, EngineProject, EngineToMain } from '../shared/engine
 import {
   ActivityEntry,
   AppStatus,
-  DuplicateGroup,
-  FailedEntry,
+  DuplicatePage,
+  FailedPage,
   FolderInfo,
   FolderProblem,
   Issue,
   IssueCode,
+  PageQuery,
   ProjectId,
   ProjectRuntime,
   ProjectView,
@@ -32,6 +33,7 @@ const PERSISTED_ISSUES: IssueCode[] = [
   'token_invalid',
   'project_unavailable',
   'listing_failed',
+  'unexpected',
   'folder_unreachable',
   'folder_not_writable',
   'folder_protected',
@@ -268,14 +270,15 @@ export class ProjectService {
     return this.engine.request<ActivityEntry[]>({ type: 'get_activity', project_id: id, limit })
   }
 
-  getFailed(id: ProjectId): Promise<FailedEntry[]> {
+  getFailed(id: ProjectId, page: PageQuery): Promise<FailedPage> {
     this.require(id)
-    return this.engine.request<FailedEntry[]>({ type: 'get_failed', project_id: id })
+    return this.engine.request<FailedPage>({ type: 'get_failed', project_id: id, ...page })
   }
 
-  getDuplicates(id: ProjectId): Promise<DuplicateGroup[]> {
+  /** The first page of a big project reads the listing cache: up to a minute */
+  getDuplicates(id: ProjectId, page: PageQuery): Promise<DuplicatePage> {
     const project = this.require(id)
-    return this.engine.request<DuplicateGroup[]>({ type: 'get_duplicates', project: this.engineProject(project) })
+    return this.engine.request<DuplicatePage>({ type: 'get_duplicates', project: this.engineProject(project), ...page }, 60_000)
   }
 
   verifyToken(token: string): Promise<TokenCheck> {

@@ -5,8 +5,8 @@
 import { randomBytes } from 'crypto'
 import { constants, promises as fs } from 'fs'
 import path from 'path'
-import { ConflictError, errorCode } from './errors'
-import { renameWithRetry, unlinkQuiet } from './fsx'
+import { ConflictError, errorCode, InUseError } from './errors'
+import { flushFile, isTransientLock, pathExists, renameWithRetry, unlinkQuiet, withLockRetry } from './fsx'
 import { TEMP_PREFIX } from './manifest'
 
 export type PlaceMode = 'link' | 'copy'
@@ -16,31 +16,52 @@ export interface LinkCapability {
   hardlinks?: boolean
 }
 
-/** Errors that mean "this file system cannot link", not "this name is busy" */
-const NOT_A_LINK_PROBLEM = new Set(['EEXIST', 'ENOENT', 'ENOSPC', 'EDQUOT'])
+/**
+ * What a file system that cannot link answers: ENOTSUP (SMB without links),
+ * EISDIR (Windows on FAT/exFAT: ERROR_INVALID_FUNCTION), EPERM (Linux vfat).
+ * EPERM and EACCES count only before the first link of the job worked: then
+ * they are about permissions, and the copy that follows tells.
+ */
+function linksUnsupported(code: string, capability: LinkCapability): boolean {
+  if (['ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV', 'EISDIR', 'EINVAL'].includes(code)) return true
+  return capability.hardlinks === undefined && (code == 'EPERM' || code == 'EACCES')
+}
 
-async function linkOrCopy(
-  blob: string,
-  dest: string,
-  capability: LinkCapability,
-): Promise<PlaceMode> {
+/**
+ * A copy under a temporary name, flushed to the disk, then given the name: a
+ * copy cut halfway (an unplugged disk, a crash) never sits under the name.
+ */
+async function copyTo(blob: string, dest: string, exclusive: boolean): Promise<void> {
+  const temp = path.join(path.dirname(dest), `${TEMP_PREFIX}${randomBytes(6).toString('hex')}`)
+  try {
+    await fs.copyFile(blob, temp, constants.COPYFILE_EXCL | constants.COPYFILE_FICLONE)
+    await flushFile(temp)
+    // The name was free when the plan was made: a file that appeared since is someone else's
+    if (exclusive && (await pathExists(dest)))
+      throw Object.assign(new Error(`${dest} already exists`), { code: 'EEXIST' })
+    await renameWithRetry(temp, dest)
+  } catch (error) {
+    await unlinkQuiet(temp).catch(() => undefined)
+    throw error
+  }
+}
+
+async function linkOrCopy(blob: string, dest: string, capability: LinkCapability, exclusive: boolean): Promise<PlaceMode> {
   if (capability.hardlinks !== false) {
     try {
-      await fs.link(blob, dest)
+      await withLockRetry(() => fs.link(blob, dest), 4)
       capability.hardlinks = true
       return 'link'
     } catch (error) {
       const code = errorCode(error) ?? ''
-      if (NOT_A_LINK_PROBLEM.has(code)) throw error
-      capability.hardlinks = false
+      // NTFS takes 1023 names per file: this content gets a copy, the others keep their links
+      if (code != 'EMLINK') {
+        if (!linksUnsupported(code, capability)) throw error
+        capability.hardlinks = false
+      }
     }
   }
-  // EXCL: never overwrite; FICLONE: copy-on-write where the file system can
-  await fs.copyFile(
-    blob,
-    dest,
-    constants.COPYFILE_EXCL | constants.COPYFILE_FICLONE,
-  )
+  await copyTo(blob, dest, exclusive)
   return 'copy'
 }
 
@@ -52,6 +73,11 @@ export interface PlaceOptions {
   /** A name of ours (same key) to replace atomically */
   replace?: string
   capability: LinkCapability
+}
+
+/** A rename or removal refused by a lock that did not go away: on Windows, the file is open somewhere */
+function inUse(error: unknown, name: string): unknown {
+  return process.platform == 'win32' && isTransientLock(error) ? new InUseError(name, error) : error
 }
 
 /**
@@ -68,23 +94,24 @@ export async function placeName(options: PlaceOptions): Promise<PlaceMode> {
   const target = path.join(folder, name)
   if (!replace) {
     try {
-      return await linkOrCopy(blob, target, capability)
+      return await linkOrCopy(blob, target, capability, true)
     } catch (error) {
       if (errorCode(error) == 'EEXIST') throw new ConflictError(name)
       throw error
     }
   }
-  const temp = path.join(
-    folder,
-    `${TEMP_PREFIX}${randomBytes(6).toString('hex')}`,
-  )
+  const temp = path.join(folder, `${TEMP_PREFIX}${randomBytes(6).toString('hex')}`)
   try {
-    const mode = await linkOrCopy(blob, temp, capability)
-    if (replace != name) {
-      // Different case: free the old name first (same file on case-insensitive folders)
-      await unlinkQuiet(path.join(folder, replace))
+    const mode = await linkOrCopy(blob, temp, capability, false)
+    try {
+      if (replace != name) {
+        // Different case: free the old name first (same file on case-insensitive folders)
+        await withLockRetry(() => unlinkQuiet(path.join(folder, replace)), 4)
+      }
+      await renameWithRetry(temp, target)
+    } catch (error) {
+      throw inUse(error, replace)
     }
-    await renameWithRetry(temp, target)
     return mode
   } catch (error) {
     await unlinkQuiet(temp).catch(() => undefined)
@@ -93,12 +120,21 @@ export async function placeName(options: PlaceOptions): Promise<PlaceMode> {
 }
 
 /** Only the case of a name changes: same file, new name */
-export async function renameName(
-  folder: string,
-  from: string,
-  to: string,
-): Promise<void> {
-  if (path.basename(from) != from || path.basename(to) != to)
-    throw new Error('Unsafe name')
-  await renameWithRetry(path.join(folder, from), path.join(folder, to))
+export async function renameName(folder: string, from: string, to: string): Promise<void> {
+  if (path.basename(from) != from || path.basename(to) != to) throw new Error('Unsafe name')
+  try {
+    await renameWithRetry(path.join(folder, from), path.join(folder, to))
+  } catch (error) {
+    throw inUse(error, from)
+  }
+}
+
+/** Removes a name of ours; a file open in another program (Windows) is an InUseError */
+export async function removeName(folder: string, name: string): Promise<boolean> {
+  if (path.basename(name) != name) throw new Error('Unsafe name')
+  try {
+    return await withLockRetry(() => unlinkQuiet(path.join(folder, name)), 4)
+  } catch (error) {
+    throw inUse(error, name)
+  }
 }

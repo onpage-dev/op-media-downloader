@@ -4,7 +4,8 @@
  */
 import { promises as fs } from 'fs'
 import path from 'path'
-import { atomicWrite } from './fsx'
+import { isNotFound } from './errors'
+import { atomicWrite, withLockRetry } from './fsx'
 import { isSafeToken, nameKey, sanitizeName } from './names'
 
 export const DATA_DIR = 'data'
@@ -212,11 +213,17 @@ function validName(name: string): boolean {
   )
 }
 
+/**
+ * A file that is not there is undefined; one that cannot be read (a share
+ * that dropped, an antivirus holding it) is an error: starting from an empty
+ * registry would forget which names are ours.
+ */
 async function readText(file: string): Promise<string | undefined> {
   try {
-    return await fs.readFile(file, 'utf8')
-  } catch {
-    return undefined
+    return await withLockRetry(() => fs.readFile(file, 'utf8'), 4)
+  } catch (error) {
+    if (isNotFound(error)) return undefined
+    throw error
   }
 }
 

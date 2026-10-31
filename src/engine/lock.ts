@@ -1,13 +1,17 @@
 /**
  * data/.lock: one writer per folder, also across computers sharing a
  * network folder. A heartbeat keeps it fresh; a lock without heartbeat for
- * two minutes belongs to a crashed instance and can be taken over.
+ * two minutes belongs to a crashed instance and can be taken over. The
+ * clocks of two computers can differ by minutes: before taking a lock that
+ * looks stale the app watches it for a heartbeat, and a lock of this
+ * computer whose process is gone is taken at once.
  */
 import { promises as fs } from 'fs'
 import os from 'os'
 import path from 'path'
-import { errorCode, JobError } from './errors'
+import { errorCode, isNotFound, JobError } from './errors'
 import { atomicWrite } from './fsx'
+import { sleep } from './http'
 import { LOCK_FILE } from './manifest'
 
 export interface LockInfo {
@@ -24,6 +28,8 @@ export interface LockOptions {
   project_id: string
   stale_ms?: number
   heartbeat_ms?: number
+  /** How long a lock that looks stale is watched for a heartbeat before it is taken */
+  confirm_ms?: number
   now?: () => number
 }
 
@@ -33,13 +39,71 @@ export const LOCK_HEARTBEAT_MS = 30_000
 export async function readLock(
   data_dir: string,
 ): Promise<LockInfo | undefined> {
+  return (await readLockFile(path.join(data_dir, LOCK_FILE))).info
+}
+
+/** `exists` without `info`: a lock being written, or broken */
+async function readLockFile(
+  file: string,
+): Promise<{ exists: boolean; info?: LockInfo }> {
+  let text: string
   try {
-    return JSON.parse(
-      await fs.readFile(path.join(data_dir, LOCK_FILE), 'utf8'),
-    ) as LockInfo
-  } catch {
-    return undefined
+    text = await fs.readFile(file, 'utf8')
+  } catch (error) {
+    return { exists: !isNotFound(error) }
   }
+  try {
+    const info = JSON.parse(text) as LockInfo
+    return {
+      exists: true,
+      info: info && typeof info.instance_id == 'string' ? info : undefined,
+    }
+  } catch {
+    return { exists: true }
+  }
+}
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return errorCode(error) == 'EPERM'
+  }
+}
+
+/** A lock of this computer whose process is gone: the app crashed, no need to wait */
+function crashedHere(info: LockInfo): boolean {
+  return (
+    info.host == os.hostname() &&
+    Number.isInteger(info.pid) &&
+    info.pid != process.pid &&
+    !processAlive(info.pid)
+  )
+}
+
+/** Whether the lock in the folder can be taken over; otherwise who holds it */
+async function takeOver(
+  file: string,
+  opts: Required<LockOptions>,
+): Promise<{ take: boolean; holder?: LockInfo }> {
+  const first = await readLockFile(file)
+  if (!first.exists) return { take: true }
+  const held = first.info
+  if (held) {
+    // Ours from an earlier job
+    if (held.instance_id == opts.instance_id && held.project_id == opts.project_id)
+      return { take: true }
+    if (crashedHere(held)) return { take: true }
+    if (!isStale(held, opts.now(), opts.stale_ms)) return { take: false, holder: held }
+  }
+  // Stale by its own clock, or unreadable: a live instance beats (or finishes writing) meanwhile
+  await sleep(held ? opts.confirm_ms : Math.min(opts.confirm_ms, 2000))
+  const second = await readLockFile(file)
+  if (!second.exists) return { take: true }
+  if (JSON.stringify(second.info) != JSON.stringify(held))
+    return { take: false, holder: second.info ?? held }
+  return { take: true }
 }
 
 export function isStale(
@@ -54,7 +118,11 @@ export function isStale(
 export class FolderLock {
   private timer?: NodeJS.Timeout
   private info: LockInfo
-  /** Set when another instance took the folder while we were working */
+  private last_beat: number
+  /**
+   * Set when another instance took the folder while we were working, or when
+   * the heartbeat could not be written for so long that others may take it
+   */
   lost = false
 
   private constructor(
@@ -63,6 +131,7 @@ export class FolderLock {
     private options: Required<LockOptions>,
   ) {
     this.info = info
+    this.last_beat = options.now()
   }
 
   static async acquire(
@@ -71,11 +140,13 @@ export class FolderLock {
   ): Promise<FolderLock> {
     // `??`, not a spread: an option passed as undefined must keep the default
     // (setInterval with undefined runs every millisecond)
+    const heartbeat_ms = Math.max(10, options.heartbeat_ms ?? LOCK_HEARTBEAT_MS)
     const opts: Required<LockOptions> = {
       instance_id: options.instance_id,
       project_id: options.project_id,
       stale_ms: options.stale_ms ?? LOCK_STALE_MS,
-      heartbeat_ms: Math.max(10, options.heartbeat_ms ?? LOCK_HEARTBEAT_MS),
+      heartbeat_ms,
+      confirm_ms: options.confirm_ms ?? heartbeat_ms + 5000,
       now: options.now ?? Date.now,
     }
     const file = path.join(data_dir, LOCK_FILE)
@@ -98,18 +169,14 @@ export class FolderLock {
       } catch (error) {
         if (errorCode(error) != 'EEXIST') throw error
       }
-      const current = await readLock(data_dir)
-      const ours =
-        current?.instance_id == opts.instance_id &&
-        current?.project_id == opts.project_id
-      if (current && !ours && !isStale(current, opts.now(), opts.stale_ms)) {
+      const { take, holder } = await takeOver(file, opts)
+      if (!take) {
         throw new JobError(
           'folder_locked',
           'Another instance is syncing this folder',
-          `${current.host} (pid ${current.pid})`,
+          holder ? `${holder.host} (pid ${holder.pid})` : undefined,
         )
       }
-      // Ours from an earlier job, stale, or unreadable: take it over
       await fs.rm(file, { force: true })
     }
     throw new JobError('folder_locked', 'The folder lock could not be taken')
@@ -138,9 +205,16 @@ export class FolderLock {
       if (after && after.instance_id != this.info.instance_id) {
         this.lost = true
         this.stopHeartbeat()
+        return
       }
+      this.last_beat = this.options.now()
     } catch {
-      // A missed beat is not fatal: the next one retries
+      // A missed beat is not fatal, the next one retries; but after most of
+      // the stale time without one, another computer may take the folder
+      if (this.options.now() - this.last_beat > this.options.stale_ms * 0.75) {
+        this.lost = true
+        this.stopHeartbeat()
+      }
     }
   }
 

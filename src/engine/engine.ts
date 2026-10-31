@@ -5,7 +5,7 @@
  */
 import { promises as fs } from 'fs'
 import path from 'path'
-import { OpFile } from 'onpage-js'
+import { OpFile, Schema } from 'onpage-js'
 import {
   DeleteFilesResult,
   EngineCommand,
@@ -17,11 +17,13 @@ import {
   MainToEngine,
 } from '../shared/engine-protocol'
 import {
-  DuplicateGroup,
+  DuplicatePage,
+  FailedPage,
   Issue,
   IssueCode,
   JobKind,
   JobPhase,
+  PageQuery,
   PlanSummary,
   ProjectId,
   ProjectRuntime,
@@ -29,7 +31,13 @@ import {
 } from '../shared/models'
 import { ActivityLog, FailedList } from './activity'
 import { dataDirOwner, removeOwnDataEntries } from './data-dir'
-import { AbortedError, errorDetail, HttpError, JobError } from './errors'
+import {
+  AbortedError,
+  errorDetail,
+  folderJobError,
+  HttpError,
+  JobError,
+} from './errors'
 import { executePlan, ExecuteResult } from './executor'
 import {
   inspectFolder,
@@ -37,8 +45,14 @@ import {
   isProtectedPath,
   normalize,
 } from './folder-inspect'
-import { pathExists, reachable, unlinkQuiet } from './fsx'
-import { API_RETRY, DOWNLOAD_RETRY, FetchLike, RetryPolicy } from './http'
+import { freeSpace, pathExists, reachable, unlinkQuiet } from './fsx'
+import {
+  API_RETRY,
+  DOWNLOAD_RETRY,
+  FetchLike,
+  RetryPolicy,
+  sleep,
+} from './http'
 import { LinkCapability } from './link'
 import { listRemote, ListingResult, PAGE_SIZE, PARALLEL_PAGES } from './listing'
 import { FolderLock } from './lock'
@@ -131,6 +145,10 @@ class ProjectSlot {
   last_state_at = 0
   state_timer?: NodeJS.Timeout
   activity_timer?: NodeJS.Timeout
+  /** After a restart: the names of the listing cache, for the duplicates tab */
+  saved?: { token: string; resolved: ResolvedNames }
+  /** After a restart: the schema, for the labels of the duplicates tab */
+  schema?: { token: string; schema: Schema }
 
   constructor(public id: ProjectId, now: () => number) {
     this.activity = new ActivityLog(now)
@@ -241,9 +259,9 @@ export class Engine {
           []
         )
       case 'get_failed':
-        return this.slots.get(request.project_id)?.failed.list() ?? []
+        return this.failedPage(request.project_id, request)
       case 'get_duplicates':
-        return this.duplicates(request.project)
+        return this.duplicates(request.project, request)
       case 'delete_project_files':
         return this.deleteProjectFiles(request.project)
     }
@@ -421,13 +439,8 @@ export class Engine {
     let issue: Issue | undefined
     if (!stopped) {
       const job_error =
-        error instanceof JobError
-          ? error
-          : new JobError(
-              'listing_failed',
-              'Unexpected error',
-              errorDetail(error),
-            )
+        folderJobError(error) ??
+        new JobError('unexpected', 'Unexpected error', errorDetail(error))
       if (!(error instanceof JobError))
         this.log('error', `Job ${kind} failed: ${errorDetail(error)}`, slot.id)
       issue = {
@@ -506,7 +519,10 @@ export class Engine {
       )
     }
     const data_dir = path.join(folder, DATA_DIR)
-    if ((await dataDirOwner(data_dir).catch(() => 'missing')) == 'foreign') {
+    const owner = await dataDirOwner(data_dir).catch(error => {
+      throw folderJobError(error) ?? error
+    })
+    if (owner == 'foreign') {
       throw new JobError(
         'folder_protected',
         'The folder already has a "data" folder that the app did not create',
@@ -537,12 +553,16 @@ export class Engine {
       project_id: project.id,
       stale_ms: this.timings.lock_stale_ms,
       heartbeat_ms: this.timings.lock_heartbeat_ms,
+    }).catch(error => {
+      throw folderJobError(error) ?? error
     })
     try {
       const { manifest, source, recovered } = await Manifest.load(
         data_dir,
         project.id,
-      )
+      ).catch(error => {
+        throw folderJobError(error) ?? error
+      })
       if (source == 'link.json')
         this.log('info', 'Imported data/link.json from 1.x', project.id)
       if (recovered)
@@ -638,6 +658,7 @@ export class Engine {
     }
     slot.duplicates = resolved.duplicates.length
     slot.last = { token: job.project.token, listing, resolved, at: this.now() }
+    slot.saved = undefined
     return slot.last
   }
 
@@ -650,7 +671,9 @@ export class Engine {
     signal: AbortSignal | undefined = job.controller.signal,
   ): Promise<Plan> {
     if (signal) this.setPhase(slot, 'comparing')
-    const scan = await scanFolder(prepared.folder)
+    const scan = await scanFolder(prepared.folder).catch(error => {
+      throw folderJobError(error) ?? error
+    })
     // Leftovers of interrupted runs: ours by name
     const leftovers = [
       ...scan.data_leftovers.map(n => path.join(prepared.data_dir, n)),
@@ -745,8 +768,9 @@ export class Engine {
     this.setPhase(slot, 'finishing')
     const capability: LinkCapability = {}
     const storageUrl = storageLinker(this.init?.api_domain ?? DEFAULT_DOMAIN)
+    let result: ExecuteResult | undefined
     try {
-      const result = await executePlan({
+      result = await executePlan({
         folder: prepared.folder,
         data_dir: prepared.data_dir,
         manifest: prepared.manifest,
@@ -776,20 +800,43 @@ export class Engine {
           this.emitState(slot)
         },
         log: (level, message) => this.log(level, message, slot.id),
+        lost: () =>
+          prepared.lock.lost
+            ? new JobError(
+                'folder_locked',
+                'Another computer took over the folder',
+              )
+            : undefined,
+        reach_timeout_ms: this.timings.reach_timeout_ms,
       })
-      if (capability.hardlinks === false || result.copies) slot.copies = true
-      if (capability.hardlinks === true && !result.copies) slot.copies = false
+      // A copy for a content with too many names says nothing about the folder
+      if (capability.hardlinks !== undefined)
+        slot.copies = !capability.hardlinks
       return result
     } finally {
-      await prepared.manifest
-        .flush()
-        .catch(error =>
-          this.log(
-            'error',
-            `data/manifest.json not written: ${errorDetail(error)}`,
-            slot.id,
-          ),
-        )
+      // A folder taken by another computer is its own now: our registry would overwrite its one
+      const error = prepared.lock.lost
+        ? undefined
+        : await this.saveManifest(prepared.manifest)
+      if (error) {
+        this.log('error', `data/manifest.json not written: ${errorDetail(error)}`, slot.id)
+        // The files are in place but not registered: the run must not look complete
+        // eslint-disable-next-line no-unsafe-finally
+        if (result) throw folderJobError(error) ?? error
+      }
+    }
+  }
+
+  /** The final save of the manifest, retried: a busy share or an antivirus can refuse it for a moment */
+  private async saveManifest(manifest: Manifest): Promise<unknown> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await manifest.flush()
+        return undefined
+      } catch (error) {
+        if (attempt >= 3) return error
+        await sleep(500 * attempt)
+      }
     }
   }
 
@@ -921,6 +968,7 @@ export class Engine {
           remove_tokens: [],
         }
       }
+      await this.checkRoom(prepared, plan, slot)
       const executed = await this.execute(
         job,
         slot,
@@ -953,6 +1001,35 @@ export class Engine {
     }
   }
 
+  /**
+   * Before downloading: the contents, and the copies where the folder copies,
+   * must fit. A clear «disk full» now beats a disk filled to the last byte;
+   * a file system that does not tell its free space is not checked.
+   */
+  private async checkRoom(
+    prepared: Prepared,
+    plan: Plan,
+    slot: ProjectSlot,
+  ): Promise<void> {
+    const contents = plan.downloads.reduce((sum, t) => sum + (t.size ?? 0), 0)
+    if (!contents) return
+    const copies = slot.copies
+      ? plan.downloads.reduce(
+          (sum, t) => sum + (t.size ?? 0) * t.names.length,
+          0,
+        ) + plan.links.reduce((sum, l) => sum + (l.size ?? 0), 0)
+      : 0
+    const needed = contents + copies
+    const free = await freeSpace(prepared.folder)
+    if (free !== undefined && free > 0 && free < needed) {
+      throw new JobError(
+        'disk_full',
+        'Not enough free space',
+        `${needed} bytes needed, ${free} free`,
+      )
+    }
+  }
+
   /** The user confirmed the removals above the threshold */
   private async runCleanup(job: Job): Promise<SyncResult> {
     const slot = this.slot(job.project.id)
@@ -978,23 +1055,67 @@ export class Engine {
 
   /* ------------------------------------------------------------------ requests */
 
-  private async duplicates(project: EngineProject): Promise<DuplicateGroup[]> {
-    const slot = this.slot(project.id)
-    let resolved =
-      slot.last?.token == project.token ? slot.last.resolved : undefined
-    if (!resolved) {
-      const cache_file = this.cacheFile(project.id)
-      const cache = cache_file ? await readIndexCache(cache_file) : undefined
-      if (!cache) return []
-      resolved = resolveNames(cache)
+  /**
+   * The names of the last listing; after a restart, of the listing cache on
+   * disk, resolved once and kept (with 100k+ files that takes seconds)
+   */
+  private async resolvedOf(
+    project: EngineProject,
+    slot: ProjectSlot,
+  ): Promise<ResolvedNames | undefined> {
+    if (slot.last?.token == project.token) return slot.last.resolved
+    if (slot.saved?.token == project.token) return slot.saved.resolved
+    const cache_file = this.cacheFile(project.id)
+    const cache = cache_file ? await readIndexCache(cache_file) : undefined
+    if (!cache) return undefined
+    slot.saved = { token: project.token, resolved: resolveNames(cache) }
+    return slot.saved.resolved
+  }
+
+  private async schemaOf(
+    project: EngineProject,
+    slot: ProjectSlot,
+  ): Promise<Schema> {
+    if (slot.last?.token == project.token) return slot.last.listing.schema
+    if (slot.schema?.token != project.token)
+      slot.schema = {
+        token: project.token,
+        schema: await loadSchema(project.token, this.onPageContext()),
+      }
+    return slot.schema.schema
+  }
+
+  private failedPage(project_id: ProjectId, page: Partial<PageQuery>): FailedPage {
+    const entries = this.slots.get(project_id)?.failed.list() ?? []
+    const offset = Math.max(0, page.offset ?? 0)
+    return {
+      total: entries.length,
+      entries: entries.slice(offset, offset + Math.max(1, page.limit ?? 50)),
     }
-    if (!resolved.duplicates.length) return []
-    const schema =
-      slot.last?.token == project.token
-        ? slot.last.listing.schema
-        : await loadSchema(project.token, this.onPageContext())
+  }
+
+  /** A page of the names with different files, searched by name; labels only for that page */
+  private async duplicates(
+    project: EngineProject,
+    page: Partial<PageQuery>,
+  ): Promise<DuplicatePage> {
+    const slot = this.slot(project.id)
+    const resolved = await this.resolvedOf(project, slot)
+    if (!resolved?.duplicates.length)
+      return { total: 0, language_variants: 0, groups: [] }
+    const query = page.query?.trim().normalize('NFC').toLowerCase()
+    const matching = query
+      ? resolved.duplicates.filter(group => group.key.includes(query))
+      : resolved.duplicates
+    const offset = Math.max(0, page.offset ?? 0)
+    const groups = matching.slice(offset, offset + Math.max(1, page.limit ?? 50))
+    const total = {
+      total: matching.length,
+      language_variants: languageVariants(resolved),
+    }
+    if (!groups.length) return { ...total, groups: [] }
+    const schema = await this.schemaOf(project, slot)
     const lang = schema.lang ?? schema.default_lang
-    const groups = resolved.duplicates.slice(0, 500)
 
     // Thing labels, read only for the things involved
     const labels = new Map<number, string>()
@@ -1038,7 +1159,9 @@ export class Engine {
         return fallback
       }
     }
-    return groups.map(group => ({
+    return {
+      ...total,
+      groups: groups.map(group => ({
       name: group.name,
       variants: group.variants.map(variant => {
         const file = new OpFile(
@@ -1079,7 +1202,8 @@ export class Engine {
           }),
         }
       }),
-    }))
+      })),
+    }
   }
 
   /** Removes what the app downloaded: the manifest's names and data/; the folder only if left empty */
@@ -1135,4 +1259,33 @@ export class Engine {
     await this.forget(project.id)
     return result
   }
+}
+
+const LANGUAGE_VARIANTS = new WeakMap<ResolvedNames, number>()
+
+/**
+ * Names whose files are one field of one item in different languages (a
+ * datasheet translated under the same name): counted once per listing.
+ */
+function languageVariants(resolved: ResolvedNames): number {
+  let count = LANGUAGE_VARIANTS.get(resolved)
+  if (count !== undefined) return count
+  count = 0
+  for (const group of resolved.duplicates) {
+    const at = new Map<string, { variant: number; lang: string | null }[]>()
+    let found = false
+    group.variants.forEach((variant, index) => {
+      for (const use of variant.uses) {
+        if (found) return
+        const where = `${use.resource_id}:${use.thing_id}:${use.field_id}`
+        const others = at.get(where) ?? []
+        if (others.some(o => o.variant != index && o.lang != use.lang)) found = true
+        others.push({ variant: index, lang: use.lang })
+        at.set(where, others)
+      }
+    })
+    if (found) count++
+  }
+  LANGUAGE_VARIANTS.set(resolved, count)
+  return count
 }

@@ -75,7 +75,8 @@ const quit = (): void => window.desktop.app.quit()
       <UiButton variant="primary" :icon="icons.faLayerGroup" @click="syncAll">{{ t('toolbar.sync_all') }}</UiButton>
       <UiButton :icon="icons.faWindowRestore" @click="show()">{{ t('tray.open') }}</UiButton>
       <span class="flex-1" />
-      <UiButton variant="ghost" :icon="icons.faPowerOff" @click="quit">{{ t('tray.quit') }}</UiButton>
+      <!-- An icon: the two buttons keep their room in every language -->
+      <IconButton :icon="icons.faPowerOff" :label="t('tray.quit')" :size="36" @click="quit" />
     </footer>
   </div>
 </template>

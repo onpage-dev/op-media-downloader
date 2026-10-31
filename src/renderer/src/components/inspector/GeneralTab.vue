@@ -58,6 +58,7 @@ function actionsOf(issue: Issue): Action[] {
     case 'folder_locked':
     case 'disk_full':
     case 'listing_failed':
+    case 'unexpected':
       return [retry]
     case 'interrupted':
       return [{ key: 'sync', run: () => sync(id) }]

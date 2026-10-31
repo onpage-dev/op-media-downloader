@@ -9,9 +9,10 @@
  */
 import {
   ActivityEntry,
-  DuplicateGroup,
-  FailedEntry,
+  DuplicatePage,
+  FailedPage,
   FolderInfo,
+  PageQuery,
   ProjectId,
   ProjectRuntime,
   SyncResult,
@@ -69,9 +70,9 @@ export type EngineRequest =
   | { type: 'inspect_folder'; path: string; project_id?: ProjectId }
   | { type: 'verify_token'; token: string }
   | { type: 'get_activity'; project_id: ProjectId; limit?: number }
-  | { type: 'get_failed'; project_id: ProjectId }
-  /** Fetches thing labels for the groups on demand */
-  | { type: 'get_duplicates'; project: EngineProject }
+  | ({ type: 'get_failed'; project_id: ProjectId } & Partial<PageQuery>)
+  /** A page of groups; thing labels are read for that page only */
+  | ({ type: 'get_duplicates'; project: EngineProject } & Partial<PageQuery>)
   /** Removes data/, the names in the manifest and the folder when left empty */
   | { type: 'delete_project_files'; project: EngineProject }
 
@@ -94,8 +95,8 @@ export type EngineResponseData =
   | FolderInfo
   | TokenCheck
   | ActivityEntry[]
-  | FailedEntry[]
-  | DuplicateGroup[]
+  | FailedPage
+  | DuplicatePage
   | DeleteFilesResult
 
 export type EngineToMain =

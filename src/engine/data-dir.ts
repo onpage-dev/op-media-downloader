@@ -17,7 +17,9 @@ export function isOwnDataEntry(name: string): boolean {
   return (
     SERVICE_FILES.has(name) ||
     name.startsWith(TEMP_PREFIX) ||
+    // Temporary copies of the manifest and of the lock (a write cut by a crash or a dropped share)
     name.startsWith(`${MANIFEST_FILE}.`) ||
+    name.startsWith(`${LOCK_FILE}.`) ||
     TOKEN_LIKE.test(name)
   )
 }

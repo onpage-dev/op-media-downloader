@@ -10,7 +10,7 @@ import { EVENTS } from '../shared/ipc-channels'
 import { AppSettings, AppStatus, ProjectId, ProjectView } from '../shared/models'
 import { aggregateTone, projectStatus } from '../shared/status'
 import { EngineHost } from './engine-host'
-import { texts } from './i18n'
+import { systemLanguage, texts } from './i18n'
 import { registerIpc } from './ipc'
 import { log } from './log'
 import { commandFromArgv, setupJumpList, setupMenu } from './menu'
@@ -44,7 +44,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 function start(): void {
-  const store = new AppStore()
+  const store = new AppStore(systemLanguage([...app.getPreferredSystemLanguages(), app.getLocale()]))
   const instance_id = crypto.randomUUID()
   let window: BrowserWindow | undefined
   let quitting = false

@@ -381,8 +381,17 @@ const desktop: DesktopApi = {
     },
     getActivity: async id => clone(activity[id] ?? []),
     onActivity: listener => activityAdded.add(listener),
-    getFailed: async id => clone(failed[id] ?? []),
-    getDuplicates: async id => clone(duplicates[id] ?? []),
+    getFailed: async (id, page) => {
+      const all = failed[id] ?? []
+      return clone({ total: all.length, entries: all.slice(page.offset, page.offset + page.limit) })
+    },
+    getDuplicates: async (id, page) => {
+      // A big project reads its listing cache first: the tab shows that it is loading
+      await later(400)
+      const query = page.query?.toLowerCase()
+      const all = (duplicates[id] ?? []).filter(g => !query || g.name.toLowerCase().includes(query))
+      return clone({ total: all.length, language_variants: 0, groups: all.slice(page.offset, page.offset + page.limit) })
+    },
   },
   folders: {
     pick: async () => 'D:\\Media\\Listino 2027',
