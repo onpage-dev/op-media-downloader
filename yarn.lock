@@ -7,6 +7,13 @@
   resolved "https://registry.yarnpkg.com/@alloc/quick-lru/-/quick-lru-5.2.0.tgz#7bf68b20c0a350f936915fcae06f58e32007ce30"
   integrity sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==
 
+"@awesome.me/kit-6d2a188266@^1.0.165":
+  version "1.0.165"
+  resolved "https://npm.fontawesome.com/@awesome.me/kit-6d2a188266/-/kit-6d2a188266-1.0.165.tgz#ee85970c6da35e115edcc7086927de1f76d4cc13"
+  integrity sha512-YgUQ5ZpF8H9ZpojyAovbohLmPz7xE8EXoqplWln+MeqUbSpNt/yIlodbQZ0ZMUNF4FZ6Km/UCQfAtzL+QN5lGw==
+  dependencies:
+    "@fortawesome/fontawesome-common-types" "^7.3.1"
+
 "@babel/code-frame@^7.29.7":
   version "7.29.7"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.29.7.tgz#f2fbbfea87c44a21590ec515b778b2c26d8866e7"
@@ -293,7 +300,7 @@
   resolved "https://registry.yarnpkg.com/@eslint/js/-/js-8.57.0.tgz#a5417ae8427873f1dd08b70b3574b453e67b5f7f"
   integrity sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==
 
-"@fortawesome/fontawesome-common-types@7.3.1":
+"@fortawesome/fontawesome-common-types@7.3.1", "@fortawesome/fontawesome-common-types@^7.3.1":
   version "7.3.1"
   resolved "https://npm.fontawesome.com/@fortawesome/fontawesome-common-types/-/fontawesome-common-types-7.3.1.tgz#913fe0c0aed1184390efeec2546d78f9c4c8dc4a"
   integrity sha512-k0C0sdHmZtAo6dRDtd1Z/qcpyHbL0CKsjV8seMY/21xGhY5Wsv0XRmiI/xEEH4y2c9b1+jvgNs/3EqhV27yUEA==

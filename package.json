@@ -29,6 +29,7 @@
     "onpage-js": "^1.2.0"
   },
   "devDependencies": {
+    "@awesome.me/kit-6d2a188266": "^1.0.165",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@fortawesome/fontawesome-svg-core": "^7.3.1",
     "@fortawesome/pro-light-svg-icons": "^7.3.1",
