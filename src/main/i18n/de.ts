@@ -35,12 +35,15 @@ export const de: Texts = {
     folder_unreachable: 'Der Ordner ist nicht erreichbar.',
     folder_not_writable: 'In den Ordner kann nicht geschrieben werden.',
     folder_locked: 'Der Ordner wird von einem anderen Computer verwendet.',
+    folder_other_project: 'Der Ordner wird mit einem anderen On Page-Projekt synchronisiert.',
     disk_full: 'Der Datenträger ist voll.',
     listing_failed: 'Die Dateiliste konnte nicht von On Page abgerufen werden.',
     other: 'Öffnen, um zu sehen, was passiert ist.',
   },
   delete_failed_title: label => `${label}: Dateien nicht gelöscht`,
   delete_failed_body: 'Die heruntergeladenen Dateien konnten nicht gelöscht werden und befinden sich noch im Ordner.',
+  delete_other_project_body:
+    'Der Ordner gehört jetzt zu einem anderen On Page-Projekt: Die Dateien bleiben, wo sie sind.',
   quit_title: 'Downloads laufen',
   quit_message:
     'Es laufen noch Downloads. Wenn Sie die App beenden, werden sie gestoppt: Bereits heruntergeladene Dateien bleiben erhalten.',

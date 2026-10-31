@@ -5,7 +5,7 @@
  */
 import { promises as fs } from 'fs'
 import path from 'path'
-import { ProjectId } from '../shared/models'
+import { OnPageProject, ProjectId } from '../shared/models'
 import { dataDirOwner } from './data-dir'
 import { AbortedError, errorDetail, folderJobError, JobError } from './errors'
 import { isInside, isProtectedPath, normalize } from './folder-inspect'
@@ -111,6 +111,20 @@ export class FolderSession {
   /** Throws once the folder is not the job's to write: another computer took it */
   guard(): void {
     if (this.lock.lost) throw lockLost()
+  }
+
+  /**
+   * The folder is one On Page project's: the first job names it in the
+   * registry. A job of another project stops before touching anything, unless
+   * the user chose the folder for this token (a new project, another token or
+   * folder): then the folder becomes this project's.
+   */
+  bind(project: OnPageProject, take_over: boolean): void {
+    const bound = this.manifest.onpage_project
+    if (bound && bound.id != project.id && !take_over) {
+      throw new JobError('folder_other_project', 'The folder is synced with another On Page project', bound.label)
+    }
+    this.manifest.bind(project)
   }
 
   /** Scan, adoption checks, plan */

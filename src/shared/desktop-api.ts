@@ -76,7 +76,8 @@ export interface DesktopApi {
   }
 
   sync: {
-    sync(id: ProjectId, options?: { full_listing?: boolean }): Promise<void>
+    /** `take_over_folder`: the user chose to use the folder of another On Page project for this one */
+    sync(id: ProjectId, options?: { full_listing?: boolean; take_over_folder?: boolean }): Promise<void>
     syncAll(): Promise<void>
     download(id: ProjectId): Promise<void>
     retryFailed(id: ProjectId): Promise<void>

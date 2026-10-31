@@ -176,6 +176,10 @@
       "title": "文件夹正在使用中",
       "text": "另一台计算机正在同步此文件夹。{detail}"
     },
+    "folder_other_project": {
+      "title": "另一个 On Page 项目的文件夹",
+      "text": "该文件夹正在与 On Page 项目“{detail}”同步：未做任何更改。请选择其他文件夹，或将其用于此项目。"
+    },
     "disk_full": {
       "title": "磁盘已满",
       "text": "请释放空间后重试：已下载的文件会保留。"
@@ -220,7 +224,8 @@
       "retry_failed": "重试失败项",
       "see": "查看",
       "see_duplicates": "查看重名文件",
-      "confirm": "确认"
+      "confirm": "确认",
+      "take_over": "使用此文件夹"
     },
     "listing_incomplete": {
       "title": "部分集合未能读取",
@@ -285,6 +290,7 @@
     "keep": "保留 On Page 上已不存在的旧本地文件",
     "keep_note": "从 On Page 移除的文件会保留在文件夹中。",
     "token_note": "令牌决定下载哪些内容：其视图的筛选条件同样适用。",
+    "token_other": "另一个 On Page 项目的令牌：保存后，文件夹将从“{previous}”转到“{project}”。",
     "show": "显示",
     "hide": "隐藏",
     "verify": "验证",
@@ -360,6 +366,15 @@
       "title": "文件夹尚不存在",
       "text": "将在首次同步时创建。"
     },
+    "bound": {
+      "title": "On Page 项目“{label}”的文件夹",
+      "text": "应用已下载到此处的文件将被重复使用。"
+    },
+    "bound_other": {
+      "title": "另一个 On Page 项目的文件夹",
+      "text": "它正在与“{label}”同步：使用此令牌后将转到“{project}”，应用为“{label}”下载的文件会在首次同步时删除。",
+      "text_keep": "它正在与“{label}”同步：使用此令牌后将转到“{project}”；“{label}”的文件将作为旧文件保留。"
+    },
     "hardlinks_no": {
       "title": "不支持硬链接",
       "text": "每个文件都会被复制，占用双倍空间。"
@@ -422,6 +437,12 @@
     "title": "删除 {count} 个文件？",
     "text": "这些文件已不在 On Page 上。应用只删除自己下载的文件：其他文件会保留。",
     "confirm": "删除文件"
+  },
+  "take_over": {
+    "title": "将该文件夹用于“{label}”？",
+    "text": "从现在起，该文件夹将跟随此项目的令牌。应用为“{other}”下载的文件会在同步时删除（数量较多时需确认）；其他文件保留。",
+    "text_keep": "从现在起，该文件夹将跟随此项目的令牌。应用为“{other}”下载的文件将作为旧文件保留。",
+    "confirm": "使用文件夹"
   },
   "settings": {
     "title": "设置",

@@ -5,7 +5,7 @@
  * folder lock. Everything in flight listens to both (`signal`).
  */
 import { EngineProject, EngineToMain } from '../shared/engine-protocol'
-import { JobKind, ProjectId } from '../shared/models'
+import { JobKind, OnPageProject, ProjectId } from '../shared/models'
 import { ActivityLog, FailedList } from './activity'
 import { AbortedError, JobError } from './errors'
 import { FetchLike } from './http'
@@ -21,6 +21,8 @@ export class Job {
   readonly signal: AbortSignal
   /** Settles when the job has ended and its result was sent */
   done: Promise<void> = Promise.resolve()
+  /** The job's On Page project, once the folder's registry on the disk names it */
+  folder_project?: OnPageProject
   private stop_controller = new AbortController()
   private fail_controller = new AbortController()
 

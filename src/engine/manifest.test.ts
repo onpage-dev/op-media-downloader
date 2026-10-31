@@ -72,6 +72,38 @@ describe('manifest', () => {
     expect(await fs.readFile(path.join(dir, MANIFEST_FILE), 'utf8')).toBe(newer)
   })
 
+  it('names the On Page project: a new registry with its first file, one on the disk at once', async () => {
+    const dir = await tempDir()
+    const { manifest } = await Manifest.load(dir, 'p1')
+    manifest.bind({ id: 77, label: 'Catalogo' })
+    await manifest.flush()
+    // A «Sincronizza» on a new folder leaves no file
+    expect(await listDir(dir)).toEqual([])
+    expect(manifest.written_project).toBeUndefined()
+    manifest.set('a.jpg', { token: 't1', mode: 'link' })
+    await manifest.flush()
+    expect(manifest.written_project).toEqual({ id: 77, label: 'Catalogo' })
+    const again = (await Manifest.load(dir, 'p1')).manifest
+    expect(again.onpage_project).toEqual({ id: 77, label: 'Catalogo' })
+    // Another project, or a new label, is written with nothing else to write
+    again.bind({ id: 88, label: 'Listino' })
+    await again.flush()
+    expect((await Manifest.load(dir, 'p1')).manifest.written_project).toEqual({ id: 88, label: 'Listino' })
+    // Not a project: ignored, the files are kept
+    await fs.writeFile(
+      path.join(dir, MANIFEST_FILE),
+      JSON.stringify({
+        version: 2,
+        project_id: 'p1',
+        onpage_project: { id: '77' },
+        files: { 'a.jpg': { token: 't1' } },
+      }),
+    )
+    const odd = (await Manifest.load(dir, 'p1')).manifest
+    expect(odd.onpage_project).toBeUndefined()
+    expect(odd.size).toBe(1)
+  })
+
   it('a name that changes case replaces its entry', async () => {
     const { manifest } = await Manifest.load(await tempDir(), 'p1')
     manifest.set('foto.jpg', { token: 't1', mode: 'link' })

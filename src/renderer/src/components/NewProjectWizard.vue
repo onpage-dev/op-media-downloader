@@ -58,6 +58,12 @@ watch(step, async () => {
 })
 
 const tokenOk = computed(() => typeof check.value == 'object' && check.value.ok)
+/** The On Page project of the token: the folder check says when the folder is another one's */
+const tokenProject = computed(() =>
+  typeof check.value == 'object' && check.value.ok && check.value.project_id != null
+    ? { id: check.value.project_id, label: check.value.project_label ?? '' }
+    : undefined,
+)
 const folderOk = computed(() => typeof info.value == 'object' && !info.value.problems.length)
 const canNext = computed(() => [tokenOk.value, folderOk.value, !!label.value.trim()][step.value])
 const done = computed(() => (folderOk.value && step.value < 1 ? [1] : []))
@@ -133,7 +139,7 @@ const close = (): void => {
         <div v-if="info == 'inspecting'" class="flex items-center gap-sm text-sm" role="status">
           <UiSpinner class="text-accent-fg" />{{ t('wizard.inspecting') }}
         </div>
-        <FolderChecks v-else-if="info" :info="info" />
+        <FolderChecks v-else-if="info" :info="info" :project="tokenProject" :keep="keep" />
         <FieldError v-else :text="folderError" />
       </template>
 

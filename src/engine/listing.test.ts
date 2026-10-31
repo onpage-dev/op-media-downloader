@@ -169,6 +169,7 @@ describe('listing', () => {
   it('verifies a token for the new project form', async () => {
     expect(await verifyToken(fake.token, ctx())).toEqual({
       ok: true,
+      project_id: 77,
       project_label: 'Progetto di prova',
       collections_with_files: 2,
       langs: ['it', 'en'],

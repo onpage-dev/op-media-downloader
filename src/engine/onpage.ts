@@ -107,6 +107,7 @@ export async function verifyToken(token: string, ctx: OnPageContext): Promise<To
     const schema = await loadSchema(token, ctx)
     return {
       ok: true,
+      project_id: schema.id,
       project_label: schema.label,
       collections_with_files: mediaResources(schema).length,
       langs: schema.langs,

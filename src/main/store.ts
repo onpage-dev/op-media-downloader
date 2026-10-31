@@ -20,6 +20,7 @@ import {
   DEFAULT_SETTINGS,
   FolderInfo,
   Issue,
+  OnPageProject,
   PlanSummary,
   ProjectConfig,
   ProjectId,
@@ -38,6 +39,14 @@ export interface StoredProject extends ProjectConfig {
   /** Issues still valid after a restart (failed files, duplicates, copies) */
   issues?: Issue[]
   folder_info?: FolderInfo
+  /** The On Page project the folder was last saved with by this project */
+  onpage_project?: OnPageProject
+  /**
+   * The user chose the folder for the token (a new project, another token or
+   * folder): until a job saves the folder's registry, it may take the folder
+   * over from another On Page project
+   */
+  take_over_folder?: boolean
 }
 
 export interface WindowState {
@@ -305,6 +314,13 @@ function readProject(id: string, value: unknown): StoredProject | undefined {
       isRecord(value.folder_info) && Array.isArray(value.folder_info.problems)
         ? (value.folder_info as unknown as FolderInfo)
         : undefined,
+    onpage_project:
+      isRecord(value.onpage_project) &&
+      Number.isSafeInteger(value.onpage_project.id) &&
+      typeof value.onpage_project.label == 'string'
+        ? { id: value.onpage_project.id as number, label: value.onpage_project.label }
+        : undefined,
+    take_over_folder: value.take_over_folder === true || undefined,
   }
 }
 

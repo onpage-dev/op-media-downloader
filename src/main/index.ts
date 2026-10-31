@@ -161,7 +161,11 @@ function start(onSecondInstance: (handler: (argv: string[]) => void) => void): v
     status.jobEnded(result, main_window.focused)
     notifyResult(store, view, result, (id, tab) => main_window.focusProject(id, tab))
   })
-  projects.onDeleteFailed(project => notifyDeleteFailed(store, project.label, () => main_window.show()))
+  projects.onDeleteFailed((project, error) =>
+    notifyDeleteFailed(store, project.label, String((error as Error | undefined)?.message ?? error).split(':')[0], () =>
+      main_window.show(),
+    ),
+  )
 
   registerIpc({
     projects,

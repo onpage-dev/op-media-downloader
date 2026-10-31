@@ -38,7 +38,8 @@ import { fileCounts, kindOf } from './lib/status-view'
 /** `created`, the order in which the projects were added, until a header is clicked */
 export type SortKey = 'created' | 'status' | 'label' | 'folder' | 'progress' | 'files' | 'speed' | 'last'
 export interface DialogState {
-  kind: 'delete' | 'stop' | 'cleanup'
+  /** `take_over`: use the folder of another On Page project for this one */
+  kind: 'delete' | 'stop' | 'cleanup' | 'take_over'
   id: ProjectId
 }
 export const DESTINATIONS = ['local', 'network', 'removable'] as const
@@ -459,6 +460,9 @@ export function confirmDialog(options: { delete_files?: boolean } = {}): void {
   if (!dialog) return
   if (dialog.kind == 'stop') void run('stop', () => desktop().sync.stop(dialog.id))
   if (dialog.kind == 'cleanup') void run('cleanup', () => desktop().sync.confirmCleanup(dialog.id))
+  if (dialog.kind == 'take_over') {
+    void run('take over folder', () => desktop().sync.sync(dialog.id, { take_over_folder: true }))
+  }
   if (dialog.kind == 'delete') {
     void run('delete', () => desktop().projects.remove(dialog.id, { delete_files: !!options.delete_files }))
   }

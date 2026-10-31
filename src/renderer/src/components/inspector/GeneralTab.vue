@@ -63,6 +63,11 @@ function actionsOf(issue: Issue): Action[] {
     case 'folder_not_writable':
     case 'folder_protected':
       return [{ key: 'change_folder', run: () => edit(id) }, retry]
+    case 'folder_other_project':
+      return [
+        { key: 'change_folder', run: () => edit(id) },
+        { key: 'take_over', run: () => ask('take_over', id) },
+      ]
     case 'folder_locked':
     case 'disk_full':
     case 'listing_failed':

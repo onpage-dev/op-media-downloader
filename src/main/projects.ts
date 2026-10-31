@@ -56,6 +56,7 @@ const PERSISTED_ISSUES: IssueCode[] = [
   'folder_unreachable',
   'folder_not_writable',
   'folder_protected',
+  'folder_other_project',
   'disk_full',
   'duplicates',
   'failed_files',
@@ -186,6 +187,8 @@ export class ProjectService {
         created_at: new Date().toISOString(),
         ...this.store.encryptToken(token),
         folder_info: info,
+        /** The user chose the folder for this token, whatever On Page project it had */
+        take_over_folder: true,
       }
       this.store.saveProject(project)
       this.configureEngine()
@@ -241,6 +244,8 @@ export class ProjectService {
         next.plan = undefined
         next.issues = []
         next.last_result = undefined
+        /** The user's choice: the folder follows this token, also from another On Page project */
+        next.take_over_folder = true
         this.runtimes.delete(id)
         this.engine.command({ type: 'forget', project_id: id })
       }
@@ -274,10 +279,15 @@ export class ProjectService {
 
   /* ---------------------------------------------------------------- jobs */
 
-  /** Starts a job unless one runs; an engine that was given up is started again */
-  startJob(id: ProjectId, job: JobKind, options: { full_listing?: boolean } = {}): void {
-    const project = this.require(id)
+  /**
+   * Starts a job unless one runs; an engine that was given up is started
+   * again. `take_over_folder`: the user chose to use the folder of another On
+   * Page project for this one, until a job saves the folder's registry.
+   */
+  startJob(id: ProjectId, job: JobKind, options: { full_listing?: boolean; take_over_folder?: boolean } = {}): void {
+    let project = this.require(id)
     if (this.runtime(project).phase != 'idle') return
+    if (options.take_over_folder) project = this.store.patchProject(id, { take_over_folder: true }) ?? project
     this.engineUp()
     this.markStarting(project, job)
     const target = this.engineProject(project)
@@ -487,6 +497,10 @@ export class ProjectService {
       last_result: finished ? result : runtime.last_result,
     }
     this.runtimes.set(id, next_runtime)
+    /** The folder's registry names this project's On Page project now: the choice of the folder is done */
+    if (result.onpage_project) {
+      this.store.patchProject(id, { onpage_project: result.onpage_project, take_over_folder: undefined })
+    }
     const saved = this.persist(project, next_runtime)
     this.changed()
     log(
@@ -568,6 +582,7 @@ export class ProjectService {
       has_token: this.store.hasToken(project),
       runtime: this.runtime(project),
       folder_info: project.folder_info,
+      onpage_project: project.onpage_project,
     }
   }
 
@@ -611,6 +626,8 @@ export class ProjectService {
       token: this.store.token(project),
       folder: project.folder,
       keep_old_files: project.keep_old_files,
+      take_over_folder: project.take_over_folder,
+      onpage_project_id: project.onpage_project?.id,
     }
   }
 

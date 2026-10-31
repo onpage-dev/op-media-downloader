@@ -66,7 +66,7 @@ export interface ProjectStatus {
 const ERROR_KEYS: [IssueCode[], StatusKey][] = [
   [['token_invalid', 'project_unavailable'], 'error_token'],
   [['folder_locked'], 'error_locked'],
-  [['folder_unreachable', 'folder_not_writable', 'folder_protected'], 'error_folder'],
+  [['folder_unreachable', 'folder_not_writable', 'folder_protected', 'folder_other_project'], 'error_folder'],
   [['disk_full'], 'error_disk'],
   [['listing_failed'], 'error_listing'],
   [['unexpected'], 'error_unexpected'],

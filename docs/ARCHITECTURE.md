@@ -39,6 +39,7 @@ The main process never does file system work on project folders and never blocks
 {
   "version": 2,
   "project_id": "…",
+  "onpage_project": { "id": 77, "label": "Catalogo" },
   "updated_at": "…",
   "files": { "Product-123.jpg": { "token": "…", "size": 845123, "mode": "link", "remote_name": "Product-123.jpg" } }
 }
@@ -54,6 +55,7 @@ The main process never does file system work on project folders and never blocks
 6. **One writer per folder**: `data/.lock` with host, pid, instance and a heartbeat every 30 s. A lock that looks stale (no heartbeat for 2 minutes by its own clock) is watched for one more heartbeat before it is taken, because two computers' clocks can differ; a lock of this computer whose process is gone is taken at once. A run whose heartbeat cannot be written for most of the stale time, or whose lock was taken by another computer, stops at once (`folder_locked`): the transfers in flight abort, nothing more is linked, removed or written to the manifest, and the registry is left to the new owner.
 7. **Nothing half-written under a name**: a download goes to `<token>.<random>.download`, every byte written, the size checked, the file flushed to the disk, then renamed (retrying the transient Windows locks EPERM/EBUSY/EACCES); copies go through a `.opmd-` temporary name the same way; the manifest and the lock are written to a temporary file, flushed, then renamed. After a power cut or an unplugged disk a name holds its whole file or is not there.
 8. **Never act on partial knowledge**: a manifest that exists but cannot be read now (an antivirus, a share that hiccups) stops the job instead of starting from an empty registry; a broken one (cut by a power cut) is rebuilt by adoption (rule 2), removing nothing; one written by a newer version of the app (`version` above 2) stops the job (`folder_protected`) and is left as it is.
+9. **One On Page project per folder**: the manifest names the On Page project of the folder (`onpage_project`, by id: a renamed project keeps its folder and the label follows). A new folder gets it with its first file, so a «Sincronizza» alone still leaves no trace; a manifest that exists gets it at the next write. A job whose token is of another On Page project stops before anything is linked, removed or written (`folder_other_project`, the detail names the folder's project), unless the user chose the folder for this token: a new project, another token or another folder in the project's settings, or «Usa questa cartella» on the issue. Main keeps that choice (`take_over_folder`) until a job finds the manifest on the disk naming the token's project; from then on the names of the old project are removals like any other (rules 1 and 3, or kept with `keep_old_files`). Two computers syncing the same On Page project share a folder as before.
 
 ## Core flows
 
@@ -62,7 +64,7 @@ The main process never does file system work on project folders and never blocks
 1. **Prepare**: inspect the folder (reachable, writable, not protected), take the lock, remove orphan `*.download`, load the manifest (or migrate `link.json`), load the listing cache.
 2. **List** (On Page): load the schema; signature = media fields per resource + langs + view. For each resource with media fields, `ids()` of the things with at least one media value. Read the things that are new (not in the cache) or changed (`_updated_at` after the last complete listing, minus a 10 minute margin); everything when there is no cache, the signature changed, the cache is older than 7 days or the user asks for a full listing. On Page updates a thing's `_updated_at` whenever the value of one of its media fields changes, file name included (confirmed by On Page). Pages of 1,000 ids, 2 in parallel, only the media fields. Each request is retried (up to 6 attempts, 2 minutes per attempt) with exponential backoff and jitter on network errors, timeouts, 5xx and **429**; on 429 the wait is the longer of the backoff and `Retry-After` (capped at 2 minutes), and the project shows `rate_limited` meanwhile. The parallelism does not change. A collection that keeps failing makes the listing incomplete (rule 4; it keeps what the cache knew); a refused token or no network ends the listing; all collections failing is `listing_failed`. The cache is replaced only after a complete listing.
 3. **Resolve names**: deterministic order (resources and fields in schema order, things by id, langs in schema order, files in value order); the first file of each case-insensitive name wins, the others become a **duplicate group**. Names are made safe for Windows on every platform (no path separators or `..`, no `<>:"/\|?*` and control characters, no reserved names, no trailing dots or spaces, at most 200 UTF-8 bytes keeping the extension); names that collide after this are duplicates too. Linear in the number of files, also when a name's file is used by 100k things.
-4. **Scan**: one asynchronous listing of the folder and one of `data/`; `stat` only to decide an adoption (rule 2).
+4. **Scan**: first the folder's On Page project (rule 9); then one asynchronous listing of the folder and one of `data/`; `stat` only to decide an adoption (rule 2). «Scarica» and «Conferma» go through the same compare.
 5. **Plan** (pure function, unit tested on 100k+ synthetic files): contents to download (one per token), names to link or relink, names and contents to remove (only with `keep_old_files` off, rules 1, 3, 4), names up to date, conflicts.
 6. When nothing needs downloading, links and removals are applied right away (within the threshold) and the sync is a completed run. Otherwise the project waits in «Da scaricare» with the plan.
 
@@ -83,7 +85,7 @@ Removes the names the plan held back when the user saw them (rule 3), and only t
 
 ### Deleting a project's files (`delete_project_files`)
 
-Refused while a job of the project runs (`project_busy`); no job of the project starts while it runs. The folder lock is held until `data/` is empty and `.lock` goes last, then `data/` itself and the folder when nothing else is left in it. Only names of the manifest (as the disk gives them back, NFC or NFD) and the app's entries of `data/` are removed, a few at a time.
+Refused while a job of the project runs (`project_busy`); no job of the project starts while it runs. Refused too, with nothing removed, when the manifest names another On Page project than the one the project last synced (`folder_other_project`): the folder was taken over since, and its names are that project's now. The folder lock is held until `data/` is empty and `.lock` goes last, then `data/` itself and the folder when nothing else is left in it. Only names of the manifest (as the disk gives them back, NFC or NFD) and the app's entries of `data/` are removed, a few at a time.
 
 ### Faults of folders and disks
 
@@ -135,4 +137,4 @@ Every case below has a fault-injection test (`src/engine/faults.test.ts`; the co
 
 ## Migration from 1.x
 
-On first start main reads the 1.x store (`storage_data`, `user_properties`): every project keeps its id, label, folder and `keep_old_files`; the token moves to encrypted storage; `simultaneous_downloads` becomes `concurrency` (at least 4 if it was the 1.x default of 1), `dark_mode` becomes the theme. The engine imports `data/link.json` into `data/manifest.json` the first time it works on a folder.
+On first start main reads the 1.x store (`storage_data`, `user_properties`): every project keeps its id, label, folder and `keep_old_files`; the token moves to encrypted storage; `simultaneous_downloads` becomes `concurrency` (at least 4 if it was the 1.x default of 1), `dark_mode` becomes the theme. The engine imports `data/link.json` into `data/manifest.json` the first time it works on a folder, and names the On Page project of the folder then (rule 9).

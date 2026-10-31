@@ -176,6 +176,10 @@
       "title": "Cartella in uso",
       "text": "Un altro computer sta sincronizzando questa cartella. {detail}"
     },
+    "folder_other_project": {
+      "title": "Cartella di un altro progetto On Page",
+      "text": "La cartella è sincronizzata con il progetto On Page «{detail}»: non è stato toccato niente. Scegli un’altra cartella, oppure usala per questo progetto."
+    },
     "disk_full": {
       "title": "Disco pieno",
       "text": "Libera spazio e riprova: i file già scaricati restano."
@@ -220,7 +224,8 @@
       "retry_failed": "Riprova i falliti",
       "see": "Vedi",
       "see_duplicates": "Vedi i duplicati",
-      "confirm": "Conferma"
+      "confirm": "Conferma",
+      "take_over": "Usa questa cartella"
     },
     "listing_incomplete": {
       "title": "Alcune raccolte non sono state lette",
@@ -285,6 +290,7 @@
     "keep": "Mantieni i vecchi file locali non più presenti su On Page",
     "keep_note": "I file tolti da On Page restano nella cartella.",
     "token_note": "Il token decide cosa si scarica: valgono anche i filtri della sua vista.",
+    "token_other": "Token di un altro progetto On Page: salvando, la cartella passa da «{previous}» a «{project}».",
     "show": "Mostra",
     "hide": "Nascondi",
     "verify": "Verifica",
@@ -360,6 +366,15 @@
       "title": "La cartella non esiste ancora",
       "text": "Si crea alla prima sincronizzazione."
     },
+    "bound": {
+      "title": "Cartella del progetto On Page «{label}»",
+      "text": "I file che l’app ha già scaricato lì vengono riusati."
+    },
+    "bound_other": {
+      "title": "Cartella di un altro progetto On Page",
+      "text": "È sincronizzata con «{label}»: con questo token passa a «{project}» e i file scaricati dall’app per «{label}» vengono rimossi alla prima sincronizzazione.",
+      "text_keep": "È sincronizzata con «{label}»: con questo token passa a «{project}»; i file di «{label}» restano come file vecchi."
+    },
     "hardlinks_no": {
       "title": "Collegamenti fisici non supportati",
       "text": "Ogni file si copia e occupa il doppio dello spazio."
@@ -422,6 +437,12 @@
     "title": "Togliere {count} file?",
     "text": "Su On Page non ci sono più. L’app toglie solo i file che ha scaricato lei: gli altri restano.",
     "confirm": "Togli i file"
+  },
+  "take_over": {
+    "title": "Usare la cartella per «{label}»?",
+    "text": "Da ora la cartella segue il token di questo progetto. I file scaricati dall’app per «{other}» vengono rimossi alla sincronizzazione, con una conferma se sono molti; gli altri file restano.",
+    "text_keep": "Da ora la cartella segue il token di questo progetto. I file scaricati dall’app per «{other}» restano come file vecchi.",
+    "confirm": "Usa la cartella"
   },
   "settings": {
     "title": "Impostazioni",

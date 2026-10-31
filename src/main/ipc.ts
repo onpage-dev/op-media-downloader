@@ -102,7 +102,10 @@ export function registerIpc(deps: IpcDeps): void {
     [INVOKE.projectsRevealToken]: (_e, id) => projects.revealToken(projectId(id)),
 
     [INVOKE.syncSync]: (_e, id, options) =>
-      projects.startJob(projectId(id), 'sync', { full_listing: isRecord(options) && options.full_listing === true }),
+      projects.startJob(projectId(id), 'sync', {
+        full_listing: isRecord(options) && options.full_listing === true,
+        take_over_folder: isRecord(options) && options.take_over_folder === true,
+      }),
     [INVOKE.syncSyncAll]: () => projects.syncAll(),
     [INVOKE.syncDownload]: (_e, id) => projects.startJob(projectId(id), 'download'),
     [INVOKE.syncRetryFailed]: (_e, id) => projects.startJob(projectId(id), 'retry_failed'),

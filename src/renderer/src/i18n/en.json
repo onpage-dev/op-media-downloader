@@ -176,6 +176,10 @@
       "title": "Folder in use",
       "text": "Another computer is syncing this folder. {detail}"
     },
+    "folder_other_project": {
+      "title": "Folder of another On Page project",
+      "text": "The folder is synced with the On Page project «{detail}»: nothing was touched. Choose another folder, or use this one for this project."
+    },
     "disk_full": {
       "title": "Disk full",
       "text": "Free some space and try again: the files already downloaded stay."
@@ -220,7 +224,8 @@
       "retry_failed": "Retry failed",
       "see": "See",
       "see_duplicates": "See duplicates",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "take_over": "Use this folder"
     },
     "listing_incomplete": {
       "title": "Some collections were not read",
@@ -285,6 +290,7 @@
     "keep": "Keep old local files that are no longer on On Page",
     "keep_note": "Files removed from On Page stay in the folder.",
     "token_note": "The token decides what is downloaded: its View filters apply too.",
+    "token_other": "Token of another On Page project: once saved, the folder passes from «{previous}» to «{project}».",
     "show": "Show",
     "hide": "Hide",
     "verify": "Verify",
@@ -360,6 +366,15 @@
       "title": "The folder does not exist yet",
       "text": "It is created at the first sync."
     },
+    "bound": {
+      "title": "Folder of the On Page project «{label}»",
+      "text": "The files the app already downloaded there are reused."
+    },
+    "bound_other": {
+      "title": "Folder of another On Page project",
+      "text": "It is synced with «{label}»: with this token it passes to «{project}», and the files the app downloaded for «{label}» are removed at the first sync.",
+      "text_keep": "It is synced with «{label}»: with this token it passes to «{project}»; the files of «{label}» stay as old files."
+    },
     "hardlinks_no": {
       "title": "Hard links not supported",
       "text": "Every file is copied and takes twice the space."
@@ -422,6 +437,12 @@
     "title": "Remove {count} files?",
     "text": "They are no longer on On Page. The app only removes the files it downloaded: the others stay.",
     "confirm": "Remove the files"
+  },
+  "take_over": {
+    "title": "Use the folder for «{label}»?",
+    "text": "From now on the folder follows this project's token. The files the app downloaded for «{other}» are removed at the sync, with a confirmation if they are many; the other files stay.",
+    "text_keep": "From now on the folder follows this project's token. The files the app downloaded for «{other}» stay as old files.",
+    "confirm": "Use the folder"
   },
   "settings": {
     "title": "Settings",

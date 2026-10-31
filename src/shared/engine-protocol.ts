@@ -26,6 +26,13 @@ export interface EngineProject {
   token: string
   folder: string
   keep_old_files: boolean
+  /**
+   * The user chose this folder for this token (a new project, another token or
+   * another folder): the job may take the folder over from another On Page project
+   */
+  take_over_folder?: boolean
+  /** The On Page project the project last synced: its files are deleted only from a folder still of that project */
+  onpage_project_id?: number
 }
 
 export interface EngineInit {

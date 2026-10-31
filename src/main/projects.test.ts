@@ -3,8 +3,8 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { EngineCommand, EngineRequest, EngineToMain } from '../shared/engine-protocol'
-import { FolderInfo, FolderProblem, ProjectRuntime, ProjectView } from '../shared/models'
+import { EngineCommand, EngineProject, EngineRequest, EngineToMain } from '../shared/engine-protocol'
+import { FolderInfo, FolderProblem, OnPageProject, ProjectRuntime, ProjectView, SyncResult } from '../shared/models'
 import { NO_TIMEOUT } from './engine-host'
 import { Engine, ENGINE_DOWN, ProjectService, RemovedProject } from './projects'
 import { AppStore } from './store'
@@ -331,6 +331,63 @@ describe('jobs', () => {
       expect(last()).toMatchObject({ type, project: { id: view.id } })
     }
     expect(() => projects.startJob('unknown', 'sync')).toThrow('project_not_found')
+  })
+
+  it('may take the folder over after a choice of the user, until a job finds the folder is the project’s', async () => {
+    const view = await created()
+    const sent = (): EngineProject => {
+      const command = engine.commands.at(-1)
+      if (!command || !('project' in command)) throw new Error('No job command')
+      return command.project
+    }
+    const end = (onpage_project?: OnPageProject): void => {
+      const at = new Date().toISOString()
+      const result: SyncResult = {
+        job: 'sync',
+        started_at: at,
+        ended_at: at,
+        outcome: 'completed',
+        total: 0,
+        downloaded: 0,
+        linked: 0,
+        removed: 0,
+        already_present: 0,
+        failed: 0,
+        bytes: 0,
+        onpage_project,
+      }
+      engine.emit({ kind: 'result', project_id: view.id, result })
+    }
+
+    // A new project: the user chose the folder for its token
+    projects.startJob(view.id, 'sync')
+    expect(sent()).toMatchObject({ take_over_folder: true, onpage_project_id: undefined })
+    // A job that did not reach the folder's registry keeps the choice
+    end()
+    projects.startJob(view.id, 'download')
+    expect(sent()).toMatchObject({ take_over_folder: true })
+    // The registry names the project: the choice is done, its On Page project known
+    end({ id: 77, label: 'Catalogo' })
+    expect(projects.views()[0].onpage_project).toEqual({ id: 77, label: 'Catalogo' })
+    expect(store.project(view.id)?.take_over_folder).toBeUndefined()
+    projects.startJob(view.id, 'sync')
+    expect(sent()).toMatchObject({ take_over_folder: undefined, onpage_project_id: 77 })
+    end({ id: 77, label: 'Catalogo' })
+
+    // Another token: the folder follows it
+    await projects.update(view.id, { token: 'another' })
+    projects.startJob(view.id, 'sync')
+    expect(sent()).toMatchObject({ take_over_folder: true, onpage_project_id: 77 })
+    end({ id: 88, label: 'Listino' })
+    expect(sent().take_over_folder).toBe(true)
+    projects.startJob(view.id, 'sync')
+    expect(sent()).toMatchObject({ take_over_folder: undefined, onpage_project_id: 88 })
+    end({ id: 88, label: 'Listino' })
+
+    // «Usa questa cartella» on the issue of a folder another computer took over
+    projects.startJob(view.id, 'sync', { take_over_folder: true })
+    expect(sent()).toMatchObject({ take_over_folder: true, onpage_project_id: 88 })
+    expect(store.project(view.id)?.take_over_folder).toBe(true)
   })
 
   it('an engine that keeps stopping gives every project the unexpected issue until a job starts it again', async () => {

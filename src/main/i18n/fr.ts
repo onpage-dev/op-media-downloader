@@ -32,12 +32,15 @@ export const fr: Texts = {
     folder_unreachable: 'Le dossier est inaccessible.',
     folder_not_writable: 'Impossible d’écrire dans le dossier.',
     folder_locked: 'Un autre ordinateur utilise le dossier.',
+    folder_other_project: 'Le dossier est synchronisé avec un autre projet On Page.',
     disk_full: 'Le disque est plein.',
     listing_failed: 'Impossible de lire la liste des fichiers sur On Page.',
     other: 'Ouvrez l’app pour voir ce qui s’est passé.',
   },
   delete_failed_title: label => `${label}\u00a0: fichiers non supprimés`,
   delete_failed_body: 'Impossible de supprimer les fichiers téléchargés\u00a0: ils sont toujours dans le dossier.',
+  delete_other_project_body:
+    'Le dossier appartient désormais à un autre projet On Page\u00a0: les fichiers sont restés en place.',
   quit_title: 'Téléchargements en cours',
   quit_message:
     'Des téléchargements sont en cours. Si vous quittez, ils seront arrêtés\u00a0: les fichiers déjà téléchargés sont conservés.',

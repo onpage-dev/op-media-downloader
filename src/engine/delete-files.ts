@@ -3,7 +3,8 @@
  * in data/; the folder itself only when nothing else is left in it. The
  * folder lock is held until data/ is empty and goes last, so no other
  * instance starts on a half-deleted folder; the engine starts no job of the
- * project meanwhile.
+ * project meanwhile. A folder another On Page project took over since the
+ * project's last sync is left as it is (`folder_other_project`).
  */
 import { promises as fs } from 'fs'
 import path from 'path'
@@ -46,6 +47,11 @@ export async function deleteProjectFiles(project: EngineProject, options: Delete
     })
     try {
       const { manifest } = await Manifest.load(data_dir, project.id)
+      // Taken over by another On Page project since: the names are that project's now
+      const bound = manifest.onpage_project
+      if (bound && project.onpage_project_id !== undefined && bound.id != project.onpage_project_id) {
+        throw new Error(`folder_other_project: ${bound.label}`)
+      }
       const scan = await scanFolder(folder)
       await runQueue(manifest.entries(), LANES, async ([name]) => {
         // Exactly our name, as the disk gives it back (decomposed on macOS), and a plain file

@@ -1,18 +1,20 @@
 <script setup lang="ts">
 /**
  * What the inspection of a folder found, a line each in its tone: where it is,
- * whether it can be used, hard links, free space, what is already there. The
- * problems that forbid the folder come first.
+ * whether it can be used, the On Page project it is synced with, hard links,
+ * free space, what is already there. The problems that forbid the folder come
+ * first. `project`: the On Page project of the token the folder is for, when
+ * known; `keep`: the project keeps the old files.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { FolderInfo } from '@shared/models'
+import type { FolderInfo, OnPageProject } from '@shared/models'
 import { formatBytes, formatNumber } from '../lib/format'
 import * as icons from '../lib/icons'
 import { TONE_FG, TONE_SOFT, toneText } from '../lib/status-view'
 import AppIcon from './ui/AppIcon.vue'
 
-const props = defineProps<{ info: FolderInfo; needed?: number }>()
+const props = defineProps<{ info: FolderInfo; needed?: number; project?: OnPageProject; keep?: boolean }>()
 const { t } = useI18n()
 
 type Tone = 'success' | 'info' | 'warning' | 'danger'
@@ -51,6 +53,28 @@ const lines = computed(() => {
       icon: icons.faFolder,
       title: t('check.missing.title'),
       text: t('check.missing.text'),
+    })
+  const bound = info.onpage_project
+  const project = props.project
+  if (bound && project && project.id != bound.id)
+    result.push({
+      key: 'bound',
+      tone: 'warning',
+      icon: icons.faArrowsRotate,
+      title: t('check.bound_other.title'),
+      text: t(props.keep ? 'check.bound_other.text_keep' : 'check.bound_other.text', {
+        label: bound.label,
+        project: project.label,
+      }),
+    })
+  else if (bound)
+    result.push({
+      key: 'bound',
+      tone: 'info',
+      icon: icons.faArrowsRotate,
+      title: t('check.bound.title', { label: bound.label }),
+      // Without the token's project, whether its files stay is not known yet
+      text: project ? t('check.bound.text') : '',
     })
   if (info.hardlinks === false)
     result.push({
@@ -102,7 +126,7 @@ const lines = computed(() => {
       <AppIcon :icon="line.icon" class="mt-[3px]" :class="TONE_FG[line.tone]" />
       <div class="min-w-0" :class="toneText(line.tone)">
         <div class="text-sm font-medium leading-normal">{{ line.title }}</div>
-        <div class="text-xs">{{ line.text }}</div>
+        <div v-if="line.text" class="text-xs">{{ line.text }}</div>
       </div>
     </li>
   </ul>

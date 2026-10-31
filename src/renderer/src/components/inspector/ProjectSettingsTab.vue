@@ -15,9 +15,11 @@ import { useAction } from '../../composables/useAction'
 import { useFolderField } from '../../composables/useFolderField'
 import { useTokenCheck } from '../../composables/useTokenCheck'
 import * as icons from '../../lib/icons'
+import { TONE_FG, TONE_ICON, TONE_SOFT, toneText } from '../../lib/status-view'
 import { revealToken, updateProject } from '../../store'
 import FolderChecks from '../FolderChecks.vue'
 import TokenVerdict from '../TokenVerdict.vue'
+import AppIcon from '../ui/AppIcon.vue'
 import FieldError from '../ui/FieldError.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import TextField from '../ui/TextField.vue'
@@ -89,6 +91,20 @@ const blocked = computed(
 )
 /** Without hard links every file is copied: the tag says it beside the folder */
 const copies = computed(() => known.value?.hardlinks === false)
+/** The On Page project of a token typed and checked here */
+const typedProject = computed(() =>
+  editing.value && typeof check.value == 'object' && check.value.ok && check.value.project_id != null
+    ? { id: check.value.project_id, label: check.value.project_label ?? '' }
+    : undefined,
+)
+/** The On Page project the folder is for: the typed token's, else the one the project last synced */
+const tokenProject = computed(() => typedProject.value ?? props.project.onpage_project)
+/** A token of another On Page project: once saved, the folder follows it */
+const switching = computed(() => {
+  const before = props.project.onpage_project
+  const after = typedProject.value
+  return before && after && before.id != after.id ? { previous: before.label, project: after.label } : undefined
+})
 const tokenError = computed(() => checkError.value ?? revealError.value)
 
 const tokenText = computed(() => (editing.value ? form.token : (revealed.value ?? MASK)))
@@ -162,9 +178,17 @@ async function save(): Promise<void> {
       </div>
       <template v-if="typeof check == 'object' || tokenError">
         <span />
-        <div :id="ids.tokenNote" class="max-w-[560px]">
+        <div :id="ids.tokenNote" class="flex max-w-[560px] flex-col gap-sm">
           <TokenVerdict v-if="typeof check == 'object'" :check="check" />
           <FieldError v-else :text="tokenError" />
+          <div
+            v-if="switching"
+            class="flex items-start gap-sm-md rounded-md px-md py-sm text-xs"
+            :class="[TONE_SOFT.warning, toneText('warning')]"
+          >
+            <AppIcon :icon="TONE_ICON.warning" class="mt-[2px]" :class="TONE_FG.warning" />
+            <span>{{ t('project.token_other', switching) }}</span>
+          </div>
         </div>
       </template>
 
@@ -195,7 +219,13 @@ async function save(): Promise<void> {
           <div v-if="inspected == 'inspecting'" class="flex items-center gap-sm text-sm" role="status">
             <UiSpinner class="text-accent-fg" />{{ t('wizard.inspecting') }}
           </div>
-          <FolderChecks v-else-if="inspected" :info="inspected" :needed="project.runtime.plan?.remote_bytes" />
+          <FolderChecks
+            v-else-if="inspected"
+            :info="inspected"
+            :needed="project.runtime.plan?.remote_bytes"
+            :project="tokenProject"
+            :keep="form.keep_old_files"
+          />
           <FieldError v-else :text="folderError" />
         </div>
       </template>

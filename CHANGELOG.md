@@ -13,8 +13,9 @@ A new app: a desktop sync manager for On Page media, rebuilt around a sync engin
 - **Safe removals**: the app only removes what it created (`data/manifest.json`); files of other people or apps in the folder are never touched, also when a project is deleted. Large removals wait for a confirmation, which covers exactly the files the user was shown. Nothing is removed after an incomplete listing, and the project says which collections were not read.
 - The registry of created files is saved during the run (atomically), so an interrupted session resumes without redoing the work.
 - A folder lock prevents two computers from syncing the same folder at the same time, also when their clocks differ; a computer that loses the lock stops at once, without touching the folder again.
+- **One On Page project per folder**: the folder's registry names its On Page project. A token of another project stops before touching anything; when the user chooses the folder for it (a new project, another token or folder, or «Use this folder»), the folder follows the new project. Deleting a project's files leaves alone a folder another project took over.
 - Built for real folders: full disks, shares that drop, unplugged disks, read-only folders, antivirus and files open in other programs, disks without hard links. Files are flushed to the disk before they get their name, free space is checked before downloading, a registry written by a newer version of the app is left as it is, and every case is covered by a fault-injection test.
-- Folder checks: network or local, hard link support (copies take twice the space), free space, protected and overlapping folders.
+- Folder checks: network or local, hard link support (copies take twice the space), free space, protected and overlapping folders, the On Page project the folder already belongs to.
 - File names made safe for every file system; names already used by other files are reported, never overwritten.
 - Deleting a project with its files runs in the background, with the folder locked until the end: the project leaves the list at once.
 

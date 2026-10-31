@@ -40,6 +40,10 @@ const cleanup = computed(
     project.value?.runtime.plan?.to_remove ??
     0,
 )
+/** The On Page project the folder is synced with, as the job that stopped found it */
+const otherProject = computed(
+  () => project.value?.runtime.issues.find(i => i.code == 'folder_other_project')?.detail ?? '',
+)
 const cancel = (): void => {
   app.dialog = undefined
 }
@@ -89,6 +93,17 @@ const cancel = (): void => {
       :text="t('stop.text', { label: project.label })"
       :confirm="t('toolbar.stop')"
       :confirm-icon="icons.faStop"
+      @confirm="confirmDialog()"
+      @cancel="cancel"
+    />
+    <UiDialog
+      v-else-if="app.dialog.kind == 'take_over'"
+      tone="warning"
+      :icon="icons.faArrowsRotate"
+      :title="t('take_over.title', { label: project.label })"
+      :text="t(project.keep_old_files ? 'take_over.text_keep' : 'take_over.text', { other: otherProject })"
+      :confirm="t('take_over.confirm')"
+      :confirm-icon="icons.faFolderOpen"
       @confirm="confirmDialog()"
       @cancel="cancel"
     />

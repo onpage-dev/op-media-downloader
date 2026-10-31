@@ -4,6 +4,7 @@
  */
 import { promises as fs } from 'fs'
 import path from 'path'
+import { OnPageProject } from '../shared/models'
 import { isNotFound, JobError } from './errors'
 import { atomicWrite, withLockRetry } from './fsx'
 import { isSafeToken, nameKey, sanitizeName } from './names'
@@ -34,6 +35,8 @@ const VERSION = 2
 interface ManifestJson {
   version: typeof VERSION
   project_id: string
+  /** The On Page project the folder is synced with (missing before its first sync) */
+  onpage_project?: OnPageProject
   updated_at: string
   files: Record<string, ManifestEntry>
 }
@@ -51,7 +54,20 @@ const MIN_CHECKPOINT_MS = 5_000
 const MAX_CHECKPOINT_MS = 30_000
 const CHECKPOINT_CHANGES = 500
 
+/** The On Page project of a registry read from the disk, when it is one */
+function onPageProject(value: unknown): OnPageProject | undefined {
+  if (!value || typeof value != 'object') return undefined
+  const { id, label } = value as Partial<OnPageProject>
+  return typeof id == 'number' && Number.isSafeInteger(id) && typeof label == 'string' ? { id, label } : undefined
+}
+
 export class Manifest {
+  /** The On Page project the folder is synced with */
+  onpage_project?: OnPageProject
+  /** The one the file on the disk names */
+  written_project?: OnPageProject
+  /** The registry is a file already: a new On Page project is written at once */
+  private on_disk = false
   private files = new Map<string, ManifestEntry>()
   private keys = new Map<string, string>()
   private changes = 0
@@ -86,6 +102,8 @@ export class Manifest {
         )
       }
       if (json && json.version == VERSION && json.files && typeof json.files == 'object') {
+        manifest.on_disk = true
+        manifest.onpage_project = manifest.written_project = onPageProject(json.onpage_project)
         for (const [name, entry] of Object.entries(json.files)) {
           if (validName(name) && entry && isSafeToken(entry.token)) {
             manifest.put(name, {
@@ -156,10 +174,23 @@ export class Manifest {
     if (!this.keys.has(key)) this.keys.set(key, name)
   }
 
+  /**
+   * The folder is this On Page project's. A registry already on the disk
+   * names it at the next write; a new one with its first file, so that a
+   * «Sincronizza» leaves no trace in a new folder.
+   */
+  bind(project: OnPageProject): void {
+    const current = this.onpage_project
+    if (current?.id == project.id && current.label == project.label) return
+    this.onpage_project = { id: project.id, label: project.label }
+    if (this.on_disk) this.changes++
+  }
+
   toJson(): ManifestJson {
     return {
       version: VERSION,
       project_id: this.project_id,
+      onpage_project: this.onpage_project,
       updated_at: new Date().toISOString(),
       files: Object.fromEntries(this.files),
     }
@@ -171,10 +202,13 @@ export class Manifest {
     if (!this.changes) return
     const started = Date.now()
     const changes = this.changes
+    const project = this.onpage_project
     this.flushing = atomicWrite(Manifest.file(this.data_dir), JSON.stringify(this.toJson()))
     try {
       await this.flushing
       this.changes -= changes
+      this.on_disk = true
+      this.written_project = project
       this.last_flush = Date.now()
       this.last_flush_ms = this.last_flush - started
     } finally {

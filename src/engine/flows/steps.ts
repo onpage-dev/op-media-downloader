@@ -107,6 +107,9 @@ export async function compare(
   confirmed?: ReadonlySet<string>,
 ): Promise<Plan> {
   const { slot, job } = ctx
+  const { schema } = listed.listing
+  // Before anything is linked or removed: the folder must be this On Page project's
+  session.bind({ id: schema.id, label: schema.label }, !!job.project.take_over_folder)
   slot.state.setPhase('comparing')
   const plan = await session.plan(
     {
@@ -184,6 +187,9 @@ export async function execute(
   if (capability.hardlinks !== undefined) slot.state.copies = !capability.hardlinks
   // What was placed is registered, whatever ended the run
   const save_error = await session.save()
+  // The registry on the disk names this job's On Page project: the choice of the folder is done
+  const { written_project, onpage_project } = session.manifest
+  if (written_project && written_project.id == onpage_project?.id) job.folder_project = written_project
   if (save_error) engine.log('error', `data/manifest.json not written: ${errorDetail(save_error)}`, slot.id)
   if ('error' in run) throw run.error
   // The lock lost while the last transfers ended: the run failed all the same
@@ -217,6 +223,7 @@ export function resultOf(ctx: JobContext, outcome: SyncResult['outcome']): SyncR
     already_present: p?.already_present ?? 0,
     failed: p?.failed ?? 0,
     bytes: p?.bytes_done ?? 0,
+    onpage_project: job.folder_project,
   }
 }
 

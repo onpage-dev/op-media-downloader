@@ -23,7 +23,7 @@ Give the app an On Page [API token](https://app.onpage.it/#/help/advanced-tools/
 
 - **Every project at a glance.** One window lists your projects with their state, progress, speed and time left, filtered by state or destination. Below, the inspector shows the live activity, the failed files (retry them in one click), the names shared by several files and the project's settings.
 - **Fast after the first sync.** The first sync reads the whole project; the next ones read only what changed on On Page since, thanks to a local cache. Projects with 100,000+ files stay responsive: the work runs in a process of its own.
-- **Your files are safe.** The app removes only the files it created and never overwrites a file it does not know. Large removals (a wrong token, a View that changed) wait for your confirmation, and nothing is removed after an incomplete read of On Page.
+- **Your files are safe.** The app removes only the files it created and never overwrites a file it does not know. Large removals (a wrong token, a View that changed) wait for your confirmation, nothing is removed after an incomplete read of On Page, and a folder belongs to one On Page project: a token of another project stops before touching it.
 - **At home on network shares and external disks.** A full disk, a share that drops, an unplugged disk or a file open in another program stop the work cleanly, and the next sync goes on from there. A file gets its name only once it is complete and flushed to the disk: a name never holds half a file.
 - **One download per file.** A file used by many items is downloaded once and gets all its names as hard links, so it takes its space once.
 - **One computer at a time.** A lock in the folder keeps two computers from syncing it together, even when their clocks disagree.
@@ -111,7 +111,7 @@ Install 2.0 over 1.x: on Windows the installer replaces it. On its first start 2
 Catalogo piante/
 ├── data/                  the app's own folder: leave it as it is
 │   ├── 8f3c2a…            one file per content, named by its On Page token
-│   ├── manifest.json      what the app created: the only files it will ever remove
+│   ├── manifest.json      what the app created, and for which On Page project
 │   └── .lock              which computer is syncing the folder right now
 ├── aloe-vera.jpg          every file under its On Page name, side by side:
 ├── begonia.jpg            hard links to data/, or copies where the folder
@@ -156,9 +156,16 @@ Another computer is syncing the same folder, and only one at a time can. If that
 </details>
 
 <details>
+<summary><b>"Folder of another On Page project"</b></summary>
+
+A folder holds the files of one On Page project and remembers which one; two computers can share it as long as their tokens are of that project. When you choose the folder yourself for a token of another project (a new project on that folder, or another token or folder in the project's settings), the form says so and the folder follows the new project: the files the app downloaded for the old one leave at the next sync, with the usual confirmation if they are many, or stay with _Keep old local files that are no longer on On Page_. When the folder changed project any other way, for instance from another computer, the sync stops without touching anything: choose another folder, or **Use this folder** to switch it.
+
+</details>
+
+<details>
 <summary><b>Deleting a project</b></summary>
 
-**Delete** removes the project from the app. With _Also delete the downloaded files_, the files the app created go too: anything else in the folder stays, and the folder itself goes only if it is left empty.
+**Delete** removes the project from the app. With _Also delete the downloaded files_, the files the app created go too: anything else in the folder stays, and the folder itself goes only if it is left empty. A folder another On Page project took over since is left as it is.
 
 </details>
 

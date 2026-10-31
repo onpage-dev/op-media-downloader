@@ -176,6 +176,10 @@
       "title": "Dossier en cours d’utilisation",
       "text": "Un autre ordinateur synchronise ce dossier. {detail}"
     },
+    "folder_other_project": {
+      "title": "Dossier d’un autre projet On Page",
+      "text": "Le dossier est synchronisé avec le projet On Page « {detail} » : rien n’a été modifié. Choisissez un autre dossier, ou utilisez celui-ci pour ce projet."
+    },
     "disk_full": {
       "title": "Disque plein",
       "text": "Libérez de l’espace et réessayez : les fichiers déjà téléchargés sont conservés."
@@ -220,7 +224,8 @@
       "retry_failed": "Réessayer les échecs",
       "see": "Voir",
       "see_duplicates": "Voir les doublons",
-      "confirm": "Confirmer"
+      "confirm": "Confirmer",
+      "take_over": "Utiliser ce dossier"
     },
     "listing_incomplete": {
       "title": "Certaines collections n’ont pas été lues",
@@ -285,6 +290,7 @@
     "keep": "Conserver les anciens fichiers locaux qui ne sont plus sur On Page",
     "keep_note": "Les fichiers supprimés d’On Page restent dans le dossier.",
     "token_note": "Le jeton détermine ce qui est téléchargé : les filtres de sa vue s’appliquent aussi.",
+    "token_other": "Jeton d’un autre projet On Page : une fois enregistré, le dossier passe de « {previous} » à « {project} ».",
     "show": "Afficher",
     "hide": "Masquer",
     "verify": "Vérifier",
@@ -360,6 +366,15 @@
       "title": "Le dossier n’existe pas encore",
       "text": "Il sera créé à la première synchronisation."
     },
+    "bound": {
+      "title": "Dossier du projet On Page « {label} »",
+      "text": "Les fichiers déjà téléchargés par l’app y sont réutilisés."
+    },
+    "bound_other": {
+      "title": "Dossier d’un autre projet On Page",
+      "text": "Il est synchronisé avec « {label} » : avec ce jeton, il passe à « {project} » et les fichiers téléchargés par l’app pour « {label} » sont supprimés à la première synchronisation.",
+      "text_keep": "Il est synchronisé avec « {label} » : avec ce jeton, il passe à « {project} » ; les fichiers de « {label} » restent comme anciens fichiers."
+    },
     "hardlinks_no": {
       "title": "Liens physiques non pris en charge",
       "text": "Chaque fichier est copié et occupe deux fois plus d’espace."
@@ -422,6 +437,12 @@
     "title": "Supprimer {count} fichiers ?",
     "text": "Ils ne sont plus sur On Page. L’app ne supprime que les fichiers qu’elle a téléchargés : les autres restent.",
     "confirm": "Supprimer les fichiers"
+  },
+  "take_over": {
+    "title": "Utiliser le dossier pour « {label} » ?",
+    "text": "Désormais, le dossier suit le jeton de ce projet. Les fichiers téléchargés par l’app pour « {other} » sont supprimés à la synchronisation, avec une confirmation s’ils sont nombreux ; les autres fichiers restent.",
+    "text_keep": "Désormais, le dossier suit le jeton de ce projet. Les fichiers téléchargés par l’app pour « {other} » restent comme anciens fichiers.",
+    "confirm": "Utiliser le dossier"
   },
   "settings": {
     "title": "Paramètres",

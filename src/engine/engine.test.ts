@@ -9,6 +9,7 @@ import {
   FakeFile,
   fileContent,
   FakeOnPage,
+  FakeProject,
   FakeThing,
   sampleProject,
   startFakeOnPage,
@@ -516,8 +517,88 @@ describe('engine: the core flow', () => {
     expect(info).toMatchObject({ exists: true, problems: [] })
     expect(await ask({ type: 'verify_token', token: fake.token })).toMatchObject({
       ok: true,
+      project_id: 77,
+      project_label: 'Progetto di prova',
       collections_with_files: 2,
     })
+  })
+})
+
+describe('one On Page project per folder', () => {
+  /** Another project on On Page: another id, other files (some with the same names) */
+  const otherProject = (): FakeProject => ({
+    ...sampleProject({ things: 6, duplicates: 0, seed: 'altro' }),
+    id: 88,
+    label: 'Altro progetto',
+  })
+  const registry = async (folder: string): Promise<{ onpage_project?: unknown }> =>
+    JSON.parse(await fs.readFile(path.join(folder, 'data', 'manifest.json'), 'utf8'))
+
+  it('the first files name the project in the folder; a renamed project gets its new label', async () => {
+    const folder = await tempDir()
+    let result = await run({ type: 'sync', project: project(folder) })
+    expect(result.onpage_project).toBeUndefined()
+    expect(await listDir(folder)).toEqual([])
+    result = await run({ type: 'download', project: project(folder) })
+    expect(result.onpage_project).toEqual({ id: 77, label: 'Progetto di prova' })
+    expect((await registry(folder)).onpage_project).toEqual({ id: 77, label: 'Progetto di prova' })
+
+    fake.project.label = 'Catalogo 2027'
+    result = await run({ type: 'sync', project: project(folder) })
+    expect(result).toMatchObject({ outcome: 'completed', onpage_project: { id: 77, label: 'Catalogo 2027' } })
+    expect((await registry(folder)).onpage_project).toEqual({ id: 77, label: 'Catalogo 2027' })
+    expect(await ask({ type: 'inspect_folder', path: folder })).toMatchObject({
+      onpage_project: { id: 77, label: 'Catalogo 2027' },
+    })
+  })
+
+  it('a token of another project stops before touching anything; the choice of the user takes the folder over', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    await run({ type: 'download', project: project(folder) })
+    const before = await listDir(folder)
+    const hits = storageHits()
+
+    fake.project = otherProject()
+    for (const type of ['sync', 'download', 'confirm_cleanup'] as const) {
+      const result = await run({ type, project: project(folder) })
+      expect(result).toMatchObject({
+        outcome: 'failed',
+        error: { code: 'folder_other_project', detail: 'Progetto di prova' },
+      })
+      expect(result.onpage_project).toBeUndefined()
+    }
+    expect(lastState().issues.map(i => i.code)).toContain('folder_other_project')
+    expect(await listDir(folder)).toEqual(before)
+    expect(storageHits()).toBe(hits)
+    expect((await registry(folder)).onpage_project).toMatchObject({ id: 77 })
+
+    // A new project, another token or another folder: the folder is this project's from its sync on
+    let result = await run({ type: 'sync', project: project(folder, { take_over_folder: true }) })
+    expect(result).toMatchObject({ outcome: 'completed', onpage_project: { id: 88, label: 'Altro progetto' } })
+    expect((await registry(folder)).onpage_project).toEqual({ id: 88, label: 'Altro progetto' })
+    // The names of the old project go with the download, under the usual threshold; the shared ones are replaced
+    expect(lastState().plan).toMatchObject({ cleanup_needs_confirmation: false })
+    expect(lastState().plan?.to_remove).toBeGreaterThan(0)
+    result = await run({ type: 'download', project: project(folder) })
+    expect(result).toMatchObject({ outcome: 'completed', failed: 0 })
+    const names = remoteNames()
+    expect(await listDir(folder)).toEqual(['data', ...names.keys()].sort())
+    for (const [name, file] of names) expect(await fs.readFile(path.join(folder, name))).toEqual(fileContent(file))
+  })
+
+  it('deleting the files is refused when the folder is another project’s now', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    await run({ type: 'download', project: project(folder) })
+    const before = await listDir(folder)
+    // The project last synced another On Page project there: the folder was taken over since
+    await expect(
+      ask({ type: 'delete_project_files', project: project(folder, { onpage_project_id: 88 }) }),
+    ).rejects.toThrow(/^folder_other_project: Progetto di prova/)
+    expect(await listDir(folder)).toEqual(before)
+    await ask({ type: 'delete_project_files', project: project(folder, { onpage_project_id: 77 }) })
+    expect(existsSync(folder)).toBe(false)
   })
 })
 

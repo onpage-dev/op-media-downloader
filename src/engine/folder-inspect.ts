@@ -302,6 +302,7 @@ export async function inspectFolder(folder: string, ctx: InspectContext): Promis
       // Unreadable now, or of a newer version of the app: the job will tell
       const loaded = await Manifest.load(data_dir, ctx.project_id ?? '').catch(() => undefined)
       for (const [name] of loaded?.manifest.entries() ?? []) own.add(nameKey(name))
+      info.onpage_project = loaded?.manifest.onpage_project
       const lock = await readLock(data_dir)
       if (lock && lock.instance_id != ctx.instance_id && !isStale(lock, Date.now())) {
         problems.push('locked')

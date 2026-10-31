@@ -176,6 +176,10 @@
       "title": "Ordner wird verwendet",
       "text": "Ein anderer Computer synchronisiert gerade diesen Ordner. {detail}"
     },
+    "folder_other_project": {
+      "title": "Ordner eines anderen On Page-Projekts",
+      "text": "Der Ordner wird mit dem On Page-Projekt „{detail}“ synchronisiert: Es wurde nichts verändert. Wähle einen anderen Ordner oder verwende diesen für dieses Projekt."
+    },
     "disk_full": {
       "title": "Datenträger voll",
       "text": "Geben Sie Speicherplatz frei und versuchen Sie es erneut: Bereits heruntergeladene Dateien bleiben erhalten."
@@ -220,7 +224,8 @@
       "retry_failed": "Fehlgeschlagene wiederholen",
       "see": "Anzeigen",
       "see_duplicates": "Duplikate anzeigen",
-      "confirm": "Bestätigen"
+      "confirm": "Bestätigen",
+      "take_over": "Diesen Ordner verwenden"
     },
     "listing_incomplete": {
       "title": "Einige Sammlungen wurden nicht gelesen",
@@ -285,6 +290,7 @@
     "keep": "Alte lokale Dateien behalten, die es auf On Page nicht mehr gibt",
     "keep_note": "Von On Page entfernte Dateien bleiben im Ordner.",
     "token_note": "Das Token bestimmt, was heruntergeladen wird: Auch die Filter seiner Ansicht gelten.",
+    "token_other": "Token eines anderen On Page-Projekts: Nach dem Speichern wechselt der Ordner von „{previous}“ zu „{project}“.",
     "show": "Anzeigen",
     "hide": "Ausblenden",
     "verify": "Prüfen",
@@ -360,6 +366,15 @@
       "title": "Der Ordner existiert noch nicht",
       "text": "Er wird bei der ersten Synchronisierung erstellt."
     },
+    "bound": {
+      "title": "Ordner des On Page-Projekts „{label}“",
+      "text": "Die Dateien, die die App dort bereits heruntergeladen hat, werden wiederverwendet."
+    },
+    "bound_other": {
+      "title": "Ordner eines anderen On Page-Projekts",
+      "text": "Er wird mit „{label}“ synchronisiert: Mit diesem Token wechselt er zu „{project}“, und die Dateien, die die App für „{label}“ heruntergeladen hat, werden bei der ersten Synchronisierung entfernt.",
+      "text_keep": "Er wird mit „{label}“ synchronisiert: Mit diesem Token wechselt er zu „{project}“; die Dateien von „{label}“ bleiben als alte Dateien erhalten."
+    },
     "hardlinks_no": {
       "title": "Feste Links nicht unterstützt",
       "text": "Jede Datei wird kopiert und belegt doppelt so viel Speicherplatz."
@@ -422,6 +437,12 @@
     "title": "{count} Dateien entfernen?",
     "text": "Sie sind nicht mehr auf On Page. Die App entfernt nur Dateien, die sie selbst heruntergeladen hat: Die anderen bleiben.",
     "confirm": "Dateien entfernen"
+  },
+  "take_over": {
+    "title": "Ordner für „{label}“ verwenden?",
+    "text": "Ab jetzt folgt der Ordner dem Token dieses Projekts. Die Dateien, die die App für „{other}“ heruntergeladen hat, werden bei der Synchronisierung entfernt, bei vielen Dateien erst nach einer Bestätigung; alle anderen Dateien bleiben.",
+    "text_keep": "Ab jetzt folgt der Ordner dem Token dieses Projekts. Die Dateien, die die App für „{other}“ heruntergeladen hat, bleiben als alte Dateien erhalten.",
+    "confirm": "Ordner verwenden"
   },
   "settings": {
     "title": "Einstellungen",

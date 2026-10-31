@@ -176,6 +176,10 @@
       "title": "Carpeta en uso",
       "text": "Otro ordenador está sincronizando esta carpeta. {detail}"
     },
+    "folder_other_project": {
+      "title": "Carpeta de otro proyecto de On Page",
+      "text": "La carpeta se sincroniza con el proyecto de On Page «{detail}»: no se ha tocado nada. Elige otra carpeta o úsala para este proyecto."
+    },
     "disk_full": {
       "title": "Disco lleno",
       "text": "Libera espacio y vuelve a intentarlo: los archivos ya descargados se conservan."
@@ -220,7 +224,8 @@
       "retry_failed": "Reintentar fallidos",
       "see": "Ver",
       "see_duplicates": "Ver duplicados",
-      "confirm": "Confirmar"
+      "confirm": "Confirmar",
+      "take_over": "Usar esta carpeta"
     },
     "listing_incomplete": {
       "title": "Algunas colecciones no se han leído",
@@ -285,6 +290,7 @@
     "keep": "Conservar los archivos locales antiguos que ya no están en On Page",
     "keep_note": "Los archivos eliminados de On Page se quedan en la carpeta.",
     "token_note": "El token decide qué se descarga: también se aplican los filtros de su vista.",
+    "token_other": "Token de otro proyecto de On Page: al guardar, la carpeta pasa de «{previous}» a «{project}».",
     "show": "Mostrar",
     "hide": "Ocultar",
     "verify": "Verificar",
@@ -360,6 +366,15 @@
       "title": "La carpeta aún no existe",
       "text": "Se creará en la primera sincronización."
     },
+    "bound": {
+      "title": "Carpeta del proyecto de On Page «{label}»",
+      "text": "Los archivos que la app ya descargó allí se reutilizan."
+    },
+    "bound_other": {
+      "title": "Carpeta de otro proyecto de On Page",
+      "text": "Se sincroniza con «{label}»: con este token pasa a «{project}» y los archivos que la app descargó para «{label}» se eliminan en la primera sincronización.",
+      "text_keep": "Se sincroniza con «{label}»: con este token pasa a «{project}»; los archivos de «{label}» se quedan como archivos antiguos."
+    },
     "hardlinks_no": {
       "title": "Vínculos físicos no admitidos",
       "text": "Cada archivo se copia y ocupa el doble de espacio."
@@ -422,6 +437,12 @@
     "title": "¿Eliminar {count} archivos?",
     "text": "Ya no están en On Page. La app solo elimina los archivos que ella misma ha descargado: los demás se quedan.",
     "confirm": "Eliminar archivos"
+  },
+  "take_over": {
+    "title": "¿Usar la carpeta para «{label}»?",
+    "text": "A partir de ahora la carpeta sigue el token de este proyecto. Los archivos que la app descargó para «{other}» se eliminan en la sincronización, con una confirmación si son muchos; los demás archivos se quedan.",
+    "text_keep": "A partir de ahora la carpeta sigue el token de este proyecto. Los archivos que la app descargó para «{other}» se quedan como archivos antiguos.",
+    "confirm": "Usar la carpeta"
   },
   "settings": {
     "title": "Ajustes",

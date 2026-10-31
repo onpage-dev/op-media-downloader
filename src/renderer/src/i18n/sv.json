@@ -176,6 +176,10 @@
       "title": "Mappen används",
       "text": "En annan dator synkroniserar den här mappen. {detail}"
     },
+    "folder_other_project": {
+      "title": "Mapp för ett annat On Page-projekt",
+      "text": "Mappen synkroniseras med On Page-projektet ”{detail}”: inget har ändrats. Välj en annan mapp eller använd den här för det här projektet."
+    },
     "disk_full": {
       "title": "Disken är full",
       "text": "Frigör utrymme och försök igen: filer som redan har laddats ner finns kvar."
@@ -220,7 +224,8 @@
       "retry_failed": "Försök igen med misslyckade",
       "see": "Visa",
       "see_duplicates": "Visa dubbletter",
-      "confirm": "Bekräfta"
+      "confirm": "Bekräfta",
+      "take_over": "Använd den här mappen"
     },
     "listing_incomplete": {
       "title": "Vissa samlingar lästes inte",
@@ -285,6 +290,7 @@
     "keep": "Behåll gamla lokala filer som inte längre finns på On Page",
     "keep_note": "Filer som tas bort från On Page ligger kvar i mappen.",
     "token_note": "Token avgör vad som laddas ner: även filtren i dess vy gäller.",
+    "token_other": "Token för ett annat On Page-projekt: när du sparar går mappen över från ”{previous}” till ”{project}”.",
     "show": "Visa",
     "hide": "Dölj",
     "verify": "Verifiera",
@@ -360,6 +366,15 @@
       "title": "Mappen finns inte än",
       "text": "Den skapas vid den första synkroniseringen."
     },
+    "bound": {
+      "title": "Mapp för On Page-projektet ”{label}”",
+      "text": "Filerna som appen redan har laddat ner där återanvänds."
+    },
+    "bound_other": {
+      "title": "Mapp för ett annat On Page-projekt",
+      "text": "Den synkroniseras med ”{label}”: med den här token går den över till ”{project}”, och filerna som appen laddade ner för ”{label}” tas bort vid första synkroniseringen.",
+      "text_keep": "Den synkroniseras med ”{label}”: med den här token går den över till ”{project}”; filerna från ”{label}” finns kvar som gamla filer."
+    },
     "hardlinks_no": {
       "title": "Hårda länkar stöds inte",
       "text": "Varje fil kopieras och tar dubbelt så mycket plats."
@@ -422,6 +437,12 @@
     "title": "Ta bort {count} filer?",
     "text": "De finns inte längre på On Page. Appen tar bara bort filer som den själv har laddat ner: de andra ligger kvar.",
     "confirm": "Ta bort filerna"
+  },
+  "take_over": {
+    "title": "Använda mappen för ”{label}”?",
+    "text": "Från och med nu följer mappen det här projektets token. Filerna som appen laddade ner för ”{other}” tas bort vid synkroniseringen, med en bekräftelse om de är många; övriga filer finns kvar.",
+    "text_keep": "Från och med nu följer mappen det här projektets token. Filerna som appen laddade ner för ”{other}” finns kvar som gamla filer.",
+    "confirm": "Använd mappen"
   },
   "settings": {
     "title": "Inställningar",

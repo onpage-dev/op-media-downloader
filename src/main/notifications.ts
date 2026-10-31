@@ -77,8 +77,9 @@ export function notifyResult(
  * The files of a removed project are still in its folder. Shown even with
  * notifications off: the project has left the list, nothing else would say it
  */
-export function notifyDeleteFailed(store: AppStore, label: string, open: () => void): void {
+export function notifyDeleteFailed(store: AppStore, label: string, code: string | undefined, open: () => void): void {
   if (!Notification.isSupported()) return
   const t = texts(store.settings.language)
-  show(new Notification({ title: t.delete_failed_title(label), body: t.delete_failed_body }), open)
+  const body = code == 'folder_other_project' ? t.delete_other_project_body : t.delete_failed_body
+  show(new Notification({ title: t.delete_failed_title(label), body }), open)
 }

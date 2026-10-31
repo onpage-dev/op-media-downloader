@@ -26,6 +26,14 @@ export interface ProjectView extends ProjectConfig {
   runtime: ProjectRuntime
   /** Last folder inspection (kind, space, hard links), refreshed by main */
   folder_info?: FolderInfo
+  /** The On Page project of the token, as the last job that saved the folder's registry found it */
+  onpage_project?: OnPageProject
+}
+
+/** A project on On Page: its id never changes, its label can */
+export interface OnPageProject {
+  id: number
+  label: string
 }
 
 /* ------------------------------------------------------------------ Folders */
@@ -59,6 +67,8 @@ export interface FolderInfo {
   problems: FolderProblem[]
   /** For `used_by_other_project` / `locked`: who */
   problem_detail?: string
+  /** The On Page project the folder is synced with, from its registry */
+  onpage_project?: OnPageProject
   inspected_at: IsoDate
 }
 
@@ -164,6 +174,8 @@ export interface SyncResult {
   bytes: number
   /** Set when outcome is `failed` */
   error?: Issue
+  /** The token's On Page project, when the folder's registry on the disk names it after this job */
+  onpage_project?: OnPageProject
 }
 
 /* ------------------------------------------------------------------ Issues */
@@ -181,6 +193,8 @@ export type IssueCode =
   | 'folder_not_writable'
   | 'folder_protected'
   | 'folder_locked'
+  /** The folder is synced with another On Page project: nothing was touched (the detail names it) */
+  | 'folder_other_project'
   | 'disk_full'
   | 'offline'
   /** Names with different files on On Page */
@@ -315,6 +329,8 @@ export interface FailedPage {
 export interface TokenCheck {
   ok: boolean
   error?: 'token_invalid' | 'offline' | 'project_unavailable'
+  /** The On Page project of the token */
+  project_id?: number
   project_label?: string
   /** Collections with at least one file or image field */
   collections_with_files?: number

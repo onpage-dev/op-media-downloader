@@ -91,8 +91,10 @@ describe('the IPC handlers', () => {
       keep_old_files: undefined,
     })
 
-    invoke(INVOKE.syncSync, UUID, { full_listing: 'yes' })
-    expect(projects.startJob).toHaveBeenLastCalledWith(UUID, 'sync', { full_listing: false })
+    invoke(INVOKE.syncSync, UUID, { full_listing: 'yes', take_over_folder: 1 })
+    expect(projects.startJob).toHaveBeenLastCalledWith(UUID, 'sync', { full_listing: false, take_over_folder: false })
+    invoke(INVOKE.syncSync, UUID, { take_over_folder: true })
+    expect(projects.startJob).toHaveBeenLastCalledWith(UUID, 'sync', { full_listing: false, take_over_folder: true })
     invoke(INVOKE.syncConfirmCleanup, UUID)
     expect(projects.startJob).toHaveBeenLastCalledWith(UUID, 'cleanup')
 
