@@ -52,7 +52,7 @@ const cancel = (): void => {
     >
       <div class="flex flex-col gap-md">
         <UiCheck v-model="deleteFiles">{{ t('delete.files') }}</UiCheck>
-        <ul v-if="deleteFiles" class="flex flex-col gap-[6px] rounded-md bg-neutral-soft p-md text-xs">
+        <ul v-if="deleteFiles" class="flex flex-col gap-xs-sm rounded-md bg-neutral-soft p-md text-xs">
           <li class="flex items-start gap-sm">
             <AppIcon :icon="icons.faTrashCan" class="mt-[2px] text-danger-fg" />
             <template v-if="created == null">{{ t('delete.removes_unknown') }}</template>

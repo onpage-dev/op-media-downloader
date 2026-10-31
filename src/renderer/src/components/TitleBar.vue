@@ -8,10 +8,11 @@
 import { useI18n } from 'vue-i18n'
 import { TITLE_BAR_HEIGHT } from '@shared/window-chrome'
 import icon from '../../assets/app-icon.png'
+import { platform } from '../store'
 
 defineProps<{ title?: string }>()
 const { t } = useI18n()
-const mac = window.desktop.platform == 'darwin'
+const mac = platform() == 'darwin'
 </script>
 
 <template>

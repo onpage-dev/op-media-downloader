@@ -46,7 +46,8 @@
     "last": "Синхронизация",
     "never": "никогда",
     "no_results": "Нет проектов, подходящих под эти фильтры",
-    "show_all": "Показать все"
+    "show_all": "Показать все",
+    "label": "Проекты"
   },
   "kind": {
     "local": "Локальная папка",
@@ -103,7 +104,8 @@
     "activity": "Журнал",
     "failed": "Не скачано",
     "duplicates": "Дубликаты",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "resize": "Высота панели"
   },
   "general": {
     "onpage": "Проект On Page",
@@ -495,8 +497,7 @@
     "today": "сегодня, {time}",
     "yesterday": "вчера, {time}",
     "less_than_minute": "меньше минуты",
-    "about_minutes": "около {n} минуты | около {n} минут | около {n} минут",
-    "about_hours": "около {h} ч {m} мин"
+    "about": "примерно {duration}"
   },
   "keys": {
     "ctrl": "Ctrl",

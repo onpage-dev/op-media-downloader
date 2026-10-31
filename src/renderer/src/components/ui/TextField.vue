@@ -23,8 +23,9 @@ defineExpose({ focus: () => input.value?.focus(), select: () => input.value?.sel
     v-model="model"
     :type="type"
     :placeholder="placeholder"
+    :aria-invalid="invalid || undefined"
     spellcheck="false"
     class="w-full min-w-0 rounded-md border bg-box px-sm text-base text-text placeholder:text-placeholder hover:border-accent-fg focus:border-accent-fg focus:shadow-halo"
-    :class="[invalid ? 'border-danger' : 'border-line', compact ? 'h-8' : 'h-[39px]', mono ? 'font-mono text-sm' : '']"
+    :class="[invalid ? 'border-danger' : 'border-line', compact ? 'h-8' : 'h-control', mono ? 'font-mono text-sm' : '']"
   />
 </template>

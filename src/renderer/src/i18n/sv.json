@@ -46,7 +46,8 @@
     "last": "Synkroniserad",
     "never": "aldrig",
     "no_results": "Inga projekt matchar de här filtren",
-    "show_all": "Visa alla"
+    "show_all": "Visa alla",
+    "label": "Projekt"
   },
   "kind": {
     "local": "Lokal mapp",
@@ -103,7 +104,8 @@
     "activity": "Aktivitet",
     "failed": "Misslyckade",
     "duplicates": "Dubbletter",
-    "settings": "Inställningar"
+    "settings": "Inställningar",
+    "resize": "Panelens höjd"
   },
   "general": {
     "onpage": "On Page-projekt",
@@ -495,8 +497,7 @@
     "today": "i dag, {time}",
     "yesterday": "i går, {time}",
     "less_than_minute": "mindre än en minut",
-    "about_minutes": "cirka {n} minut | cirka {n} minuter",
-    "about_hours": "cirka {h} h {m} min"
+    "about": "cirka {duration}"
   },
   "keys": {
     "ctrl": "Ctrl",

@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import type { FolderInfo } from '@shared/models'
 import { formatBytes, formatNumber } from '../lib/format'
 import * as icons from '../lib/icons'
+import { TONE_FG, TONE_SOFT, toneText } from '../lib/status-view'
 import AppIcon from './ui/AppIcon.vue'
 
 const props = defineProps<{ info: FolderInfo; needed?: number }>()
@@ -69,16 +70,14 @@ const lines = computed(() => {
     })
   return result
 })
-const SOFT = { success: 'bg-success-soft', info: 'bg-info-soft', warning: 'bg-warning-soft', danger: 'bg-danger-soft' } as const
-const FG = { success: 'text-success-fg', info: 'text-info-fg', warning: 'text-warning-fg', danger: 'text-danger-fg' } as const
 </script>
 
 <template>
   <ul class="flex flex-col gap-sm">
-    <li v-for="line in lines" :key="line.key" class="flex items-start gap-[10px] rounded-md px-md py-sm" :class="SOFT[line.tone]">
-      <AppIcon :icon="line.icon" class="mt-[3px]" :class="FG[line.tone]" />
-      <div class="min-w-0" :class="line.tone == 'warning' || line.tone == 'danger' ? FG[line.tone] : ''">
-        <div class="text-sm font-medium leading-[21px]">{{ line.title }}</div>
+    <li v-for="line in lines" :key="line.key" class="flex items-start gap-sm-md rounded-md px-md py-sm" :class="TONE_SOFT[line.tone]">
+      <AppIcon :icon="line.icon" class="mt-[3px]" :class="TONE_FG[line.tone]" />
+      <div class="min-w-0" :class="toneText(line.tone)">
+        <div class="text-sm font-medium leading-normal">{{ line.title }}</div>
         <div class="text-xs">{{ line.text }}</div>
       </div>
     </li>

@@ -9,9 +9,9 @@ import { useI18n } from 'vue-i18n'
 import type { Issue, IssueCode, JobPhase, ProjectView } from '@shared/models'
 import { projectStatus } from '@shared/status'
 import icon from '../../../assets/app-icon.png'
-import { formatBytes, formatEta, formatHour, formatNumber, formatSpeed, formatWhen } from '../../lib/format'
+import { formatBytes, formatEta, formatHour, formatNumber, formatPercent, formatSpeed, formatWhen } from '../../lib/format'
 import * as icons from '../../lib/icons'
-import { KIND_ICONS, kindOf } from '../../lib/status-view'
+import { KIND_ICONS, kindOf, TONE_FG, TONE_SOFT } from '../../lib/status-view'
 import { app, ask, edit, retryFailed, sync } from '../../store'
 import AppIcon from '../ui/AppIcon.vue'
 import StatusTag from '../ui/StatusTag.vue'
@@ -61,6 +61,7 @@ function actionsOf(issue: Issue): Action[] {
     case 'unexpected':
       return [retry]
     case 'interrupted':
+    case 'listing_incomplete':
       return [{ key: 'sync', run: () => sync(id) }]
     case 'cleanup_needs_confirmation':
       return [{ key: 'confirm', run: () => ask('cleanup', id) }]
@@ -95,7 +96,6 @@ const tiles = computed(() => {
   ] as const
   return all.filter(tile => !narrow.value || !('wide' in tile) || !running.value)
 })
-const SOFT = { success: 'bg-success-soft text-success-fg', info: 'bg-info-soft text-info-fg', danger: 'bg-danger-soft text-danger-fg', neutral: '' } as const
 
 /** The four steps of a sync: read the list, compare it with the folder, download, link and clean up */
 const STEPS: Partial<Record<JobPhase, number>> = { preparing: 1, listing: 1, comparing: 2, downloading: 3, finishing: 4 }
@@ -120,7 +120,7 @@ const plan = computed(() => runtime.value.plan)
   <div class="flex flex-col gap-md">
     <div class="flex items-center gap-md">
       <div class="flex min-w-0 flex-1 flex-col gap-xs rounded-md bg-box-soft p-md">
-        <div class="flex items-center gap-[6px] text-xs text-secondary">
+        <div class="flex items-center gap-xs-sm text-xs text-secondary">
           <img :src="icon" class="h-[14px] w-[14px]" alt="" />
           {{ t('general.onpage') }}
         </div>
@@ -130,11 +130,11 @@ const plan = computed(() => runtime.value.plan)
         </div>
       </div>
       <div class="flex shrink-0 flex-col items-center justify-center gap-2xs text-xs text-secondary">
-        <AppIcon :icon="icons.faArrowRight" class="text-[17px]" />
-        {{ status.progress != null && running ? `${Math.floor(status.progress * 100)}%` : t('general.to') }}
+        <AppIcon :icon="icons.faArrowRight" class="text-lg" />
+        {{ status.progress != null && running ? formatPercent(status.progress) : t('general.to') }}
       </div>
       <div class="flex min-w-0 flex-1 flex-col gap-xs rounded-md bg-box-soft p-md">
-        <div class="flex items-center gap-[6px] text-xs text-secondary">
+        <div class="flex items-center gap-xs-sm text-xs text-secondary">
           <AppIcon :icon="KIND_ICONS[kindOf(project)]" />
           {{ t(`kind.${kindOf(project)}`) }}
         </div>
@@ -166,12 +166,12 @@ const plan = computed(() => runtime.value.plan)
         :key="tile.key"
         class="flex min-w-0 flex-1 flex-col gap-xs rounded-md border border-line bg-box p-md"
       >
-        <div class="flex items-center gap-[6px]">
+        <div class="flex items-center gap-xs-sm">
           <span class="truncate text-xs text-secondary">{{ t(`general.${tile.key}`) }}</span>
           <span class="flex-1" />
           <span
             class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px]"
-            :class="tile.lit ? SOFT[tile.tone] : 'bg-box-soft text-secondary'"
+            :class="tile.lit ? [TONE_SOFT[tile.tone], TONE_FG[tile.tone]] : 'bg-box-soft text-secondary'"
           >
             <AppIcon :icon="tile.icon" />
           </span>
@@ -182,7 +182,7 @@ const plan = computed(() => runtime.value.plan)
         v-if="runtime.phase == 'downloading' && runtime.progress"
         class="flex min-w-0 flex-1 flex-col gap-xs rounded-md border border-line bg-box p-md"
       >
-        <div class="flex items-center gap-[6px]">
+        <div class="flex items-center gap-xs-sm">
           <span class="truncate text-xs text-secondary">{{ t('general.speed') }}</span>
           <span class="flex-1" />
           <UiSparkline :values="app.speeds[project.id] ?? []" />

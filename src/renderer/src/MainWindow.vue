@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * The main window: title row, toolbar, filters, the table of jobs with the
- * inspector under it, the status bar; the dialogs over them. Here live the
- * shortcuts (Ctrl/Cmd+N, R, Maiusc+R, virgola, O, F, Canc, the arrows) and the
- * folders dropped on the window.
+ * inspector under it, the status bar; the dialogs and the toasts over them.
+ * Here live the shortcuts (Ctrl/Cmd+N, R, Maiusc+R, virgola, O, F, Canc) and
+ * the folders dropped on the window; the arrows belong to the table.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -18,12 +18,27 @@ import ProjectDialogs from './components/ProjectDialogs.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import StatusBar from './components/StatusBar.vue'
 import TitleBar from './components/TitleBar.vue'
+import ToastStack from './components/ToastStack.vue'
 import AppIcon from './components/ui/AppIcon.vue'
+import UiOverlay from './components/ui/UiOverlay.vue'
 import * as icons from './lib/icons'
-import { app, ask, init, moveSelection, openFolder, openSettings, openWizard, selected, sync, syncAll } from './store'
+import {
+  app,
+  ask,
+  closeSettings,
+  init,
+  openDroppedFolder,
+  openFolder,
+  openSettings,
+  openWizard,
+  platform,
+  selected,
+  sync,
+  syncAll,
+} from './store'
 
 const { t } = useI18n()
-const mac = window.desktop.platform == 'darwin'
+const mac = platform() == 'darwin'
 const overlay = computed(() => !!(app.wizard || app.dialog || app.settings_open))
 
 /** The inspector's height once the user drags it; until then the table takes its rows (up to 300px) and the inspector the rest */
@@ -46,34 +61,40 @@ function rememberHeight(): void {
 
 function typing(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null
-  return !!el && (el.tagName == 'INPUT' || el.tagName == 'TEXTAREA' || el.isContentEditable)
+  return !!el && (el.tagName == 'INPUT' || el.tagName == 'TEXTAREA' || el.tagName == 'SELECT' || el.isContentEditable)
+}
+/**
+ * The key of a shortcut: the letter the layout writes when it is Latin, else
+ * the key's place (with a Cyrillic layout Ctrl+R is still the R key)
+ */
+function shortcutKey(event: KeyboardEvent): string {
+  const key = event.key.toLowerCase()
+  if (/^[a-z,]$/.test(key)) return key
+  if (/^Key[A-Z]$/.test(event.code)) return event.code.slice(3).toLowerCase()
+  return event.code == 'Comma' ? ',' : key
+}
+const SHORTCUTS: Record<string, (shift: boolean) => void> = {
+  n: () => openWizard(),
+  r: shift => (shift ? syncAll() : sync()),
+  ',': () => openSettings(),
+  o: () => openFolder(),
+  f: () => app.search_focus++,
 }
 function onKey(event: KeyboardEvent): void {
-  if (app.settings_open && event.key == 'Escape') return void (app.settings_open = undefined)
-  if (overlay.value) return
+  if (overlay.value || event.defaultPrevented) return
   const mod = mac ? event.metaKey : event.ctrlKey
-  const key = event.key.toLowerCase()
-  if (mod && !event.altKey) {
-    const actions: Record<string, () => void> = {
-      n: () => openWizard(),
-      r: () => (event.shiftKey ? syncAll() : sync()),
-      ',': () => openSettings(),
-      o: () => openFolder(),
-      f: () => app.search_focus++,
-    }
-    if (actions[key]) {
-      event.preventDefault()
-      actions[key]()
-    }
-    if (mac && key == 'backspace' && app.selectedId) ask('delete')
-    return
-  }
-  if (typing(event.target)) return
-  if (key == 'delete' && app.selectedId) ask('delete')
-  if (key == 'arrowdown' || key == 'arrowup') {
+  // In a field Canc and Cmd+Backspace edit the words: never a project's deletion
+  const destructive = (!mod && event.key == 'Delete') || (mac && mod && event.key == 'Backspace')
+  if (destructive) {
+    if (typing(event.target) || event.altKey || event.shiftKey || !app.selectedId) return
     event.preventDefault()
-    moveSelection(key == 'arrowdown' ? 1 : -1)
+    return ask('delete')
   }
+  if (!mod || event.altKey) return
+  const action = SHORTCUTS[shortcutKey(event)]
+  if (!action) return
+  event.preventDefault()
+  action(event.shiftKey)
 }
 
 /** A folder dragged over the window: the veil, then the new project with it */
@@ -91,7 +112,7 @@ function onDrop(event: DragEvent): void {
   event.preventDefault()
   app.dropping = false
   const file = event.dataTransfer?.files[0]
-  if (file) openWizard(window.desktop.folders.pathForDroppedFile(file))
+  if (file) openDroppedFolder(file)
 }
 
 onMounted(() => {
@@ -137,12 +158,9 @@ onBeforeUnmount(() => {
     <ContextMenu v-if="app.menu" />
     <NewProjectWizard v-if="app.wizard" v-bind="app.wizard" />
     <ProjectDialogs />
-    <div
-      v-if="app.settings_open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--veil)] p-lg"
-      @mousedown.self="app.settings_open = undefined"
-    >
-      <SettingsPanel :section="app.settings_open" @close="app.settings_open = undefined" @section="app.settings_open = $event" />
-    </div>
+    <UiOverlay v-if="app.settings_open" v-slot="{ titleId }" class="max-w-full" @close="closeSettings">
+      <SettingsPanel :section="app.settings_open" :title-id="titleId" @close="closeSettings" @section="openSettings" />
+    </UiOverlay>
+    <ToastStack />
   </div>
 </template>

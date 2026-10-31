@@ -17,6 +17,8 @@ import StatusTag from '../ui/StatusTag.vue'
 const props = defineProps<{ project: ProjectView }>()
 const { t } = useI18n()
 const entries = computed(() => app.activity[props.project.id] ?? [])
+/** The columns, the same for the head and the rows */
+const COLUMNS = 'grid-cols-[72px_minmax(0,1fr)_96px_minmax(0,330px)]'
 
 const OUTCOMES: Record<Exclude<ActivityOutcome, 'downloading'>, [StatusTone, icons.IconDefinition]> = {
   downloaded: ['success', icons.faCircleCheck],
@@ -43,7 +45,7 @@ function note(entry: ActivityEntry): string {
 
 <template>
   <div class="flex flex-col">
-    <div class="grid h-7 grid-cols-[72px_minmax(0,1fr)_96px_minmax(0,330px)] border-b border-line text-xs font-medium text-secondary">
+    <div class="grid h-7 border-b border-line text-xs font-medium text-secondary" :class="COLUMNS">
       <span class="self-center px-sm">{{ t('activity.time') }}</span>
       <span class="self-center px-sm">{{ t('activity.file') }}</span>
       <span class="self-center px-sm">{{ t('activity.size') }}</span>
@@ -52,7 +54,8 @@ function note(entry: ActivityEntry): string {
     <div
       v-for="entry in entries"
       :key="entry.id"
-      class="grid h-8 grid-cols-[72px_minmax(0,1fr)_96px_minmax(0,330px)] items-center text-xs"
+      class="grid h-8 items-center text-xs"
+      :class="COLUMNS"
     >
       <span class="tabular px-sm text-secondary">{{ formatClock(entry.at) }}</span>
       <span class="flex min-w-0 items-center gap-sm px-sm">
@@ -63,7 +66,7 @@ function note(entry: ActivityEntry): string {
       </span>
       <span class="tabular px-sm text-secondary">{{ entry.size != null ? formatBytes(entry.size) : '—' }}</span>
       <span class="flex min-w-0 items-center gap-sm px-sm">
-        <ProgressBar v-if="entry.outcome == 'downloading'" class="w-[140px]" size="xs" :value="entry.progress ?? 0" />
+        <ProgressBar v-if="entry.outcome == 'downloading'" class="w-[140px]" size="xs" :value="entry.progress ?? 0" :name="entry.name" />
         <template v-else>
           <StatusTag :tone="OUTCOMES[entry.outcome][0]" :icon="OUTCOMES[entry.outcome][1]" :label="t(`activity.result.${entry.outcome}`)" />
           <span class="truncate text-secondary">{{ note(entry) }}</span>

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /** OpStepper: the steps in a row; done with their check, the current a disc of the accent's -fg, the next ones grey */
+import { useI18n } from 'vue-i18n'
 import { faCheck } from '../../lib/icons'
 import AppIcon from './AppIcon.vue'
 
 defineProps<{ steps: string[]; current: number; done?: number[] }>()
+const { t } = useI18n()
 </script>
 
 <template>
-  <nav class="flex items-center gap-xs" aria-label="steps">
+  <nav class="flex items-center gap-xs" :aria-label="t('wizard.steps_label')">
     <template v-for="(label, n) in steps" :key="label">
       <span v-if="n" class="h-[1.5px] w-[14px] bg-line" />
       <span class="flex items-center gap-sm p-xs" :aria-current="n == current ? 'step' : undefined">

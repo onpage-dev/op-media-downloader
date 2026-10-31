@@ -1,11 +1,13 @@
 /**
  * The renderer's state: what main pushes (projects, settings, status, version),
  * what the user picks (selection, filters, search, sort, inspector tab, which
- * dialog is open) and the actions on the selected project. Everything goes
- * through `window.desktop`.
+ * dialog is open), the toasts, and the actions. Every call to main goes through
+ * here: a command that fails says why in a toast (and in main's log); what a
+ * form asks (create, save, verify, pick, inspect) rejects, and the form says
+ * why in place.
  */
 import { computed, markRaw, reactive, watch } from 'vue'
-import type { AppCommand, InspectorTab, NewProjectInput, ProjectPatch, SettingsSection } from '@shared/desktop-api'
+import type { AppCommand, DesktopApi, InspectorTab, NewProjectInput, ProjectPatch, SettingsSection } from '@shared/desktop-api'
 import {
   DEFAULT_SETTINGS,
   type ActivityEntry,
@@ -14,12 +16,16 @@ import {
   type DestinationKind,
   type DuplicateGroup,
   type FailedEntry,
+  type FolderInfo,
   type ProjectId,
   type ProjectView,
+  type TokenCheck,
   type VersionInfo,
 } from '@shared/models'
 import { matchesFilter, PROJECT_FILTERS, projectStatus, type ProjectFilter, type StatusTone } from '@shared/status'
 import { setLanguage } from './i18n'
+import { errorText, logError } from './lib/errors'
+import { compareText } from './lib/format'
 import { fileCounts, kindOf } from './lib/status-view'
 
 /** `created`, the order in which the projects were added, until a header is clicked */
@@ -49,8 +55,18 @@ export interface PagedList<T> {
 export type PagedKind = 'failed' | 'duplicates'
 const PAGE_SIZE = 50
 
+/** The speed of the last minute, for the sparkline: a sample every 1.5 s while a project downloads */
 const SPEED_SAMPLES = 40
+const SPEED_EVERY_MS = 1500
 const ACTIVITY_KEPT = 200
+
+export type ToastTone = 'danger' | 'warning' | 'info' | 'success'
+export interface Toast {
+  id: number
+  tone: ToastTone
+  text: string
+}
+const TOASTS_SHOWN = 3
 
 export const app = reactive({
   ready: false,
@@ -64,10 +80,11 @@ export const app = reactive({
   query: '',
   sort: { key: 'created' as SortKey, dir: 1 as 1 | -1 },
   tab: 'general' as InspectorTab,
+  /** The lists of the selected project (another selection drops them) */
   activity: {} as Record<ProjectId, ActivityEntry[]>,
   failed: {} as Record<ProjectId, PagedList<FailedEntry>>,
   duplicates: {} as Record<ProjectId, PagedList<DuplicateGroup>>,
-  /** The last speeds of each running project, for the sparkline */
+  /** The last speeds of each downloading project, for the sparkline */
   speeds: {} as Record<ProjectId, number[]>,
   wizard: undefined as undefined | { folder?: string; step?: number; token?: string },
   dialog: undefined as DialogState | undefined,
@@ -77,9 +94,13 @@ export const app = reactive({
   dropping: false,
   /** Bumped to move the focus to the search field */
   search_focus: 0,
+  /** What failed (or happened), newest last */
+  toasts: [] as Toast[],
 })
 
-const desktop = (): typeof window.desktop => window.desktop
+const desktop = (): DesktopApi => window.desktop
+/** The system the app runs on: some words, shortcuts and settings depend on it */
+export const platform = (): DesktopApi['platform'] => desktop().platform
 
 /* ------------------------------------------------------------------ Derived */
 
@@ -102,9 +123,9 @@ function sortValue(project: ProjectView, key: SortKey): number | string {
     case 'status':
       return SEVERITY[status.tone]
     case 'label':
-      return project.label.toLocaleLowerCase()
+      return project.label
     case 'folder':
-      return project.folder.toLocaleLowerCase()
+      return project.folder
     case 'progress':
       return status.progress ?? (status.count ? 0 : -1)
     case 'files':
@@ -119,6 +140,8 @@ function sortValue(project: ProjectView, key: SortKey): number | string {
 export const visible = computed(() => {
   const query = app.query.trim().toLocaleLowerCase()
   const { key, dir } = app.sort
+  // Names and folders in the language's order; dates (ISO) and numbers as they are
+  const words = key == 'label' || key == 'folder'
   return app.projects
     .filter(
       p =>
@@ -128,9 +151,8 @@ export const visible = computed(() => {
     )
     .sort((a, b) => {
       const [x, y] = [sortValue(a, key), sortValue(b, key)]
-      if (x < y) return -dir
-      if (x > y) return dir
-      return a.label.localeCompare(b.label)
+      const order = words ? compareText(String(x), String(y)) : x < y ? -1 : x > y ? 1 : 0
+      return order * dir || compareText(a.label, b.label)
     })
 })
 
@@ -148,26 +170,70 @@ export const can = computed(() => {
   }
 })
 
+/* ------------------------------------------------------------------ Toasts */
+
+let toastIds = 0
+/** A toast; the same words again replace the older one, and three at most stay */
+export function notify(text: string, tone: ToastTone = 'danger'): void {
+  const toasts = app.toasts.filter(toast => toast.text != text)
+  toasts.push({ id: ++toastIds, tone, text })
+  app.toasts = toasts.slice(-TOASTS_SHOWN)
+}
+export function dismiss(id: number): void {
+  app.toasts = app.toasts.filter(toast => toast.id != id)
+}
+
+/** A call to main that failed: in main's log, and in words in a toast */
+function fail(what: string, error: unknown): void {
+  logError(what, error, 'warn')
+  notify(errorText(error))
+}
+async function run(what: string, action: () => Promise<unknown>): Promise<void> {
+  try {
+    await action()
+  } catch (error) {
+    fail(what, error)
+  }
+}
+
 /* ------------------------------------------------------------------ Start */
 
-export async function init({ live = true } = {}): Promise<void> {
+/** The panel of the notification area and the settings alone take no activity, no commands, no speeds */
+let live = false
+
+export async function init(options: { live?: boolean } = {}): Promise<void> {
+  live = options.live ?? true
   const api = desktop()
-  const [projects, settings, status, version] = await Promise.all([
-    api.projects.list(),
-    api.settings.get(),
-    api.app.status(),
-    api.app.version(),
-  ])
-  setProjects(projects)
-  applySettings(settings)
-  app.status = status
-  app.version = version
-  api.projects.onChanged(setProjects)
-  api.settings.onChanged(applySettings)
-  api.app.onStatus(next => (app.status = next))
+  // Listening first: what main pushes while the first answers travel is newer than them
+  const pushed = new Set<string>()
+  function first<T>(key: string, apply: (value: T) => void): (value: T) => void {
+    return value => {
+      pushed.add(key)
+      apply(value)
+    }
+  }
+  api.projects.onChanged(first('projects', setProjects))
+  api.settings.onChanged(first('settings', applySettings))
+  api.app.onStatus(first('status', (next: AppStatus) => (app.status = next)))
+  // The result of every check for updates, the one at start-up too
+  api.app.onVersion(first('version', (next: VersionInfo) => (app.version = next)))
   if (live) {
     api.sync.onActivity(addActivity)
     api.app.onCommand(runCommand)
+  }
+  try {
+    const [projects, settings, status, version] = await Promise.all([
+      api.projects.list(),
+      api.settings.get(),
+      api.app.status(),
+      api.app.version(),
+    ])
+    if (!pushed.has('projects')) setProjects(projects)
+    if (!pushed.has('settings')) applySettings(settings)
+    if (!pushed.has('status')) app.status = status
+    if (!pushed.has('version')) app.version = version
+  } catch (error) {
+    return fail('start', error)
   }
   app.ready = true
   if (!app.selectedId) select(visible.value[0]?.id)
@@ -175,12 +241,18 @@ export async function init({ live = true } = {}): Promise<void> {
 
 function setProjects(projects: ProjectView[]): void {
   app.projects = projects
-  for (const project of projects) {
-    if (project.runtime.phase != 'downloading' || !project.runtime.progress) continue
-    const samples = (app.speeds[project.id] ??= [])
-    samples.push(project.runtime.progress.speed_bps)
-    if (samples.length > SPEED_SAMPLES) samples.splice(0, samples.length - SPEED_SAMPLES)
+  // A deleted project leaves nothing behind
+  const kept = new Set(projects.map(p => p.id))
+  for (const lists of [app.activity, app.failed, app.duplicates, app.speeds]) {
+    for (const id of Object.keys(lists)) if (!kept.has(id)) delete lists[id]
   }
+  trackSpeeds()
+}
+
+/** The view main answers with, before it pushes the whole list (100 ms later) */
+function mergeProject(view: ProjectView): void {
+  const known = app.projects.some(p => p.id == view.id)
+  app.projects = known ? app.projects.map(p => (p.id == view.id ? view : p)) : [...app.projects, view]
 }
 
 function applySettings(settings: AppSettings): void {
@@ -199,20 +271,66 @@ function addActivity(id: ProjectId, entries: ActivityEntry[]): void {
   app.activity[id] = [...byId.values()].sort((a, b) => b.id - a.id).slice(0, ACTIVITY_KEPT)
 }
 
+/* ------------------------------------------------------------------ Speeds */
+
+/** The run each project's samples belong to: another run starts the line again */
+const runs = new Map<ProjectId, string>()
+let sampler: ReturnType<typeof setInterval> | undefined
+
+function trackSpeeds(): void {
+  let downloading = false
+  for (const project of app.projects) {
+    const progress = project.runtime.phase == 'downloading' ? project.runtime.progress : undefined
+    if (!progress) {
+      runs.delete(project.id)
+      delete app.speeds[project.id]
+      continue
+    }
+    downloading = true
+    if (runs.get(project.id) != progress.started_at) {
+      runs.set(project.id, progress.started_at)
+      app.speeds[project.id] = [progress.speed_bps]
+    }
+  }
+  for (const id of runs.keys()) if (!(id in app.speeds)) runs.delete(id)
+  if (downloading && live) sampler ??= setInterval(sampleSpeeds, SPEED_EVERY_MS)
+  else if (sampler) {
+    clearInterval(sampler)
+    sampler = undefined
+  }
+}
+
+/** A sample per unit of time, not per push: the line is as long as the last minute */
+function sampleSpeeds(): void {
+  for (const project of app.projects) {
+    const samples = app.speeds[project.id]
+    const speed = project.runtime.progress?.speed_bps
+    if (!samples || speed == null) continue
+    samples.push(speed)
+    if (samples.length > SPEED_SAMPLES) samples.splice(0, samples.length - SPEED_SAMPLES)
+  }
+}
+
 /* ------------------------------------------------------------------ Selection and tabs */
 
 export function select(id: ProjectId | undefined): void {
-  if (app.selectedId == id) return
   app.selectedId = id
 }
 
-/** Moves the selection up or down the visible rows */
-export function moveSelection(step: 1 | -1): void {
+/** Moves the selection along the visible rows: ±1 for the arrows, more for the pages, ±Infinity for the ends */
+export function moveSelection(step: number): void {
   const rows = visible.value
   if (!rows.length) return
   const at = rows.findIndex(p => p.id == app.selectedId)
-  const next = at < 0 ? 0 : Math.min(rows.length - 1, Math.max(0, at + step))
-  select(rows[next].id)
+  const from = at >= 0 ? at : step > 0 ? -1 : rows.length
+  select(rows[Math.min(rows.length - 1, Math.max(0, from + step))].id)
+}
+
+/** No filter, no destination, no search: every project in the table */
+export function showAll(): void {
+  app.filter = 'all'
+  app.kind = undefined
+  app.query = ''
 }
 
 // A selection that the filters hide moves to the first row left
@@ -221,11 +339,23 @@ watch(visible, rows => {
   if (!rows.some(p => p.id == app.selectedId)) select(rows[0]?.id)
 })
 
+// The lists of a project live while it is selected: thousands of failed files are not kept for nothing
+watch(
+  () => app.selectedId,
+  id => {
+    for (const lists of [app.activity, app.failed, app.duplicates]) {
+      for (const key of Object.keys(lists)) if (key != id) delete lists[key]
+    }
+  },
+)
+
 async function loadTab(id: ProjectId, tab: InspectorTab): Promise<void> {
-  try {
-    if (tab == 'activity') app.activity[id] = (await desktop().sync.getActivity(id, ACTIVITY_KEPT)).sort((a, b) => b.id - a.id)
-  } catch (error) {
-    console.error(`Cannot load ${tab} of ${id}`, error)
+  if (tab == 'activity') {
+    try {
+      app.activity[id] = (await desktop().sync.getActivity(id, ACTIVITY_KEPT)).sort((a, b) => b.id - a.id)
+    } catch (error) {
+      fail('load activity', error)
+    }
   }
   if (tab == 'failed' || tab == 'duplicates') await loadPage(tab, id, true)
 }
@@ -236,7 +366,7 @@ function pagedList<T>(lists: Record<ProjectId, PagedList<T>>, id: ProjectId): Pa
   return lists[id]
 }
 
-/** The first page again (`reset`: a new search, a reload), or the next one */
+/** The first page again (`reset`: a new search, a reload), or the next one; a failure shows in the list, with «Riprova» */
 async function loadPage(kind: PagedKind, id: ProjectId, reset: boolean): Promise<void> {
   const list: PagedList<FailedEntry | DuplicateGroup> = pagedList<FailedEntry | DuplicateGroup>(app[kind], id)
   if (!reset && (list.loading || list.error || list.items.length >= list.total)) return
@@ -252,7 +382,7 @@ async function loadPage(kind: PagedKind, id: ProjectId, reset: boolean): Promise
     list.total = page.total
     if ('language_variants' in page) list.language_variants = page.language_variants
   } catch (error) {
-    console.error(`Cannot load ${kind} of ${id}`, error)
+    logError(`load ${kind}`, error, 'warn')
     if (version == list.version) list.error = true
   } finally {
     if (version == list.version) list.loading = false
@@ -275,33 +405,30 @@ watch(
   },
 )
 
-/* ------------------------------------------------------------------ Actions */
+/* ------------------------------------------------------------------ Commands */
 
-const run = (what: string, action: () => Promise<unknown>): void => {
-  action().catch(error => console.error(what, error))
-}
 const target = (id?: ProjectId): ProjectView | undefined => app.projects.find(p => p.id == (id ?? app.selectedId))
 
 export function sync(id?: ProjectId): void {
   const project = target(id)
-  if (project && project.runtime.phase == 'idle') run('sync', () => desktop().sync.sync(project.id))
+  if (project && project.runtime.phase == 'idle') void run('sync', () => desktop().sync.sync(project.id))
 }
 export function download(id?: ProjectId): void {
   const project = target(id)
-  if (project && project.runtime.phase == 'idle') run('download', () => desktop().sync.download(project.id))
+  if (project && project.runtime.phase == 'idle') void run('download', () => desktop().sync.download(project.id))
 }
-export const syncAll = (): void => run('sync all', () => desktop().sync.syncAll())
+export const syncAll = (): void => void run('sync all', () => desktop().sync.syncAll())
 export function retryFailed(id?: ProjectId): void {
   const project = target(id)
-  if (project) run('retry failed', () => desktop().sync.retryFailed(project.id))
+  if (project) void run('retry failed', () => desktop().sync.retryFailed(project.id))
 }
 export function openFolder(id?: ProjectId): void {
   const project = target(id)
-  if (project) run('open folder', () => desktop().folders.openProject(project.id))
+  if (project) void run('open folder', () => desktop().folders.openProject(project.id))
 }
 export function copyPath(id?: ProjectId): void {
   const project = target(id)
-  if (project) run('copy path', () => desktop().app.copyText(project.folder))
+  if (project) void run('copy path', () => desktop().app.copyText(project.folder))
 }
 export function edit(id?: ProjectId): void {
   const project = target(id)
@@ -317,35 +444,72 @@ export function confirmDialog(options: { delete_files?: boolean } = {}): void {
   const dialog = app.dialog
   app.dialog = undefined
   if (!dialog) return
-  if (dialog.kind == 'stop') run('stop', () => desktop().sync.stop(dialog.id))
-  if (dialog.kind == 'cleanup') run('cleanup', () => desktop().sync.confirmCleanup(dialog.id))
+  if (dialog.kind == 'stop') void run('stop', () => desktop().sync.stop(dialog.id))
+  if (dialog.kind == 'cleanup') void run('cleanup', () => desktop().sync.confirmCleanup(dialog.id))
   if (dialog.kind == 'delete') {
-    run('delete', () => desktop().projects.remove(dialog.id, { delete_files: !!options.delete_files }))
+    void run('delete', () => desktop().projects.remove(dialog.id, { delete_files: !!options.delete_files }))
   }
 }
 export const openWizard = (folder?: string): void => {
   app.wizard = { folder }
 }
-export async function createProject(input: NewProjectInput): Promise<void> {
-  const project = await desktop().projects.create(input)
-  app.wizard = undefined
-  app.filter = 'all'
-  app.kind = undefined
-  app.query = ''
-  select(project.id)
-  app.tab = 'general'
+/** A folder dropped on the window: the new project with it */
+export function openDroppedFolder(file: File): void {
+  try {
+    openWizard(desktop().folders.pathForDroppedFile(file))
+  } catch (error) {
+    fail('dropped folder', error)
+  }
 }
-export const updateProject = (id: ProjectId, patch: ProjectPatch): Promise<ProjectView> => desktop().projects.update(id, patch)
 export const openSettings = (section: SettingsSection = 'general'): void => {
   app.settings_open = section
 }
+export const closeSettings = (): void => {
+  app.settings_open = undefined
+}
 export async function setSettings(patch: Partial<AppSettings>): Promise<void> {
-  applySettings(await desktop().settings.set(patch))
+  await run('settings', async () => applySettings(await desktop().settings.set(patch)))
+}
+export async function checkForUpdates(): Promise<void> {
+  await run('check for updates', async () => {
+    app.version = await desktop().app.checkForUpdates()
+  })
 }
 export function openRelease(): void {
   const url = app.version?.release_url
-  if (url) run('open release', () => desktop().app.openExternal(url))
+  if (url) void run('open release', () => desktop().app.openExternal(url))
 }
+/** A thing on On Page, in the browser */
+export const openOnPage = (url: string): void => void run('open link', () => desktop().app.openExternal(url))
+export const openLicenses = (): void => void run('open licenses', () => desktop().app.openLicenses())
+export const showMainWindow = (command?: AppCommand): void => desktop().app.showMainWindow(command)
+export const quit = (): void => desktop().app.quit()
+export const closeWindow = (): void => desktop().app.window.close()
+
+/* ------------------------------------------------------------------ What a form asks */
+
+/** The new project, already in the list and selected (main pushes the list a moment later) */
+export async function createProject(input: NewProjectInput): Promise<ProjectView> {
+  const project = await desktop().projects.create(input)
+  mergeProject(project)
+  app.wizard = undefined
+  showAll()
+  select(project.id)
+  app.tab = 'general'
+  return project
+}
+/** The project as saved: the form starts again from it, not from the old one */
+export async function updateProject(id: ProjectId, patch: ProjectPatch): Promise<ProjectView> {
+  const project = await desktop().projects.update(id, patch)
+  mergeProject(project)
+  return project
+}
+export const verifyToken = (token: string): Promise<TokenCheck> => desktop().tokens.verify(token)
+/** The saved token, checked in main without reaching the page */
+export const verifyProjectToken = (id: ProjectId): Promise<TokenCheck> => desktop().tokens.verifyProject(id)
+export const revealToken = (id: ProjectId): Promise<string> => desktop().projects.revealToken(id)
+export const pickFolder = (from?: string): Promise<string | undefined> => desktop().folders.pick(from)
+export const inspectFolder = (path: string, id?: ProjectId): Promise<FolderInfo> => desktop().folders.inspect(path, id)
 
 /** The commands from the menu of macOS, the notification area and the jump list, and the app's shortcuts */
 export function runCommand(command: AppCommand): void {
@@ -353,9 +517,7 @@ export function runCommand(command: AppCommand): void {
     case 'new_project':
       return openWizard(command.folder)
     case 'select_project':
-      app.filter = 'all'
-      app.kind = undefined
-      app.query = ''
+      showAll()
       select(command.project_id)
       if (command.tab) app.tab = command.tab
       return

@@ -46,7 +46,8 @@
     "last": "Synced",
     "never": "never",
     "no_results": "No project matches these filters",
-    "show_all": "Show all"
+    "show_all": "Show all",
+    "label": "Projects"
   },
   "kind": {
     "local": "Local folder",
@@ -103,7 +104,8 @@
     "activity": "Activity",
     "failed": "Failed",
     "duplicates": "Duplicates",
-    "settings": "Settings"
+    "settings": "Settings",
+    "resize": "Panel height"
   },
   "general": {
     "onpage": "On Page project",
@@ -495,8 +497,7 @@
     "today": "today, {time}",
     "yesterday": "yesterday, {time}",
     "less_than_minute": "less than a minute",
-    "about_minutes": "about a minute | about {n} minutes",
-    "about_hours": "about {h} h {m} min"
+    "about": "about {duration}"
   },
   "keys": {
     "ctrl": "Ctrl",

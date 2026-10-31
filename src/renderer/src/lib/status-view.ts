@@ -4,7 +4,7 @@
  * project in the table and in the inspector.
  */
 import type { DestinationKind, ProjectView } from '@shared/models'
-import { projectStatus, type ProjectStatus, type StatusKey } from '@shared/status'
+import { projectStatus, type ProjectStatus, type StatusKey, type StatusTone } from '@shared/status'
 import { i18n } from '../i18n'
 import { formatNumber } from './format'
 import * as icons from './icons'
@@ -70,7 +70,11 @@ export function fileCounts(project: ProjectView): [number, number | undefined] |
   return counts && (reading ? [counts[0], undefined] : counts)
 }
 
-/** The tone's classes for a mark (icon, dot) and for a tag's fill */
+/**
+ * The tone's classes, the one source for every part of the app: a mark (icon,
+ * dot) or the words of a warning (`TONE_FG`), a fill (`TONE_SOFT`), a dot
+ * (`TONE_DOT`), a toast's border (`TONE_LINE`); the icon of a notice
+ */
 export const TONE_FG = {
   success: 'text-success-fg',
   info: 'text-info-fg',
@@ -95,3 +99,21 @@ export const TONE_DOT = {
   danger: 'bg-danger',
   neutral: 'bg-neutral',
 } as const
+export const TONE_LINE = {
+  success: 'border-success',
+  info: 'border-info',
+  accent: 'border-accent',
+  warning: 'border-warning',
+  danger: 'border-danger',
+  neutral: 'border-neutral',
+} as const
+export const TONE_ICON: Record<StatusTone, icons.IconDefinition> = {
+  success: icons.faCircleCheck,
+  info: icons.faCircleInfo,
+  accent: icons.faCircleInfo,
+  warning: icons.faTriangleExclamation,
+  danger: icons.faCircleExclamation,
+  neutral: icons.faCircleInfo,
+}
+/** Warnings and errors write in their tone; the others in the text's colour */
+export const toneText = (tone: StatusTone): string => (tone == 'warning' || tone == 'danger' ? TONE_FG[tone] : '')

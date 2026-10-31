@@ -8,7 +8,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as icons from '../lib/icons'
-import { app, ask, can, download, edit, openFolder, openSettings, openWizard, sync, syncAll } from '../store'
+import { app, ask, can, download, edit, openFolder, openSettings, openWizard, platform, sync, syncAll } from '../store'
 import AppIcon from './ui/AppIcon.vue'
 import IconButton from './ui/IconButton.vue'
 import SearchField from './ui/SearchField.vue'
@@ -22,7 +22,7 @@ interface Tool {
 }
 
 const { t, locale } = useI18n()
-const mac = window.desktop.platform == 'darwin'
+const mac = platform() == 'darwin'
 /** Key names as the keyboard of the language prints them (Strg, Maj, Entf…) */
 const mod = computed(() => (mac ? '⌘' : `${t('keys.ctrl')}+`))
 const tools = computed<(Tool | '|')[]>(() => [
@@ -85,10 +85,10 @@ onBeforeUnmount(() => observer.disconnect())
         type="button"
         :disabled="!tool.on"
         :aria-label="t(`toolbar.${tool.key}`)"
-        class="flex flex-col items-center gap-xs rounded-md px-sm py-[6px] text-text enabled:hover:bg-text/[.06] disabled:text-disabled"
+        class="flex flex-col items-center gap-xs rounded-md px-sm py-xs-sm text-text enabled:hover:bg-tint disabled:text-disabled"
         @click="tool.action"
       >
-        <AppIcon :icon="tool.icon" class="text-[17px]" />
+        <AppIcon :icon="tool.icon" class="text-lg" />
         <span v-if="!compact" class="whitespace-nowrap text-xs font-medium">{{ t(`toolbar.${tool.key}`) }}</span>
       </button>
     </template>
@@ -105,10 +105,10 @@ onBeforeUnmount(() => observer.disconnect())
       v-else
       v-tooltip="`${t('toolbar.settings')} · ${mod},`"
       type="button"
-      class="ml-xs flex flex-col items-center gap-xs rounded-md px-sm py-[6px] hover:bg-text/[.06]"
+      class="ml-xs flex flex-col items-center gap-xs rounded-md px-sm py-xs-sm hover:bg-tint"
       @click="openSettings()"
     >
-      <AppIcon :icon="icons.faGear" class="text-[17px]" />
+      <AppIcon :icon="icons.faGear" class="text-lg" />
       <span class="text-xs font-medium">{{ t('toolbar.settings') }}</span>
     </button>
   </nav>

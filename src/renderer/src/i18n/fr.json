@@ -46,7 +46,8 @@
     "last": "Synchronisé",
     "never": "jamais",
     "no_results": "Aucun projet ne correspond à ces filtres",
-    "show_all": "Tout afficher"
+    "show_all": "Tout afficher",
+    "label": "Projets"
   },
   "kind": {
     "local": "Dossier local",
@@ -103,7 +104,8 @@
     "activity": "Activité",
     "failed": "Échecs",
     "duplicates": "Doublons",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "resize": "Hauteur du panneau"
   },
   "general": {
     "onpage": "Projet On Page",
@@ -495,8 +497,7 @@
     "today": "aujourd’hui, {time}",
     "yesterday": "hier, {time}",
     "less_than_minute": "moins d’une minute",
-    "about_minutes": "environ {n} minute | environ {n} minutes",
-    "about_hours": "environ {h} h {m} min"
+    "about": "environ {duration}"
   },
   "keys": {
     "ctrl": "Ctrl",

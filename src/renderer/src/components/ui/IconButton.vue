@@ -12,7 +12,7 @@ withDefaults(defineProps<{ icon: IconDefinition; label: string; size?: number; d
     type="button"
     :aria-label="label"
     :disabled="disabled"
-    class="inline-flex shrink-0 items-center justify-center rounded-md text-text transition-colors duration-100 enabled:hover:bg-text/[.06] disabled:text-disabled"
+    class="inline-flex shrink-0 items-center justify-center rounded-md text-text transition-colors duration-100 enabled:hover:bg-tint disabled:text-disabled"
     :style="{ width: `${size}px`, height: `${size}px` }"
   >
     <AppIcon :icon="icon" />

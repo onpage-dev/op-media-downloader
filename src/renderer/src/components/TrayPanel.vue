@@ -6,14 +6,13 @@
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AppCommand } from '@shared/desktop-api'
 import type { ProjectView } from '@shared/models'
 import { projectStatus, type ProjectStatus } from '@shared/status'
 import icon from '../../assets/app-icon.png'
-import { formatEtaShort, formatSpeed, formatWhen } from '../lib/format'
+import { formatEtaShort, formatPercent, formatSpeed, formatWhen } from '../lib/format'
 import * as icons from '../lib/icons'
 import { statusIcon, statusLabel, statusText } from '../lib/status-view'
-import { app, syncAll } from '../store'
+import { app, quit, showMainWindow as show, syncAll } from '../store'
 import IconButton from './ui/IconButton.vue'
 import ProgressBar from './ui/ProgressBar.vue'
 import StatusTag from './ui/StatusTag.vue'
@@ -35,8 +34,6 @@ function words(project: ProjectView, status: ProjectStatus): string {
   const text = statusText(project, status)
   return status.key == 'done' ? `${text} · ${formatWhen(project.runtime.last_result?.ended_at)}` : text
 }
-const show = (command?: AppCommand): void => window.desktop.app.showMainWindow(command)
-const quit = (): void => window.desktop.app.quit()
 </script>
 
 <template>
@@ -53,7 +50,7 @@ const quit = (): void => window.desktop.app.quit()
       <li v-for="{ project, status } in rows" :key="project.id">
         <button
           type="button"
-          class="flex w-full items-center gap-[10px] rounded-md px-md py-sm text-left hover:bg-text/[.06]"
+          class="flex w-full items-center gap-sm-md rounded-md px-md py-sm text-left hover:bg-tint"
           @click="show({ type: 'select_project', project_id: project.id })"
         >
           <StatusTag compact :tone="status.tone" :icon="statusIcon(status)" :label="statusLabel(status)" />
@@ -64,7 +61,8 @@ const quit = (): void => window.desktop.app.quit()
               class="w-[260px] max-w-full"
               size="xs"
               :value="status.progress ?? 0"
-              :label="`${Math.floor((status.progress ?? 0) * 100)}% · ${formatEtaShort(project.runtime.progress?.eta_seconds)}`"
+              :name="project.label"
+              :label="`${formatPercent(status.progress ?? 0)} · ${formatEtaShort(project.runtime.progress?.eta_seconds)}`"
             />
             <span v-else class="truncate text-xs text-secondary">{{ words(project, status) }}</span>
           </span>

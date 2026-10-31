@@ -21,6 +21,7 @@ defineExpose({ focus: () => input.value?.focus() })
       type="search"
       spellcheck="false"
       :placeholder="placeholder"
+      :aria-label="placeholder"
       class="min-w-0 flex-1 bg-transparent text-base placeholder:text-placeholder [&::-webkit-search-cancel-button]:hidden"
       @keydown.esc="model = ''"
     />
@@ -28,7 +29,7 @@ defineExpose({ focus: () => input.value?.focus() })
       v-if="model"
       v-tooltip="clearLabel"
       type="button"
-      class="flex h-5 w-5 items-center justify-center rounded-sm text-secondary hover:bg-text/[.06]"
+      class="flex h-5 w-5 items-center justify-center rounded-sm text-secondary hover:bg-tint"
       @click="model = ''"
     >
       <AppIcon :icon="faXmark" />

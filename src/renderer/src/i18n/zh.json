@@ -46,7 +46,8 @@
     "last": "上次同步",
     "never": "从未",
     "no_results": "没有符合这些筛选条件的项目",
-    "show_all": "显示全部"
+    "show_all": "显示全部",
+    "label": "项目"
   },
   "kind": {
     "local": "本地文件夹",
@@ -103,7 +104,8 @@
     "activity": "活动",
     "failed": "失败",
     "duplicates": "重名",
-    "settings": "设置"
+    "settings": "设置",
+    "resize": "面板高度"
   },
   "general": {
     "onpage": "On Page 项目",
@@ -495,8 +497,7 @@
     "today": "今天 {time}",
     "yesterday": "昨天 {time}",
     "less_than_minute": "不到 1 分钟",
-    "about_minutes": "约 {n} 分钟",
-    "about_hours": "约 {h} 小时 {m} 分钟"
+    "about": "约 {duration}"
   },
   "keys": {
     "ctrl": "Ctrl",

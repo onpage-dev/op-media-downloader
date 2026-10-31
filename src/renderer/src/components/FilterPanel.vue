@@ -19,14 +19,14 @@ const STATES: [ProjectFilter, icons.IconDefinition, StatusTone | undefined][] = 
 </script>
 
 <template>
-  <aside class="flex w-[200px] shrink-0 flex-col gap-2xs overflow-auto px-sm pb-sm pt-xs">
+  <aside class="flex w-sidebar shrink-0 flex-col gap-2xs overflow-auto px-sm pb-sm pt-xs">
     <h2 class="px-sm pb-xs pt-sm text-xs font-medium text-secondary">{{ t('filters.state') }}</h2>
     <button
       v-for="[filter, icon, tone] in STATES"
       :key="filter"
       type="button"
       class="flex items-center gap-sm rounded-md px-sm py-[7px] text-left text-sm"
-      :class="app.filter == filter ? 'bg-accent-soft font-medium text-accent-fg' : 'hover:bg-text/[.06]'"
+      :class="app.filter == filter ? 'bg-accent-soft font-medium text-accent-fg' : 'hover:bg-tint'"
       :aria-pressed="app.filter == filter"
       @click="app.filter = filter"
     >
@@ -40,7 +40,7 @@ const STATES: [ProjectFilter, icons.IconDefinition, StatusTone | undefined][] = 
       :key="kind"
       type="button"
       class="flex items-center gap-sm rounded-md px-sm py-[7px] text-left text-sm"
-      :class="app.kind == kind ? 'bg-accent-soft font-medium text-accent-fg' : 'hover:bg-text/[.06]'"
+      :class="app.kind == kind ? 'bg-accent-soft font-medium text-accent-fg' : 'hover:bg-tint'"
       :aria-pressed="app.kind == kind"
       @click="app.kind = app.kind == kind ? undefined : kind"
     >

@@ -46,7 +46,8 @@
     "last": "Synchronisiert",
     "never": "nie",
     "no_results": "Kein Projekt passt zu diesen Filtern",
-    "show_all": "Alle anzeigen"
+    "show_all": "Alle anzeigen",
+    "label": "Projekte"
   },
   "kind": {
     "local": "Lokaler Ordner",
@@ -103,7 +104,8 @@
     "activity": "Aktivität",
     "failed": "Fehlgeschlagen",
     "duplicates": "Duplikate",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "resize": "Höhe des Bereichs"
   },
   "general": {
     "onpage": "On Page-Projekt",
@@ -495,8 +497,7 @@
     "today": "heute, {time}",
     "yesterday": "gestern, {time}",
     "less_than_minute": "weniger als eine Minute",
-    "about_minutes": "etwa {n} Minute | etwa {n} Minuten",
-    "about_hours": "etwa {h} h {m} min"
+    "about": "etwa {duration}"
   },
   "keys": {
     "ctrl": "Strg",

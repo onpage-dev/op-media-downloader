@@ -2,16 +2,23 @@
  * The renderer: the main window, or the tray panel at `#/tray`, or the
  * settings alone at `#/settings`. In development without the preload (the
  * renderer alone in a browser) a stand-in API with the projects of the mockup
- * takes its place; it never reaches a production build.
+ * takes its place; it never reaches a production build. The page's own errors
+ * (a component that throws, a promise nobody awaited) go to main's log.
  */
+// The app's styles first: Tailwind's licence line has to open the stylesheet to stay in the minified one
+// (Font Awesome's rules have no layer: they win over Tailwind's in any order)
+import './styles/app.css'
 import { config } from '@fortawesome/fontawesome-svg-core'
 import '@fortawesome/fontawesome-svg-core/styles.css'
 import { createApp, type Component } from 'vue'
 import { i18n } from './i18n'
+import { logError } from './lib/errors'
 import { vTooltip } from './lib/tooltip'
-import './styles/app.css'
 
 config.autoAddCss = false
+
+window.addEventListener('unhandledrejection', event => logError('unhandled rejection', event.reason))
+window.addEventListener('error', event => logError('uncaught error', event.error ?? event.message))
 
 async function start(): Promise<void> {
   const alone = import.meta.env.DEV && !window.desktop
@@ -22,8 +29,10 @@ async function start(): Promise<void> {
     : route.startsWith('#/settings')
       ? (await import('./SettingsView.vue')).default
       : (await import('./MainWindow.vue')).default
-  createApp(root).use(i18n).directive('tooltip', vTooltip).mount('#app')
+  const vue = createApp(root).use(i18n).directive('tooltip', vTooltip)
+  vue.config.errorHandler = (error, _instance, info) => logError(`vue (${info})`, error)
+  vue.mount('#app')
   if (alone) (await import('./dev/scenes')).playScene()
 }
 
-void start()
+void start().catch(error => logError('start', error))

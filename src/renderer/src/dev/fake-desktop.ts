@@ -3,7 +3,9 @@
  * renderer runs alone in a browser (dev server, captures). It is installed only
  * when the preload did not expose the real API: never inside Electron.
  * URL parameters: `empty` (no projects), `duplicates` (Catalogo Piante 2026 with
- * names with different files), `freeze` (no live progress).
+ * names with different files), `freeze` (no live progress), `fail=<code>` (the
+ * commands reject with that code, as main does: `project_busy`, `engine_timeout`…).
+ * Like main, it answers a change with the project and pushes the list 100 ms later.
  */
 import type { AppCommand, DesktopApi, NewProjectInput, ProjectPatch } from '@shared/desktop-api'
 import {
@@ -279,11 +281,23 @@ const settingsChanged = channel<[AppSettings]>()
 const statusChanged = channel<[AppStatus]>()
 const activityAdded = channel<[string, ActivityEntry[]]>()
 const commands = channel<[AppCommand]>()
+const versionChanged = channel<[VersionInfo]>()
 
 const clone = <T>(value: T): T => structuredClone(value)
+/** As main: the list goes 100 ms after the first change, with whatever changed meanwhile */
+let pushing: ReturnType<typeof setTimeout> | undefined
 const emitProjects = (): void => {
-  projectsChanged.emit(clone(projects))
-  statusChanged.emit(status())
+  pushing ??= setTimeout(() => {
+    pushing = undefined
+    projectsChanged.emit(clone(projects))
+    statusChanged.emit(status())
+  }, 100)
+}
+/** `fail=<code>`: the commands reject as main's do */
+const failing = params.get('fail')
+const command = async <T>(run: () => Promise<T>): Promise<T> => {
+  if (failing) throw new Error(failing)
+  return run()
 }
 const later = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const find = (id: string): ProjectView => {
@@ -357,16 +371,18 @@ const desktop: DesktopApi = {
     onChanged: listener => projectsChanged.add(listener),
   },
   sync: {
-    sync: async id => void fakeSync(id),
-    syncAll: async () => {
-      for (const p of projects) if (p.runtime.phase == 'idle') void fakeSync(p.id)
-    },
-    async download(id) {
-      const p = find(id)
-      p.runtime = { ...p.runtime, phase: 'downloading', job: 'download' }
-      emitProjects()
-    },
-    retryFailed: async () => undefined,
+    sync: id => command(async () => void fakeSync(id)),
+    syncAll: () =>
+      command(async () => {
+        for (const p of projects) if (p.runtime.phase == 'idle') void fakeSync(p.id)
+      }),
+    download: id =>
+      command(async () => {
+        const p = find(id)
+        p.runtime = { ...p.runtime, phase: 'downloading', job: 'download' }
+        emitProjects()
+      }),
+    retryFailed: () => command(async () => undefined),
     async confirmCleanup(id) {
       const p = find(id)
       p.runtime.issues = p.runtime.issues.filter(i => i.code != 'cleanup_needs_confirmation')
@@ -400,7 +416,7 @@ const desktop: DesktopApi = {
       await later(400)
       return inspect(path, projectId)
     },
-    openProject: async () => undefined,
+    openProject: () => command(async () => undefined),
     pathForDroppedFile: file => `D:\\Media\\${file.name}`,
   },
   tokens: {
@@ -425,14 +441,19 @@ const desktop: DesktopApi = {
   },
   app: {
     version: async () => clone(version),
-    checkForUpdates: async () => clone(version),
+    async checkForUpdates() {
+      await later(600)
+      version.checked_at = new Date().toISOString()
+      versionChanged.emit(clone(version))
+      return clone(version)
+    },
     status: async () => status(),
     onStatus: listener => statusChanged.add(listener),
-    onVersion: () => () => undefined,
+    onVersion: listener => versionChanged.add(listener),
     openExternal: async url => void window.open(url, '_blank'),
     copyText: async text => navigator.clipboard?.writeText(text),
     onCommand: listener => commands.add(listener),
-    openLicenses: async () => undefined,
+    openLicenses: () => command(async () => undefined),
     log: (level, message) => console[level](message),
     // In a browser the panel and the window are one page: the command runs here
     showMainWindow: command => command && commands.emit(command),

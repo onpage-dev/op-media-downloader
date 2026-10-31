@@ -46,7 +46,8 @@
     "last": "Sincronizzato",
     "never": "mai",
     "no_results": "Nessun progetto con questi filtri",
-    "show_all": "Mostra tutti"
+    "show_all": "Mostra tutti",
+    "label": "Progetti"
   },
   "kind": {
     "local": "Cartella locale",
@@ -103,7 +104,8 @@
     "activity": "Attività",
     "failed": "Falliti",
     "duplicates": "Duplicati",
-    "settings": "Impostazioni"
+    "settings": "Impostazioni",
+    "resize": "Altezza del pannello"
   },
   "general": {
     "onpage": "Progetto On Page",
@@ -495,8 +497,7 @@
     "today": "oggi, {time}",
     "yesterday": "ieri, {time}",
     "less_than_minute": "meno di un minuto",
-    "about_minutes": "circa un minuto | circa {n} minuti",
-    "about_hours": "circa {h} h {m} min"
+    "about": "circa {duration}"
   },
   "keys": {
     "ctrl": "Ctrl",

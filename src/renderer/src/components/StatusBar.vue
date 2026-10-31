@@ -17,25 +17,25 @@ const update = computed(() => {
 
 <template>
   <footer class="flex h-7 shrink-0 items-center gap-md border-t border-line px-md text-xs">
-    <span class="flex items-center gap-[6px]">
+    <span class="flex items-center gap-xs-sm">
       <span class="h-[7px] w-[7px] rounded-full" :class="status?.online === false ? 'bg-neutral' : 'bg-success'" />
       {{ status?.online === false ? t('status_bar.offline') : t('status_bar.online') }}
     </span>
     <template v-if="app.projects.length && status">
       <span class="flex items-center gap-xs text-secondary">
-        <AppIcon :icon="icons.faArrowsRotate" class="text-[12px]" />
+        <AppIcon :icon="icons.faArrowsRotate" class="text-xs" />
         {{ t('status_bar.running', { count: formatNumber(status.running_jobs) }) }}
       </span>
       <span class="tabular flex items-center gap-xs text-secondary">
-        <AppIcon :icon="icons.faArrowDownToBracket" class="text-[12px]" />
+        <AppIcon :icon="icons.faArrowDownToBracket" class="text-xs" />
         {{ status.running_jobs ? formatSpeed(status.speed_bps) : '—' }}
       </span>
       <span class="tabular flex items-center gap-xs text-secondary">
-        <AppIcon :icon="icons.faFileLines" class="text-[12px]" />
+        <AppIcon :icon="icons.faFileLines" class="text-xs" />
         {{ t('status_bar.files', { count: formatNumber(status.total_files) }) }}
       </span>
       <span class="tabular flex items-center gap-xs text-secondary">
-        <AppIcon :icon="icons.faHardDrive" class="text-[12px]" />
+        <AppIcon :icon="icons.faHardDrive" class="text-xs" />
         {{ formatBytes(status.total_bytes) }}
       </span>
     </template>
@@ -43,7 +43,7 @@ const update = computed(() => {
     <span class="flex-1" />
     <span v-if="app.version" class="text-secondary">v{{ app.version.current.replace(/^v/, '') }}</span>
     <button v-if="update" type="button" class="flex items-center gap-xs font-medium text-accent-fg hover:underline" @click="openRelease">
-      <AppIcon :icon="icons.faArrowDownToBracket" class="text-[12px]" />
+      <AppIcon :icon="icons.faArrowDownToBracket" class="text-xs" />
       {{ t('status_bar.update', { version: `v${update.replace(/^v/, '')}` }) }}
     </button>
   </footer>
