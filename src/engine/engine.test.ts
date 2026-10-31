@@ -15,6 +15,7 @@ import {
   FakeOnPage,
   sampleProject,
   startFakeOnPage,
+  token,
 } from './testing/fake-onpage-server'
 import { cleanupTempDirs, listDir, tempDir } from './testing/tmp'
 
@@ -250,6 +251,73 @@ describe('engine: the core flow', () => {
     })
     expect(deleted).toMatchObject({ removed_folder: false, kept_entries: 1 })
     expect(await listDir(folder)).toEqual(['appunti.docx'])
+  })
+
+  it('files renamed or replaced on On Page arrive with the incremental listing (`_updated_at`)', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    await run({ type: 'download', project: project(folder) })
+    const thing = (id: number) => fake.project.things.find(t => t.id == id)!
+
+    // Renamed (same content), also in a translatable field: linked again, nothing downloaded
+    const photo = (thing(1003).files.foto as FakeFile[])[0]
+    photo.name = 'prodotto-3-fronte.jpg'
+    const sheets = thing(5001).files.pdf as Record<string, FakeFile[]>
+    sheets.en[0].name = 'scheda-1-en-v2.pdf'
+    fake.touch(1003)
+    fake.touch(5001)
+    const hits = storageHits()
+    let result = await run({ type: 'sync', project: project(folder) })
+    expect(lastState().plan).toMatchObject({
+      listing: 'incremental',
+      to_download: 0,
+    })
+    expect(result).toMatchObject({
+      outcome: 'completed',
+      downloaded: 0,
+      linked: 2,
+      removed: 2,
+    })
+    expect(storageHits()).toBe(hits)
+    const names = await listDir(folder)
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'prodotto-3-fronte.jpg',
+        'prodotto-3-copertina.jpg',
+        'scheda-1-en-v2.pdf',
+      ]),
+    )
+    expect(names).not.toContain('prodotto-3.jpg')
+    expect(names).not.toContain('scheda-1-en.pdf')
+    expect(
+      await fs.readFile(path.join(folder, 'prodotto-3-fronte.jpg')),
+    ).toEqual(fileContent(photo))
+
+    // Replaced (same name, new content): downloaded, the old content leaves data/
+    const gallery = thing(1004).files.galleria as FakeFile[]
+    const old_token = gallery[0].token
+    gallery[0] = {
+      token: token('retro-4-nuovo'),
+      name: 'prodotto-4-retro.jpg',
+      size: 1600,
+    }
+    fake.touch(1004)
+    await run({ type: 'sync', project: project(folder) })
+    expect(lastState().plan).toMatchObject({
+      listing: 'incremental',
+      to_download: 1,
+      to_download_names: 1,
+    })
+    result = await run({ type: 'download', project: project(folder) })
+    expect(result).toMatchObject({
+      outcome: 'completed',
+      downloaded: 1,
+      failed: 0,
+    })
+    expect(
+      await fs.readFile(path.join(folder, 'prodotto-4-retro.jpg')),
+    ).toEqual(fileContent(gallery[0]))
+    expect(await listDir(path.join(folder, 'data'))).not.toContain(old_token)
   })
 
   it('a folder from 1.x is taken over without downloading or removing anything', async () => {
