@@ -84,7 +84,8 @@ export function optionalFolder(value: unknown): string | undefined {
 /** A page of a long list: at most 200 entries, a query of at most 200 characters */
 export function pageQuery(value: unknown): PageQuery {
   const page = isRecord(value) ? value : {}
-  const whole = (n: unknown, fallback: number): number => (typeof n == 'number' && Number.isFinite(n) ? Math.floor(n) : fallback)
+  const whole = (n: unknown, fallback: number): number =>
+    typeof n == 'number' && Number.isFinite(n) ? Math.floor(n) : fallback
   return {
     offset: Math.min(1_000_000_000, Math.max(0, whole(page.offset, 0))),
     limit: Math.min(200, Math.max(1, whole(page.limit, 50))),
@@ -94,7 +95,9 @@ export function pageQuery(value: unknown): PageQuery {
 
 /** How many activity entries to read: the engine keeps the last 1,000 */
 export function activityLimit(value: unknown): number | undefined {
-  return typeof value == 'number' && Number.isFinite(value) ? Math.min(1_000, Math.max(1, Math.floor(value))) : undefined
+  return typeof value == 'number' && Number.isFinite(value)
+    ? Math.min(1_000, Math.max(1, Math.floor(value)))
+    : undefined
 }
 
 export function newProjectInput(value: unknown): NewProjectInput {
@@ -121,7 +124,13 @@ export function projectPatch(value: unknown): ProjectPatch {
 /* -------------------------------------------------------------------- settings */
 
 export const THEMES: readonly ThemeSetting[] = ['system', 'light', 'dark']
-export const SETTING_FLAGS = ['auto_retry_failed', 'notifications', 'close_to_tray', 'open_at_login', 'check_updates'] as const
+export const SETTING_FLAGS = [
+  'auto_retry_failed',
+  'notifications',
+  'close_to_tray',
+  'open_at_login',
+  'check_updates',
+] as const
 
 export const isTheme = (value: unknown): value is ThemeSetting => oneOf(THEMES, value)
 export const isLanguage = (value: unknown): value is AppLanguage => oneOf(LANGUAGES, value)
@@ -185,7 +194,11 @@ export function appCommand(value: unknown): AppCommand | undefined {
       return { type: 'new_project', folder: optionalFolder(value.folder) }
     case 'select_project':
       if (!isProjectId(value.project_id)) return undefined
-      return { type: 'select_project', project_id: value.project_id, tab: oneOf(TABS, value.tab) ? value.tab : undefined }
+      return {
+        type: 'select_project',
+        project_id: value.project_id,
+        tab: oneOf(TABS, value.tab) ? value.tab : undefined,
+      }
     case 'open_settings':
       return { type: 'open_settings', section: oneOf(SECTIONS, value.section) ? value.section : undefined }
   }

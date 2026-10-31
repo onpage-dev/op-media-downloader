@@ -10,21 +10,8 @@
  * media fields. Transport retries (network, 5xx, 429) live in the adapter.
  */
 import { Field, OpFile, QueryFilter, Schema, Thing } from 'onpage-js'
-import {
-  AbortedError,
-  HttpError,
-  isNetworkError,
-  JobError,
-  TimeoutError,
-} from './errors'
-import {
-  loadSchema,
-  MediaResource,
-  mediaResources,
-  OnPageContext,
-  schemaError,
-  schemaSignature,
-} from './onpage'
+import { AbortedError, HttpError, isNetworkError, JobError, TimeoutError } from './errors'
+import { loadSchema, MediaResource, mediaResources, OnPageContext, schemaError, schemaSignature } from './onpage'
 import { runQueue } from './queue'
 import { RemoteFileTuple, RemoteIndex, RemoteResource } from './remote-index'
 
@@ -74,9 +61,7 @@ export interface ListingResult {
 /** The collections not read, for the detail of `listing_incomplete`: three names, then +N */
 export function failedLabels(failed: FailedResource[]): string {
   const labels = failed.map(f => f.label)
-  return labels.length > 3
-    ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}`
-    : labels.join(', ')
+  return labels.length > 3 ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}` : labels.join(', ')
 }
 
 /** On Page compares dates as text: UTC, `YYYY-MM-DD HH:mm:ss` */
@@ -92,22 +77,12 @@ function num(value: unknown): number | null {
 }
 
 /** A thing's files in field, lang and value order; no language fallback */
-export function thingFiles(
-  thing: Thing,
-  fields: Field[],
-  langs: string[],
-): RemoteFileTuple[] {
+export function thingFiles(thing: Thing, fields: Field[], langs: string[]): RemoteFileTuple[] {
   const tuples: RemoteFileTuple[] = []
   for (const field of fields) {
-    const field_langs: (string | null)[] = field.is_translatable
-      ? langs
-      : [null]
+    const field_langs: (string | null)[] = field.is_translatable ? langs : [null]
     for (const lang of field_langs) {
-      const files = thing.values(
-        field,
-        lang ?? undefined,
-        true,
-      ) as unknown as OpFile[]
+      const files = thing.values(field, lang ?? undefined, true) as unknown as OpFile[]
       for (const file of files) {
         if (!file?.token) continue
         tuples.push([
@@ -132,8 +107,7 @@ function notEmptyFilter(fields: Field[]): QueryFilter {
 /** Errors that stop the whole listing instead of one resource: stop, token refused, no network */
 function isFatal(error: unknown): boolean {
   if (error instanceof AbortedError || error instanceof JobError) return true
-  if (error instanceof HttpError)
-    return error.status == 401 || error.status == 403
+  if (error instanceof HttpError) return error.status == 401 || error.status == 403
   if (error instanceof TimeoutError) return false
   return isNetworkError(error)
 }
@@ -147,9 +121,7 @@ interface ResourceWork {
   failed?: string
 }
 
-export async function listRemote(
-  options: ListingOptions,
-): Promise<ListingResult> {
+export async function listRemote(options: ListingOptions): Promise<ListingResult> {
   const now = options.now ?? Date.now
   const page_size = options.page_size ?? PAGE_SIZE
   let server_now: number | undefined
@@ -176,9 +148,7 @@ export async function listRemote(
     Number.isFinite(cache_age) &&
     cache_age < (options.max_cache_age_ms ?? MAX_CACHE_AGE_MS)
   const since = incremental
-    ? formatServerDate(
-        Date.parse(cache.checkpoint) - (options.margin_ms ?? MARGIN_MS),
-      )
+    ? formatServerDate(Date.parse(cache.checkpoint) - (options.margin_ms ?? MARGIN_MS))
     : undefined
 
   const media = mediaResources(schema)
@@ -194,10 +164,7 @@ export async function listRemote(
   // Phase 1: which things to read
   for (const item of media) {
     if (options.signal?.aborted) throw new AbortedError()
-    const label = safeLabel(
-      () => item.resource.getLabel(lang),
-      item.resource.name,
-    )
+    const label = safeLabel(() => item.resource.getLabel(lang), item.resource.name)
     progress.resource_label = label
     report()
     const entry: ResourceWork = {
@@ -209,16 +176,11 @@ export async function listRemote(
     }
     work.push(entry)
     try {
-      const ids = (
-        await item.resource.query().filter(notEmptyFilter(item.fields)).ids()
-      ).map(Number)
-      const cached = incremental
-        ? cache.resources.find(r => r.id == item.resource.id)
-        : undefined
+      const ids = (await item.resource.query().filter(notEmptyFilter(item.fields)).ids()).map(Number)
+      const cached = incremental ? cache.resources.find(r => r.id == item.resource.id) : undefined
       if (cached) {
         const current = new Set(ids)
-        for (const [id, tuples] of cached.things)
-          if (current.has(id)) entry.things.set(id, tuples)
+        for (const [id, tuples] of cached.things) if (current.has(id)) entry.things.set(id, tuples)
         const updated = new Set(
           (
             await item.resource
@@ -228,9 +190,7 @@ export async function listRemote(
               .ids()
           ).map(Number),
         )
-        entry.to_read = ids.filter(
-          id => !cached.things.has(id) || updated.has(id),
-        )
+        entry.to_read = ids.filter(id => !cached.things.has(id) || updated.has(id))
       } else {
         entry.to_read = ids
       }
@@ -281,10 +241,7 @@ export async function listRemote(
       } catch (error) {
         if (isFatal(error)) throw fatal(error)
         entry.failed = describe(error)
-        options.log?.(
-          'warn',
-          `Listing of ${entry.label} failed: ${entry.failed}`,
-        )
+        options.log?.('warn', `Listing of ${entry.label} failed: ${entry.failed}`)
       }
       entry.pages_left--
       if (!entry.pages_left) progress.resources_done++
@@ -299,11 +256,7 @@ export async function listRemote(
     .filter(w => w.failed)
     .map(w => ({ id: w.media.resource.id, label: w.label, error: w.failed! }))
   if (media.length && failed_resources.length == media.length) {
-    throw new JobError(
-      'listing_failed',
-      'The file list could not be read',
-      failed_resources[0].error,
-    )
+    throw new JobError('listing_failed', 'The file list could not be read', failed_resources[0].error)
   }
 
   // A resource that failed keeps what the cache knew (no removals anyway)

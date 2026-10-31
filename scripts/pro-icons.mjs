@@ -38,9 +38,13 @@ function token() {
 function untar(tgz) {
   const tar = gunzipSync(tgz)
   const files = new Map()
-  for (let at = 0; at + 512 <= tar.length; ) {
+  for (let at = 0; at + 512 <= tar.length;) {
     const header = tar.subarray(at, at + 512)
-    const field = (start, length) => header.subarray(start, start + length).toString('utf8').replace(/\0.*$/s, '')
+    const field = (start, length) =>
+      header
+        .subarray(start, start + length)
+        .toString('utf8')
+        .replace(/\0.*$/s, '')
     const name = field(0, 100)
     if (!name) break
     const prefix = field(345, 155)
@@ -55,7 +59,10 @@ function untar(tgz) {
 
 async function fetchPackage(pkg, auth) {
   const headers = { authorization: `Bearer ${auth}` }
-  const meta = await fetch(`${REGISTRY}/${pkg.name.replace('/', '%2f')}`, { headers, signal: AbortSignal.timeout(60_000) })
+  const meta = await fetch(`${REGISTRY}/${pkg.name.replace('/', '%2f')}`, {
+    headers,
+    signal: AbortSignal.timeout(60_000),
+  })
   if (!meta.ok) throw new Error(`${pkg.name}: HTTP ${meta.status}`)
   const tarball = (await meta.json()).versions?.[pkg.version]?.dist?.tarball
   if (!tarball) throw new Error(`${pkg.name}@${pkg.version} not found`)
@@ -71,7 +78,11 @@ function fromIconModule(text) {
   const value = name => new RegExp(`var ${name} = ('([^']*)'|\\d+)`).exec(text)
   const string = name => value(name)?.[2]
   const number = name => Number(value(name)?.[1])
-  return [string('prefix'), string('iconName'), [number('width'), number('height'), [], string('unicode'), string('svgPathData')]]
+  return [
+    string('prefix'),
+    string('iconName'),
+    [number('width'), number('height'), [], string('unicode'), string('svgPathData')],
+  ]
 }
 
 /** `var faFolderWireless = { prefix: 'fak', iconName: …, icon: [w, h, [], 'e000', 'M…'] }` in the kit's custom module */
@@ -106,7 +117,9 @@ async function main() {
     if (!icon || !icon[2][4]) throw new Error(`${name}: not in ${PRO.name} nor in the kit`)
     const [prefix, iconName, data] = icon
     // A cast: the custom icons of the kit have names Font Awesome does not know
-    lines.push(`export const ${name} = ${JSON.stringify({ prefix, iconName, icon: data })} as unknown as IconDefinition`)
+    lines.push(
+      `export const ${name} = ${JSON.stringify({ prefix, iconName, icon: data })} as unknown as IconDefinition`,
+    )
   }
   // A temporary file renamed over the target: an interrupted run never leaves half a module for the build
   const temp = `${OUT}.${process.pid}.tmp`

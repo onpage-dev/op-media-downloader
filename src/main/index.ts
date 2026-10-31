@@ -71,7 +71,10 @@ function startFailed(error: unknown): void {
   flushLog()
   try {
     const t = texts(language())
-    dialog.showErrorBox(t.start_failed_title, `${error instanceof Error ? error.message : String(error)}\n\n${t.start_failed_log(logFile())}`)
+    dialog.showErrorBox(
+      t.start_failed_title,
+      `${error instanceof Error ? error.message : String(error)}\n\n${t.start_failed_log(logFile())}`,
+    )
   } catch {
     dialog.showErrorBox('On Page Media Downloader', String(error))
   } finally {

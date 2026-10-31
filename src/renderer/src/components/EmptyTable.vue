@@ -17,9 +17,15 @@ const { t } = useI18n()
       :class="over ? 'border-accent-fg bg-accent-soft' : 'border-line bg-box'"
     >
       <AppIcon :icon="over ? icons.faFolderOpen : icons.faArrowDownToBracket" class="text-[27px] text-accent-fg" />
-      <h2 class="font-title text-xl font-bold" :class="over ? 'text-accent-fg' : ''">{{ over ? t('empty.drop_title') : t('empty.title') }}</h2>
-      <p class="max-w-[65ch] text-secondary" :class="over ? 'text-base' : 'text-lg'">{{ over ? t('empty.drop_text') : t('empty.text') }}</p>
-      <UiButton v-if="!over" variant="primary" :icon="icons.faPlus" @click="openWizard()">{{ t('toolbar.new') }}</UiButton>
+      <h2 class="font-title text-xl font-bold" :class="over ? 'text-accent-fg' : ''">
+        {{ over ? t('empty.drop_title') : t('empty.title') }}
+      </h2>
+      <p class="max-w-[65ch] text-secondary" :class="over ? 'text-base' : 'text-lg'">
+        {{ over ? t('empty.drop_text') : t('empty.text') }}
+      </p>
+      <UiButton v-if="!over" variant="primary" :icon="icons.faPlus" @click="openWizard()">{{
+        t('toolbar.new')
+      }}</UiButton>
     </div>
   </div>
 </template>

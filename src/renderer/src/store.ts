@@ -7,7 +7,14 @@
  * why in place.
  */
 import { computed, markRaw, reactive, watch } from 'vue'
-import type { AppCommand, DesktopApi, InspectorTab, NewProjectInput, ProjectPatch, SettingsSection } from '@shared/desktop-api'
+import type {
+  AppCommand,
+  DesktopApi,
+  InspectorTab,
+  NewProjectInput,
+  ProjectPatch,
+  SettingsSection,
+} from '@shared/desktop-api'
 import {
   DEFAULT_SETTINGS,
   type ActivityEntry,
@@ -375,7 +382,8 @@ async function loadPage(kind: PagedKind, id: ProjectId, reset: boolean): Promise
   list.error = false
   try {
     const query = { offset: reset ? 0 : list.items.length, limit: PAGE_SIZE, query: list.query || undefined }
-    const page = kind == 'failed' ? await desktop().sync.getFailed(id, query) : await desktop().sync.getDuplicates(id, query)
+    const page =
+      kind == 'failed' ? await desktop().sync.getFailed(id, query) : await desktop().sync.getDuplicates(id, query)
     if (version != list.version) return
     const items = 'groups' in page ? page.groups : page.entries
     list.items = markRaw(reset ? items : [...list.items, ...items])
@@ -399,7 +407,12 @@ export function searchDuplicates(id: ProjectId, query: string): Promise<void> {
 // One source per value: a getter returning a new array would fire on every state pushed by
 // main (several a second during a sync) and reload the whole tab each time
 watch(
-  [() => app.selectedId, () => app.tab, () => selected.value?.runtime.last_result?.ended_at, () => selected.value?.runtime.plan?.created_at],
+  [
+    () => app.selectedId,
+    () => app.tab,
+    () => selected.value?.runtime.last_result?.ended_at,
+    () => selected.value?.runtime.plan?.created_at,
+  ],
   ([id, tab]) => {
     if (id) void loadTab(id, tab)
   },

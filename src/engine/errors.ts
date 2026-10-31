@@ -25,7 +25,10 @@ export class TimeoutError extends Error {
 }
 
 export class SizeMismatchError extends Error {
-  constructor(public expected: number, public actual: number) {
+  constructor(
+    public expected: number,
+    public actual: number,
+  ) {
     super(`Expected ${expected} bytes, got ${actual}`)
     this.name = 'SizeMismatchError'
   }
@@ -115,12 +118,7 @@ const NETWORK_CODES = new Set([
 
 /** Connection problems from Node's fetch (undici) or from Electron's net.fetch */
 export function isNetworkError(error: unknown): boolean {
-  if (
-    error instanceof HttpError ||
-    error instanceof SizeMismatchError ||
-    error instanceof DiskError
-  )
-    return false
+  if (error instanceof HttpError || error instanceof SizeMismatchError || error instanceof DiskError) return false
   const code = errorCode(error)
   if (code && NETWORK_CODES.has(code)) return true
   const message = String((error as Error | undefined)?.message ?? '')
@@ -135,10 +133,8 @@ export function isNetworkError(error: unknown): boolean {
 
 /** Errors worth another attempt */
 export function isRetryable(error: unknown): boolean {
-  if (error instanceof AbortedError || error instanceof ConflictError)
-    return false
-  if (error instanceof TimeoutError || error instanceof SizeMismatchError)
-    return true
+  if (error instanceof AbortedError || error instanceof ConflictError) return false
+  if (error instanceof TimeoutError || error instanceof SizeMismatchError) return true
   if (error instanceof HttpError) {
     return error.status == 408 || error.status == 429 || error.status >= 500
   }
@@ -184,10 +180,8 @@ export function folderJobError(error: unknown): JobError | undefined {
   const detail = errorDetail(error)
   if (isDiskFull(error)) return new JobError('disk_full', 'The disk is full', detail)
   const code = errorCode(error) ?? ''
-  if (NOT_WRITABLE_CODES.has(code))
-    return new JobError('folder_not_writable', 'The folder cannot be written', detail)
-  if (FOLDER_GONE_CODES.has(code))
-    return new JobError('folder_unreachable', 'The folder cannot be reached', detail)
+  if (NOT_WRITABLE_CODES.has(code)) return new JobError('folder_not_writable', 'The folder cannot be written', detail)
+  if (FOLDER_GONE_CODES.has(code)) return new JobError('folder_unreachable', 'The folder cannot be reached', detail)
   return undefined
 }
 

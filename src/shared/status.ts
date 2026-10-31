@@ -83,8 +83,7 @@ const WARNING_KEYS: [IssueCode, StatusKey][] = [
 
 export function projectStatus(project: ProjectView): ProjectStatus {
   const { phase, progress, plan, issues, last_result } = project.runtime
-  const issue = (code: IssueCode): { count?: number } | undefined =>
-    issues.find(i => i.code == code)
+  const issue = (code: IssueCode): { count?: number } | undefined => issues.find(i => i.code == code)
 
   if (phase == 'stopping') return { key: 'stopping', tone: 'warning', progress: ratio() }
   if (phase == 'preparing' || phase == 'listing') return { key: 'listing', tone: 'accent' }

@@ -57,7 +57,9 @@ export const formatSpeed = (bytes_per_second: number): string => bytesIn(bytes_p
 /** «42%», «42 %»: a share from 0 to 1, rounded down (a job is not done before it is) */
 export function formatPercent(share: number): string {
   const whole = Math.floor(Math.min(1, Math.max(0, share)) * 100)
-  return cached('percent', l => new Intl.NumberFormat(l, { style: 'percent', maximumFractionDigits: 0 })).format(whole / 100)
+  return cached('percent', l => new Intl.NumberFormat(l, { style: 'percent', maximumFractionDigits: 0 })).format(
+    whole / 100,
+  )
 }
 
 /** Minutes as hours and minutes: `long` in a sentence («1 ora e 20 minuti»), `narrow` in a table cell («1h 20min») */
@@ -70,7 +72,10 @@ function duration(minutes: number, style: 'long' | 'narrow'): string {
   return Object.entries(parts)
     .filter(([, value]) => value > 0)
     .map(([unit, value]) =>
-      cached(`unit:${unit}:${style}`, l => new Intl.NumberFormat(l, { style: 'unit', unit: unit.slice(0, -1), unitDisplay: style })).format(value),
+      cached(
+        `unit:${unit}:${style}`,
+        l => new Intl.NumberFormat(l, { style: 'unit', unit: unit.slice(0, -1), unitDisplay: style }),
+      ).format(value),
     )
     .join(' ')
 }
@@ -98,7 +103,10 @@ const time = (date: Date): string =>
 
 /** «12:04:31», for the activity log */
 export function formatClock(iso: string): string {
-  return cached('clock', l => new Intl.DateTimeFormat(l, { hour: '2-digit', minute: '2-digit', second: '2-digit' })).format(new Date(iso))
+  return cached(
+    'clock',
+    l => new Intl.DateTimeFormat(l, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+  ).format(new Date(iso))
 }
 
 /**
@@ -128,7 +136,9 @@ export function formatWhen(iso?: string, now = currentTime()): string {
     const d = cached('day', l => new Intl.DateTimeFormat(l, { day: 'numeric', month: 'short' })).format(date)
     return `${d}, ${time(date)}`
   }
-  return cached('date', l => new Intl.DateTimeFormat(l, { day: 'numeric', month: 'short', year: 'numeric' })).format(date)
+  return cached('date', l => new Intl.DateTimeFormat(l, { day: 'numeric', month: 'short', year: 'numeric' })).format(
+    date,
+  )
 }
 
 /** «10:02», the hour a job started */

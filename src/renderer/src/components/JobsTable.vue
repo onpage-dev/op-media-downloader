@@ -51,7 +51,9 @@ const rows = computed(() =>
 /** The rows are the table's active descendants: the focus stays on the table, the selected row is the one read */
 const uid = useId()
 const rowId = (id: ProjectId): string => `${uid}-${id}`
-const active = computed(() => (rows.value.some(r => r.project.id == app.selectedId) && app.selectedId ? rowId(app.selectedId) : undefined))
+const active = computed(() =>
+  rows.value.some(r => r.project.id == app.selectedId) && app.selectedId ? rowId(app.selectedId) : undefined,
+)
 // The selected row stays in view, whatever moved it (the keys, the tray, a new project)
 watch(
   () => app.selectedId,
@@ -115,8 +117,19 @@ const muted = (key: string): boolean => key == 'done' || key == 'never' || key =
     @keydown="onKey"
     @contextmenu="onContextMenu"
   >
-    <div role="row" aria-rowindex="1" class="grid h-[33px] shrink-0 border-b border-line" :style="{ gridTemplateColumns: template }">
-      <div v-for="column in columns" :key="column.key" role="columnheader" :aria-sort="sortOf(column.key)" class="flex min-w-0">
+    <div
+      role="row"
+      aria-rowindex="1"
+      class="grid h-[33px] shrink-0 border-b border-line"
+      :style="{ gridTemplateColumns: template }"
+    >
+      <div
+        v-for="column in columns"
+        :key="column.key"
+        role="columnheader"
+        :aria-sort="sortOf(column.key)"
+        class="flex min-w-0"
+      >
         <button
           v-tooltip="column.key == 'status' ? t(column.label) : undefined"
           type="button"
@@ -125,7 +138,11 @@ const muted = (key: string): boolean => key == 'done' || key == 'never' || key =
           @click="sortBy(column.key)"
         >
           <span v-if="column.key != 'status'" class="truncate">{{ t(column.label) }}</span>
-          <AppIcon v-if="app.sort.key == column.key" :icon="app.sort.dir > 0 ? faChevronUp : faChevronDown" class="text-2xs" />
+          <AppIcon
+            v-if="app.sort.key == column.key"
+            :icon="app.sort.dir > 0 ? faChevronUp : faChevronDown"
+            class="text-2xs"
+          />
         </button>
       </div>
     </div>
@@ -147,7 +164,13 @@ const muted = (key: string): boolean => key == 'done' || key == 'never' || key =
           <div role="gridcell" class="flex pl-sm">
             <StatusTag compact :tone="status.tone" :icon="statusIcon(status)" :label="statusLabel(status)" />
           </div>
-          <div role="gridcell" class="truncate px-sm text-sm" :class="project.id == app.selectedId ? 'font-medium' : ''">{{ project.label }}</div>
+          <div
+            role="gridcell"
+            class="truncate px-sm text-sm"
+            :class="project.id == app.selectedId ? 'font-medium' : ''"
+          >
+            {{ project.label }}
+          </div>
           <div role="gridcell" class="flex min-w-0 items-center gap-xs-sm px-sm text-secondary">
             <AppIcon :icon="KIND_ICONS[kindOf(project)]" />
             <span v-tooltip="project.folder" class="truncate text-xs">{{ project.folder }}</span>
@@ -161,24 +184,48 @@ const muted = (key: string): boolean => key == 'done' || key == 'never' || key =
                 :tone="status.key == 'stopping' ? 'warning' : 'accent'"
                 :lined="project.id == app.selectedId"
               />
-              <span v-if="status.key != 'stopping'" class="min-w-[46px] shrink-0 text-secondary">{{ formatEtaShort(project.runtime.progress?.eta_seconds) }}</span>
+              <span v-if="status.key != 'stopping'" class="min-w-[46px] shrink-0 text-secondary">{{
+                formatEtaShort(project.runtime.progress?.eta_seconds)
+              }}</span>
             </template>
             <template v-else-if="status.key == 'listing' || status.key == 'comparing'">
               <UiSpinner class="text-accent-fg" />
               <span class="truncate">{{ statusText(project, status) }}</span>
             </template>
-            <span v-else class="truncate" :class="muted(status.key) ? 'text-secondary' : ''">{{ statusText(project, status) }}</span>
+            <span v-else class="truncate" :class="muted(status.key) ? 'text-secondary' : ''">{{
+              statusText(project, status)
+            }}</span>
           </div>
           <div role="gridcell" class="tabular truncate px-sm text-xs">
-            {{ files ? (files[1] != null ? `${formatNumber(files[0])} / ${formatNumber(files[1])}` : formatNumber(files[0])) : '—' }}
+            {{
+              files
+                ? files[1] != null
+                  ? `${formatNumber(files[0])} / ${formatNumber(files[1])}`
+                  : formatNumber(files[0])
+                : '—'
+            }}
           </div>
-          <div v-if="shows('speed')" role="gridcell" class="tabular truncate px-sm text-xs" :class="project.runtime.phase == 'downloading' ? '' : 'text-secondary'">
-            {{ project.runtime.phase == 'downloading' && project.runtime.progress ? formatSpeed(project.runtime.progress.speed_bps) : '—' }}
+          <div
+            v-if="shows('speed')"
+            role="gridcell"
+            class="tabular truncate px-sm text-xs"
+            :class="project.runtime.phase == 'downloading' ? '' : 'text-secondary'"
+          >
+            {{
+              project.runtime.phase == 'downloading' && project.runtime.progress
+                ? formatSpeed(project.runtime.progress.speed_bps)
+                : '—'
+            }}
           </div>
-          <div role="gridcell" class="truncate px-sm text-xs text-secondary">{{ formatWhen(project.runtime.last_result?.ended_at) || t('table.never') }}</div>
+          <div role="gridcell" class="truncate px-sm text-xs text-secondary">
+            {{ formatWhen(project.runtime.last_result?.ended_at) || t('table.never') }}
+          </div>
         </div>
       </div>
-      <div v-if="!rows.length && app.projects.length" class="flex flex-col items-center gap-lg px-lg py-3xl text-center">
+      <div
+        v-if="!rows.length && app.projects.length"
+        class="flex flex-col items-center gap-lg px-lg py-3xl text-center"
+      >
         <p class="text-xl text-secondary">{{ t('table.no_results') }}</p>
         <UiButton size="sm" @click="showAll">{{ t('table.show_all') }}</UiButton>
       </div>

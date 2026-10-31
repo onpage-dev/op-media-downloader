@@ -34,7 +34,9 @@ export function logFile(): string {
 }
 
 export function oneLine(text: string): string {
-  return text.replace(LINE_BREAKS, char => (char == '\r' ? '\\r' : char == '\n' ? '\\n' : `\\u${char.charCodeAt(0).toString(16)}`))
+  return text.replace(LINE_BREAKS, char =>
+    char == '\r' ? '\\r' : char == '\n' ? '\\n' : `\\u${char.charCodeAt(0).toString(16)}`,
+  )
 }
 
 export function log(level: Level, message: string, error?: unknown): void {

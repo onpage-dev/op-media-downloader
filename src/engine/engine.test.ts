@@ -1,17 +1,8 @@
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  DeleteFilesResult,
-  EngineProject,
-  EngineToMain,
-} from '../shared/engine-protocol'
-import {
-  DuplicatePage,
-  FailedPage,
-  ProjectRuntime,
-  SyncResult,
-} from '../shared/models'
+import { DeleteFilesResult, EngineProject, EngineToMain } from '../shared/engine-protocol'
+import { DuplicatePage, FailedPage, ProjectRuntime, SyncResult } from '../shared/models'
 import { Engine, EngineTimings } from './engine'
 import { RetryPolicy } from './http'
 import {
@@ -48,10 +39,7 @@ let engine: Engine
 let messages: EngineToMain[]
 let cache_dir: string
 
-function project(
-  folder: string,
-  extra: Partial<EngineProject> = {},
-): EngineProject {
+function project(folder: string, extra: Partial<EngineProject> = {}): EngineProject {
   return {
     id: 'p1',
     label: 'Prova',
@@ -62,9 +50,7 @@ function project(
   }
 }
 
-async function run(
-  command: Parameters<Engine['command']>[0],
-): Promise<SyncResult> {
+async function run(command: Parameters<Engine['command']>[0]): Promise<SyncResult> {
   const before = messages.length
   engine.command(command)
   await engine.idle()
@@ -88,8 +74,7 @@ function lastResult(): SyncResult {
   return result.result
 }
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise(resolve => setTimeout(resolve, ms))
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 async function waitFor(condition: () => boolean, ms = 10_000): Promise<void> {
   const end = Date.now() + ms
@@ -111,9 +96,7 @@ let request_id = 0
 async function ask<T>(request: Parameters<Engine['request']>[1]): Promise<T> {
   const id = ++request_id
   await engine.request(id, request)
-  const response = messages.find(
-    m => m.kind == 'response' && m.request_id == id,
-  )
+  const response = messages.find(m => m.kind == 'response' && m.request_id == id)
   if (!response || response.kind != 'response') throw new Error('No response')
   if (!response.ok) throw new Error(response.error)
   return response.data as T
@@ -124,12 +107,9 @@ function remoteNames(): Map<string, FakeFile> {
   const out = new Map<string, FakeFile>()
   for (const thing of fake.project.things) {
     for (const value of Object.values(thing.files)) {
-      for (const file of Array.isArray(value)
-        ? value
-        : Object.values(value).flat()) {
+      for (const file of Array.isArray(value) ? value : Object.values(value).flat()) {
         const key = file.name.toLowerCase()
-        if (!Array.from(out.keys()).some(k => k.toLowerCase() == key))
-          out.set(file.name, file)
+        if (!Array.from(out.keys()).some(k => k.toLowerCase() == key)) out.set(file.name, file)
       }
     }
   }
@@ -191,12 +171,8 @@ describe('engine: the core flow', () => {
       cleanup_needs_confirmation: false,
     })
     expect(runtime.issues.map(i => i.code)).toEqual(['duplicates'])
-    const phases = messages
-      .filter(m => m.kind == 'state')
-      .map(m => (m.kind == 'state' ? m.runtime.phase : ''))
-    expect(phases).toEqual(
-      expect.arrayContaining(['preparing', 'listing', 'comparing', 'idle']),
-    )
+    const phases = messages.filter(m => m.kind == 'state').map(m => (m.kind == 'state' ? m.runtime.phase : ''))
+    expect(phases).toEqual(expect.arrayContaining(['preparing', 'listing', 'comparing', 'idle']))
     // Nothing written yet: «Sincronizza» leaves no trace in the folder
     expect(await listDir(folder)).toEqual([])
 
@@ -208,10 +184,7 @@ describe('engine: the core flow', () => {
       failed: 0,
       downloaded: names.size,
     })
-    for (const [name, file] of names)
-      expect(await fs.readFile(path.join(folder, name))).toEqual(
-        fileContent(file),
-      )
+    for (const [name, file] of names) expect(await fs.readFile(path.join(folder, name))).toEqual(fileContent(file))
     // A content shared by two names was downloaded once
     const tokens = new Set(Array.from(names.values()).map(f => f.token))
     expect(storageHits()).toBe(tokens.size)
@@ -251,9 +224,7 @@ describe('engine: the core flow', () => {
     expect(left).not.toContain('prodotto-10.jpg')
     expect(left).not.toContain('prodotto-10-retro.jpg')
     expect(left).toContain('appunti.docx')
-    expect(await fs.readFile(path.join(folder, 'appunti.docx'), 'utf8')).toBe(
-      'mio',
-    )
+    expect(await fs.readFile(path.join(folder, 'appunti.docx'), 'utf8')).toBe('mio')
 
     // Activity and duplicates for the inspector
     const activity = await ask<{ outcome: string }[]>({
@@ -274,9 +245,7 @@ describe('engine: the core flow', () => {
       field_label: 'Foto principale',
     })
     expect(duplicates[0].variants[0].uses[0].thing_label).toBe('Prodotto 1')
-    expect(duplicates[0].variants[0].uses[0].edit_url).toMatch(
-      /#\/things\/edit\/1001\/77\/1\/12$/,
-    )
+    expect(duplicates[0].variants[0].uses[0].edit_url).toMatch(/#\/things\/edit\/1001\/77\/1\/12$/)
 
     // Deleting the project's files: only ours, the folder stays for the user's file
     const deleted = await ask<DeleteFilesResult>({
@@ -291,8 +260,7 @@ describe('engine: the core flow', () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
     await run({ type: 'download', project: project(folder) })
-    const thing = (id: number): FakeThing =>
-      fake.project.things.find(t => t.id == id)!
+    const thing = (id: number): FakeThing => fake.project.things.find(t => t.id == id)!
 
     // Renamed (same content), also in a translatable field: linked again, nothing downloaded
     const photo = (thing(1003).files.foto as FakeFile[])[0]
@@ -316,17 +284,11 @@ describe('engine: the core flow', () => {
     expect(storageHits()).toBe(hits)
     const names = await listDir(folder)
     expect(names).toEqual(
-      expect.arrayContaining([
-        'prodotto-3-fronte.jpg',
-        'prodotto-3-copertina.jpg',
-        'scheda-1-en-v2.pdf',
-      ]),
+      expect.arrayContaining(['prodotto-3-fronte.jpg', 'prodotto-3-copertina.jpg', 'scheda-1-en-v2.pdf']),
     )
     expect(names).not.toContain('prodotto-3.jpg')
     expect(names).not.toContain('scheda-1-en.pdf')
-    expect(
-      await fs.readFile(path.join(folder, 'prodotto-3-fronte.jpg')),
-    ).toEqual(fileContent(photo))
+    expect(await fs.readFile(path.join(folder, 'prodotto-3-fronte.jpg'))).toEqual(fileContent(photo))
 
     // Replaced (same name, new content): downloaded, the old content leaves data/
     const gallery = thing(1004).files.galleria as FakeFile[]
@@ -349,16 +311,13 @@ describe('engine: the core flow', () => {
       downloaded: 1,
       failed: 0,
     })
-    expect(
-      await fs.readFile(path.join(folder, 'prodotto-4-retro.jpg')),
-    ).toEqual(fileContent(gallery[0]))
+    expect(await fs.readFile(path.join(folder, 'prodotto-4-retro.jpg'))).toEqual(fileContent(gallery[0]))
     expect(await listDir(path.join(folder, 'data'))).not.toContain(old_token)
   })
 
   it('duplicates come a page at a time, by name, also after a restart; translated files with one name are counted', async () => {
     // The Italian and the English datasheet of one item uploaded with the same name
-    const sheets = fake.project.things.find(t => t.id == 5001)!.files
-      .pdf as Record<string, FakeFile[]>
+    const sheets = fake.project.things.find(t => t.id == 5001)!.files.pdf as Record<string, FakeFile[]>
     sheets.en[0].name = sheets.it[0].name
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
@@ -370,19 +329,11 @@ describe('engine: the core flow', () => {
       })
     const first = await page({ offset: 0, limit: 2 })
     expect(first).toMatchObject({ total: 3, language_variants: 1 })
-    expect(first.groups.map(g => g.name)).toEqual([
-      'prodotto-1.jpg',
-      'prodotto-2.jpg',
-    ])
-    expect((await page({ offset: 2, limit: 2 })).groups.map(g => g.name)).toEqual(
-      ['scheda-1-it.pdf'],
-    )
+    expect(first.groups.map(g => g.name)).toEqual(['prodotto-1.jpg', 'prodotto-2.jpg'])
+    expect((await page({ offset: 2, limit: 2 })).groups.map(g => g.name)).toEqual(['scheda-1-it.pdf'])
     const found = await page({ offset: 0, limit: 50, query: ' SCHEDA ' })
     expect(found.total).toBe(1)
-    expect(found.groups[0].variants.map(v => v.uses[0].lang)).toEqual([
-      'it',
-      'en',
-    ])
+    expect(found.groups[0].variants.map(v => v.uses[0].lang)).toEqual(['it', 'en'])
 
     // A new engine (the app restarted): the names come from the listing cache
     const restarted = new Engine({
@@ -409,9 +360,7 @@ describe('engine: the core flow', () => {
       offset: 0,
       limit: 50,
     })
-    const response = messages.find(
-      m => m.kind == 'response' && m.request_id == 9999,
-    )
+    const response = messages.find(m => m.kind == 'response' && m.request_id == 9999)
     expect(response).toMatchObject({ ok: true, data: { total: 3 } })
   })
 
@@ -445,13 +394,9 @@ describe('engine: the core flow', () => {
       to_remove: 0,
       conflicts: 0,
     })
-    const manifest = JSON.parse(
-      await fs.readFile(path.join(data, 'manifest.json'), 'utf8'),
-    )
+    const manifest = JSON.parse(await fs.readFile(path.join(data, 'manifest.json'), 'utf8'))
     expect(Object.keys(manifest.files)).toHaveLength(names.size)
-    expect(await fs.readFile(path.join(folder, 'mio.txt'), 'utf8')).toBe(
-      'utente',
-    )
+    expect(await fs.readFile(path.join(folder, 'mio.txt'), 'utf8')).toBe('utente')
   })
 
   it('many removals wait for a confirmation', async () => {
@@ -459,9 +404,7 @@ describe('engine: the core flow', () => {
     await run({ type: 'sync', project: project(folder) })
     await run({ type: 'download', project: project(folder) })
     // 18 of 20 products leave On Page: 54 names
-    fake.project.things = fake.project.things.filter(
-      t => t.resource_id != 1 || t.id > 1018,
-    )
+    fake.project.things = fake.project.things.filter(t => t.resource_id != 1 || t.id > 1018)
     let result = await run({ type: 'sync', project: project(folder) })
     expect(result.removed).toBe(0)
     let runtime = lastState()
@@ -469,24 +412,19 @@ describe('engine: the core flow', () => {
       cleanup_needs_confirmation: true,
       to_remove: 54,
     })
-    expect(runtime.issues.map(i => i.code)).toContain(
-      'cleanup_needs_confirmation',
-    )
+    expect(runtime.issues.map(i => i.code)).toContain('cleanup_needs_confirmation')
     expect(await listDir(folder)).toContain('prodotto-1.jpg')
     result = await run({ type: 'confirm_cleanup', project: project(folder) })
     expect(result).toMatchObject({ job: 'cleanup', removed: 54 })
     expect(await listDir(folder)).not.toContain('prodotto-1.jpg')
     runtime = lastState()
-    expect(runtime.issues.map(i => i.code)).not.toContain(
-      'cleanup_needs_confirmation',
-    )
+    expect(runtime.issues.map(i => i.code)).not.toContain('cleanup_needs_confirmation')
   })
 
   it('stop: the run ends quickly, nothing half-written, the rest stays to download', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
-    for (const file of remoteNames().values())
-      fake.storage.set(file.token, { delay_ms: 1500 })
+    for (const file of remoteNames().values()) fake.storage.set(file.token, { delay_ms: 1500 })
     engine.command({ type: 'download', project: project(folder) })
     await new Promise(resolve => setTimeout(resolve, 300))
     const started = Date.now()
@@ -495,11 +433,7 @@ describe('engine: the core flow', () => {
     expect(Date.now() - started).toBeLessThan(1500)
     const result = messages.filter(m => m.kind == 'result').pop()
     expect(result?.kind == 'result' && result.result.outcome).toBe('stopped')
-    expect(
-      (await listDir(path.join(folder, 'data'))).filter(n =>
-        n.endsWith('.download'),
-      ),
-    ).toEqual([])
+    expect((await listDir(path.join(folder, 'data'))).filter(n => n.endsWith('.download'))).toEqual([])
     expect(lastState().plan!.to_download_names).toBeGreaterThan(0)
     expect(lastState().phase).toBe('idle')
   })
@@ -512,9 +446,7 @@ describe('engine: the core flow', () => {
     const result = await run({ type: 'download', project: project(folder) })
     // The content is shared by two names
     expect(result.failed).toBe(2)
-    expect(lastState().issues.find(i => i.code == 'failed_files')?.count).toBe(
-      2,
-    )
+    expect(lastState().issues.find(i => i.code == 'failed_files')?.count).toBe(2)
     const failed = await ask<FailedPage>({
       type: 'get_failed',
       project_id: 'p1',
@@ -548,9 +480,7 @@ describe('engine: the core flow', () => {
       type: 'sync',
       project: project('\\\\10.255.255.1\\media\\vasi'),
     })
-    expect(result.error?.code).toBe(
-      process.platform == 'win32' ? 'folder_unreachable' : result.error?.code,
-    )
+    expect(result.error?.code).toBe(process.platform == 'win32' ? 'folder_unreachable' : result.error?.code)
 
     result = await run({
       type: 'sync',
@@ -584,9 +514,10 @@ describe('engine: the core flow', () => {
       path: folder,
     })
     expect(info).toMatchObject({ exists: true, problems: [] })
-    expect(
-      await ask({ type: 'verify_token', token: fake.token }),
-    ).toMatchObject({ ok: true, collections_with_files: 2 })
+    expect(await ask({ type: 'verify_token', token: fake.token })).toMatchObject({
+      ok: true,
+      collections_with_files: 2,
+    })
   })
 })
 
@@ -601,9 +532,7 @@ describe.runIf(smb)('engine on a network folder (SMB loopback)', () => {
     const result = await run({ type: 'download', project: project(folder) })
     expect(result).toMatchObject({ outcome: 'completed', failed: 0 })
     const names = remoteNames()
-    expect((await listDir(folder)).filter(n => n != 'data')).toHaveLength(
-      names.size,
-    )
+    expect((await listDir(folder)).filter(n => n != 'data')).toHaveLength(names.size)
     const again = await run({ type: 'sync', project: project(folder) })
     expect(again).toMatchObject({ downloaded: 0, linked: 0, removed: 0 })
   })
@@ -631,9 +560,7 @@ describe('a data folder the user already had', () => {
 describe('removals above the threshold', () => {
   /** Products `from`..`to` leave On Page (three names each) */
   const leave = (from: number, to: number): void => {
-    fake.project.things = fake.project.things.filter(
-      t => t.resource_id != 1 || t.id < 1000 + from || t.id > 1000 + to,
-    )
+    fake.project.things = fake.project.things.filter(t => t.resource_id != 1 || t.id < 1000 + from || t.id > 1000 + to)
   }
 
   it('a confirmation sent while another job runs is not kept for later', async () => {
@@ -702,13 +629,8 @@ describe('removals above the threshold', () => {
       cleanup_needs_confirmation: true,
       to_remove: 60,
     })
-    expect(
-      lastState().issues.find(i => i.code == 'cleanup_needs_confirmation')
-        ?.count,
-    ).toBe(60)
-    expect(await listDir(folder)).toEqual(
-      expect.arrayContaining(['prodotto-21.jpg', 'nuovo.jpg']),
-    )
+    expect(lastState().issues.find(i => i.code == 'cleanup_needs_confirmation')?.count).toBe(60)
+    expect(await listDir(folder)).toEqual(expect.arrayContaining(['prodotto-21.jpg', 'nuovo.jpg']))
   })
 })
 
@@ -733,9 +655,7 @@ describe('the listing', () => {
     fake.api.fail_resource = undefined
     result = await run({ type: 'sync', project: project(folder) })
     expect(result).toMatchObject({ outcome: 'completed', removed: 3 })
-    expect(lastState().issues.map(i => i.code)).not.toContain(
-      'listing_incomplete',
-    )
+    expect(lastState().issues.map(i => i.code)).not.toContain('listing_incomplete')
   })
 
   it('the names kept for the duplicates tab are dropped after listing_max_age_ms', async () => {
@@ -761,9 +681,7 @@ describe('the listing', () => {
       },
     })
     const reads = vi.spyOn(fs, 'readFile')
-    const cacheReads = (): number =>
-      reads.mock.calls.filter(([file]) => String(file).startsWith(cache_dir))
-        .length
+    const cacheReads = (): number => reads.mock.calls.filter(([file]) => String(file).startsWith(cache_dir)).length
     const page = { type: 'get_duplicates', project: project(folder) } as const
     await restarted.request(9001, page)
     await restarted.request(9002, { ...page, offset: 1 })
@@ -772,9 +690,7 @@ describe('the listing', () => {
     await sleep(300)
     await restarted.request(9003, page)
     expect(cacheReads()).toBe(2)
-    expect(
-      messages.filter(m => m.kind == 'response' && m.request_id > 9000),
-    ).toEqual(
+    expect(messages.filter(m => m.kind == 'response' && m.request_id > 9000)).toEqual(
       Array.from({ length: 3 }, () =>
         expect.objectContaining({ ok: true, data: expect.objectContaining({ total: 2 }) }),
       ),
@@ -832,8 +748,7 @@ describe('stop', () => {
   it('what is left comes from the plan, without reading the folder again', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
-    for (const file of remoteNames().values())
-      fake.storage.set(file.token, { delay_ms: 1500 })
+    for (const file of remoteNames().values()) fake.storage.set(file.token, { delay_ms: 1500 })
     engine.command({ type: 'download', project: project(folder) })
     await waitFor(() => storageHits() >= 1)
     const readdir = vi.spyOn(fs, 'readdir')
@@ -855,19 +770,14 @@ describe('conflicts', () => {
     const { link, writeFile } = fs
     vi.spyOn(fs, 'link').mockImplementation(async (from, to) => {
       // Another program creates the file right before the app links it
-      if (String(to).endsWith('prodotto-5.jpg') && !existsSync(to))
-        await writeFile(to, 'mio')
+      if (String(to).endsWith('prodotto-5.jpg') && !existsSync(to)) await writeFile(to, 'mio')
       return link(from, to)
     })
     const result = await run({ type: 'download', project: project(folder) })
     expect(result).toMatchObject({ outcome: 'completed', failed: 0 })
     expect(lastState().plan?.conflicts).toBe(1)
-    expect(
-      lastState().issues.find(i => i.code == 'name_conflicts')?.count,
-    ).toBe(1)
-    expect(
-      await fs.readFile(path.join(folder, 'prodotto-5.jpg'), 'utf8'),
-    ).toBe('mio')
+    expect(lastState().issues.find(i => i.code == 'name_conflicts')?.count).toBe(1)
+    expect(await fs.readFile(path.join(folder, 'prodotto-5.jpg'), 'utf8')).toBe('mio')
   })
 })
 
@@ -875,8 +785,7 @@ describe('commands and requests while a job runs', () => {
   it('a second job of the project is ignored', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
-    for (const file of remoteNames().values())
-      fake.storage.set(file.token, { delay_ms: 100 })
+    for (const file of remoteNames().values()) fake.storage.set(file.token, { delay_ms: 100 })
     const at = messages.length
     engine.command({ type: 'download', project: project(folder) })
     engine.command({ type: 'sync', project: project(folder) })
@@ -884,28 +793,19 @@ describe('commands and requests while a job runs', () => {
     const results = messages.slice(at).filter(m => m.kind == 'result')
     expect(results).toHaveLength(1)
     expect(lastResult()).toMatchObject({ job: 'download', outcome: 'completed' })
-    expect(
-      messages
-        .slice(at)
-        .some(m => m.kind == 'log' && m.level == 'warn' && /ignored/.test(m.message)),
-    ).toBe(true)
+    expect(messages.slice(at).some(m => m.kind == 'log' && m.level == 'warn' && /ignored/.test(m.message))).toBe(true)
   })
 
   it('forget: the job stops, nothing more is sent for the project, its folder is free again', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
-    for (const file of remoteNames().values())
-      fake.storage.set(file.token, { delay_ms: 300 })
+    for (const file of remoteNames().values()) fake.storage.set(file.token, { delay_ms: 300 })
     engine.command({ type: 'download', project: project(folder) })
     await waitFor(() => storageHits() >= 1)
     const at = messages.length
     engine.command({ type: 'forget', project_id: 'p1' })
     await engine.idle()
-    expect(
-      messages
-        .slice(at)
-        .filter(m => m.kind == 'state' || m.kind == 'result' || m.kind == 'activity'),
-    ).toEqual([])
+    expect(messages.slice(at).filter(m => m.kind == 'state' || m.kind == 'result' || m.kind == 'activity')).toEqual([])
     for (const file of remoteNames().values()) fake.storage.set(file.token, {})
     expect(await run({ type: 'download', project: project(folder) })).toMatchObject({
       outcome: 'completed',
@@ -916,13 +816,10 @@ describe('commands and requests while a job runs', () => {
   it('deleting the files is refused while a job runs (project busy); the job goes on', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
-    for (const file of remoteNames().values())
-      fake.storage.set(file.token, { delay_ms: 100 })
+    for (const file of remoteNames().values()) fake.storage.set(file.token, { delay_ms: 100 })
     engine.command({ type: 'download', project: project(folder) })
     await waitFor(() => storageHits() >= 1)
-    await expect(
-      ask({ type: 'delete_project_files', project: project(folder) }),
-    ).rejects.toThrow('project_busy')
+    await expect(ask({ type: 'delete_project_files', project: project(folder) })).rejects.toThrow('project_busy')
     await engine.idle()
     expect(lastResult()).toMatchObject({
       job: 'download',

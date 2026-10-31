@@ -24,14 +24,30 @@ const total = computed(() => list.value?.total ?? 0)
   <div class="flex flex-col gap-md">
     <div class="flex items-center gap-sm">
       <span class="text-sm font-medium">
-        {{ t(project.runtime.phase == 'idle' ? 'failed.summary' : 'failed.summary_running', { count: formatNumber(total) }, total) }}
+        {{
+          t(
+            project.runtime.phase == 'idle' ? 'failed.summary' : 'failed.summary_running',
+            { count: formatNumber(total) },
+            total,
+          )
+        }}
       </span>
       <span class="flex-1" />
-      <UiButton :icon="icons.faArrowsRotate" :disabled="!total || project.runtime.phase != 'idle'" @click="retryFailed(project.id)">
+      <UiButton
+        :icon="icons.faArrowsRotate"
+        :disabled="!total || project.runtime.phase != 'idle'"
+        @click="retryFailed(project.id)"
+      >
         {{ t('failed.retry_all') }}
       </UiButton>
     </div>
-    <LongList v-slot="{ items }" :list="list" :empty="t('failed.empty')" @more="loadMore('failed', project.id)" @retry="reloadList('failed', project.id)">
+    <LongList
+      v-slot="{ items }"
+      :list="list"
+      :empty="t('failed.empty')"
+      @more="loadMore('failed', project.id)"
+      @retry="reloadList('failed', project.id)"
+    >
       <FailedRows :entries="items" />
     </LongList>
   </div>

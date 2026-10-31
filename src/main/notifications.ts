@@ -59,7 +59,10 @@ export function notifyResult(
     tab = 'failed'
   } else if (result.downloaded > 0) {
     title = t.done_title(view.label)
-    body = t.done_body(result.downloaded, duration(settings.language, Date.parse(result.ended_at) - Date.parse(result.started_at)))
+    body = t.done_body(
+      result.downloaded,
+      duration(settings.language, Date.parse(result.ended_at) - Date.parse(result.started_at)),
+    )
   } else {
     /** A sync that found nothing new is not worth an interruption */
     return

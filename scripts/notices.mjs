@@ -48,7 +48,9 @@ for (const name of [...Object.keys(pkg.dependencies ?? {}), ...BUNDLED]) walk(na
 const sections = [...seen.entries()]
   .map(([dir, meta]) => {
     const file = readdirSync(dir).find(name => LICENSE_FILE.test(name))
-    const text = file ? readFileSync(path.join(dir, file), 'utf8').trim() : `License: ${meta.license ?? 'see the package'}`
+    const text = file
+      ? readFileSync(path.join(dir, file), 'utf8').trim()
+      : `License: ${meta.license ?? 'see the package'}`
     return { title: `${meta.name} ${meta.version} (${meta.license ?? 'unknown'})`, text }
   })
   .sort((a, b) => a.title.localeCompare(b.title))
@@ -60,8 +62,10 @@ Font Awesome Pro licensed to On Page in the builds made by On Page.`
 
 writeFileSync(
   OUT,
-  [header, `${'='.repeat(78)}\nFonts: Manrope, Rethink Sans\n\n${fonts}`, ...sections.map(s => `${'='.repeat(78)}\n${s.title}\n\n${s.text}`)].join(
-    '\n\n',
-  ) + '\n',
+  [
+    header,
+    `${'='.repeat(78)}\nFonts: Manrope, Rethink Sans\n\n${fonts}`,
+    ...sections.map(s => `${'='.repeat(78)}\n${s.title}\n\n${s.text}`),
+  ].join('\n\n') + '\n',
 )
 console.log(`Third-party notices: ${sections.length} packages and the fonts in ${path.relative(ROOT, OUT)}`)

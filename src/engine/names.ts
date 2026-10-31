@@ -138,15 +138,7 @@ export function resolveNames(index: RemoteIndex): ResolvedNames {
   for (const resource of index.resources) {
     const thing_ids = Array.from(resource.things.keys()).sort((a, b) => a - b)
     for (const thing_id of thing_ids) {
-      for (const [
-        field_id,
-        lang,
-        remote_name,
-        token,
-        size,
-        width,
-        height,
-      ] of resource.things.get(thing_id)!) {
+      for (const [field_id, lang, remote_name, token, size, width, height] of resource.things.get(thing_id)!) {
         const use: FileUse = {
           resource_id: resource.id,
           thing_id,
@@ -211,20 +203,10 @@ export function resolveNames(index: RemoteIndex): ResolvedNames {
 
   // Every use of the winning token, for the duplicates view
   if (groups.size) {
-    const chosen_tokens = new Set(
-      Array.from(groups.values(), work => work.group.variants[0].token),
-    )
+    const chosen_tokens = new Set(Array.from(groups.values(), work => work.group.variants[0].token))
     for (const resource of index.resources) {
       for (const [thing_id, tuples] of resource.things) {
-        for (const [
-          field_id,
-          lang,
-          remote_name,
-          token,
-          ,
-          width,
-          height,
-        ] of tuples) {
+        for (const [field_id, lang, remote_name, token, , width, height] of tuples) {
           if (!chosen_tokens.has(token)) continue
           const work = groups.get(nameKey(sanitizeName(remote_name)))
           if (!work) continue

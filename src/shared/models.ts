@@ -211,13 +211,7 @@ export interface Issue {
 
 /* ------------------------------------------------------------------ Activity */
 
-export type ActivityOutcome =
-  | 'downloading'
-  | 'downloaded'
-  | 'linked'
-  | 'removed'
-  | 'failed'
-  | 'conflict'
+export type ActivityOutcome = 'downloading' | 'downloaded' | 'linked' | 'removed' | 'failed' | 'conflict'
 
 export interface ActivityEntry {
   id: number

@@ -20,7 +20,9 @@ export function updateTaskbar(window: BrowserWindow | undefined, views: ProjectV
     for (const view of running) {
       const progress = view.runtime.progress
       if (!progress) continue
-      done += progress.bytes_total ? progress.bytes_done : progress.downloaded + progress.linked + progress.removed + progress.failed
+      done += progress.bytes_total
+        ? progress.bytes_done
+        : progress.downloaded + progress.linked + progress.removed + progress.failed
       total += progress.bytes_total || progress.total
     }
     if (total > 0) window.setProgressBar(Math.min(1, done / total), { mode: stopping ? 'paused' : 'normal' })

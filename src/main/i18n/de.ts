@@ -12,7 +12,10 @@ export const de: Texts = {
   tray_running: count =>
     plural('de', count, { one: `${count} Synchronisierung läuft`, other: `${count} Synchronisierungen laufen` }),
   tray_attention: count =>
-    plural('de', count, { one: `${count} Projekt erfordert Aufmerksamkeit`, other: `${count} Projekte erfordern Aufmerksamkeit` }),
+    plural('de', count, {
+      one: `${count} Projekt erfordert Aufmerksamkeit`,
+      other: `${count} Projekte erfordern Aufmerksamkeit`,
+    }),
   done_title: label => `${label} ist aktuell`,
   done_body: (files, duration) =>
     plural('de', files, {

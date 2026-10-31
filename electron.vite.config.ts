@@ -45,7 +45,11 @@ function contentSecurityPolicy(): Plugin {
     },
     /** First in <head>: it applies to every script and style after it */
     transformIndexHtml: () => [
-      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: policy.join('; ') }, injectTo: 'head-prepend' },
+      {
+        tag: 'meta',
+        attrs: { 'http-equiv': 'Content-Security-Policy', content: policy.join('; ') },
+        injectTo: 'head-prepend',
+      },
     ],
   }
 }

@@ -320,7 +320,10 @@ export class ProjectService {
   /** The first page of a big project reads the listing cache: up to a minute */
   getDuplicates(id: ProjectId, page: PageQuery): Promise<DuplicatePage> {
     const project = this.require(id)
-    return this.engine.request<DuplicatePage>({ type: 'get_duplicates', project: this.engineProject(project), ...page }, 60_000)
+    return this.engine.request<DuplicatePage>(
+      { type: 'get_duplicates', project: this.engineProject(project), ...page },
+      60_000,
+    )
   }
 
   verifyToken(token: string): Promise<TokenCheck> {
@@ -412,7 +415,11 @@ export class ProjectService {
     } catch (error) {
       log('error', `The files of project ${id} could not be deleted from ${project.folder}`, error)
       this.engine.command({ type: 'forget', project_id: id })
-      this.emitter.emit('delete_failed', { id, label: project.label, folder: project.folder } satisfies RemovedProject, error)
+      this.emitter.emit(
+        'delete_failed',
+        { id, label: project.label, folder: project.folder } satisfies RemovedProject,
+        error,
+      )
     } finally {
       this.runtimes.delete(id)
       this.deleting.delete(id)
@@ -472,8 +479,7 @@ export class ProjectService {
      * files to download, a stop or a failure (shown by the issues) do not count
      */
     const finished =
-      result.outcome == 'completed' &&
-      (result.job != 'sync' || !(runtime.plan && runtime.plan.to_download_names > 0))
+      result.outcome == 'completed' && (result.job != 'sync' || !(runtime.plan && runtime.plan.to_download_names > 0))
     const next_runtime: ProjectRuntime = {
       ...runtime,
       phase: 'idle',
@@ -669,9 +675,7 @@ function normalizeFolder(folder: string): string {
   if (!trimmed) return ''
   const normalized = path.normalize(trimmed)
   /** Keep roots as they are (`C:\`, `/`), drop trailing separators elsewhere */
-  return normalized.length > path.parse(normalized).root.length
-    ? normalized.replace(/[\\/]+$/, '')
-    : normalized
+  return normalized.length > path.parse(normalized).root.length ? normalized.replace(/[\\/]+$/, '') : normalized
 }
 
 /** The folder is there and is a folder (a share that does not answer is not) */

@@ -72,10 +72,7 @@ export class Manifest {
    * A manifest written by a newer version of the app is refused, untouched:
    * read as broken, it would be rebuilt and overwritten with our format
    */
-  static async load(
-    data_dir: string,
-    project_id: string,
-  ): Promise<ManifestLoad> {
+  static async load(data_dir: string, project_id: string): Promise<ManifestLoad> {
     const manifest = new Manifest(data_dir, project_id)
     let recovered = false
     const text = await readText(Manifest.file(data_dir))
@@ -88,12 +85,7 @@ export class Manifest {
           `The folder was synced by a newer version of the app (data/${MANIFEST_FILE} version ${json.version})`,
         )
       }
-      if (
-        json &&
-        json.version == VERSION &&
-        json.files &&
-        typeof json.files == 'object'
-      ) {
+      if (json && json.version == VERSION && json.files && typeof json.files == 'object') {
         for (const [name, entry] of Object.entries(json.files)) {
           if (validName(name) && entry && isSafeToken(entry.token)) {
             manifest.put(name, {
@@ -110,10 +102,7 @@ export class Manifest {
     }
     // 1.x: { "<name>": "<token>" }
     const link_json = await readText(path.join(data_dir, LINK_JSON_FILE))
-    const links =
-      link_json === undefined
-        ? undefined
-        : parse<Record<string, unknown>>(link_json)
+    const links = link_json === undefined ? undefined : parse<Record<string, unknown>>(link_json)
     if (links && typeof links == 'object') {
       for (const [name, token] of Object.entries(links)) {
         if (validName(name) && typeof token == 'string' && isSafeToken(token)) {
@@ -182,10 +171,7 @@ export class Manifest {
     if (!this.changes) return
     const started = Date.now()
     const changes = this.changes
-    this.flushing = atomicWrite(
-      Manifest.file(this.data_dir),
-      JSON.stringify(this.toJson()),
-    )
+    this.flushing = atomicWrite(Manifest.file(this.data_dir), JSON.stringify(this.toJson()))
     try {
       await this.flushing
       this.changes -= changes
@@ -206,21 +192,14 @@ export class Manifest {
     const elapsed = Date.now() - this.last_flush
     const floor = Math.max(MIN_CHECKPOINT_MS, this.last_flush_ms * 10)
     if (elapsed < floor) return
-    if (
-      this.changes >= CHECKPOINT_CHANGES ||
-      elapsed >= Math.max(MAX_CHECKPOINT_MS, floor)
-    ) {
+    if (this.changes >= CHECKPOINT_CHANGES || elapsed >= Math.max(MAX_CHECKPOINT_MS, floor)) {
       await this.flush()
     }
   }
 }
 
 function validName(name: string): boolean {
-  return (
-    typeof name == 'string' &&
-    name.length > 0 &&
-    sanitizeName(name) == name.normalize('NFC')
-  )
+  return typeof name == 'string' && name.length > 0 && sanitizeName(name) == name.normalize('NFC')
 }
 
 /**

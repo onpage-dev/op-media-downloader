@@ -14,8 +14,7 @@ import { sleep } from './http'
  * holding a new file for a moment. On Windows they show up as EBUSY, EPERM
  * or EACCES; elsewhere EPERM and EACCES are real permissions, never retried.
  */
-const TRANSIENT =
-  process.platform == 'win32' ? new Set(['EBUSY', 'EPERM', 'EACCES']) : new Set(['EBUSY'])
+const TRANSIENT = process.platform == 'win32' ? new Set(['EBUSY', 'EPERM', 'EACCES']) : new Set(['EBUSY'])
 
 export function isTransientLock(error: unknown): boolean {
   return TRANSIENT.has(errorCode(error) ?? '')
@@ -124,11 +123,7 @@ export async function pathExists(file: string): Promise<boolean> {
  * earlier (the call itself finishes in the background), and at once when
  * the signal fires (AbortedError).
  */
-export async function reachable(
-  file: string,
-  ms: number,
-  signal?: AbortSignal,
-): Promise<boolean> {
+export async function reachable(file: string, ms: number, signal?: AbortSignal): Promise<boolean> {
   if (signal?.aborted) throw new AbortedError()
   const { promise, resolve, reject } = Promise.withResolvers<boolean>()
   const timer = setTimeout(() => resolve(false), ms)

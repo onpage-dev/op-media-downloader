@@ -190,7 +190,9 @@ describe('disk full', () => {
     const first = (thing(1001).files.foto as FakeFile[])[0]
     for (const file of remoteNames().values())
       if (file.token != first.token) fake.storage.set(file.token, { delay_ms: 1500 })
-    const faults = injectFaults([{ op: 'write', path: f => f.includes(first.token) && f.endsWith('.download'), code: 'ENOSPC' }])
+    const faults = injectFaults([
+      { op: 'write', path: f => f.includes(first.token) && f.endsWith('.download'), code: 'ENOSPC' },
+    ])
     fakeFreeSpace(() => (faults.fired.get('write') ? 4096 : 10e9))
     const started = Date.now()
     const result = await run({ type: 'download', project: project(folder) })
@@ -205,7 +207,10 @@ describe('disk full', () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
     fakeFreeSpace(8192)
-    expect(await run({ type: 'download', project: project(folder) })).toMatchObject({ outcome: 'failed', downloaded: 0 })
+    expect(await run({ type: 'download', project: project(folder) })).toMatchObject({
+      outcome: 'failed',
+      downloaded: 0,
+    })
     expect(issues()).toContain('disk_full')
     expect(lastState().issues.find(i => i.code == 'disk_full')?.detail).toMatch(/needed/)
     expect(storageHits()).toBe(0)
@@ -228,7 +233,21 @@ describe('disk full', () => {
 })
 
 describe('the folder goes away', () => {
-  const ALL: FsOp[] = ['open', 'write', 'sync', 'rename', 'link', 'unlink', 'copyFile', 'readFile', 'writeFile', 'stat', 'readdir', 'access', 'rm']
+  const ALL: FsOp[] = [
+    'open',
+    'write',
+    'sync',
+    'rename',
+    'link',
+    'unlink',
+    'copyFile',
+    'readFile',
+    'writeFile',
+    'stat',
+    'readdir',
+    'access',
+    'rm',
+  ]
 
   it.each([
     ['a share that drops (Windows)', 'ECONNRESET'],
@@ -338,20 +357,25 @@ describe('other programs', () => {
     await checkComplete(folder)
   })
 
-  it.runIf(WINDOWS)('a file open in another program is not removed now: it stays ours, the next run removes it', async () => {
-    const folder = await tempDir()
-    await run({ type: 'sync', project: project(folder) })
-    await run({ type: 'download', project: project(folder) })
-    fake.project.things = fake.project.things.filter(t => t.id != 1010)
-    const faults = injectFaults([{ op: 'unlink', path: f => f.endsWith('prodotto-10.jpg'), code: 'EBUSY' }])
-    expect(await run({ type: 'sync', project: project(folder) })).toMatchObject({ outcome: 'completed', removed: 2 })
-    const activity = await ask<ActivityEntry[]>({ type: 'get_activity', project_id: 'p1' })
-    expect(activity).toContainEqual(expect.objectContaining({ name: 'prodotto-10.jpg', outcome: 'failed', reason: 'in_use' }))
-    expect(await listDir(folder)).toContain('prodotto-10.jpg')
-    faults.clear()
-    expect(await run({ type: 'sync', project: project(folder) })).toMatchObject({ outcome: 'completed', removed: 1 })
-    expect(await listDir(folder)).not.toContain('prodotto-10.jpg')
-  })
+  it.runIf(WINDOWS)(
+    'a file open in another program is not removed now: it stays ours, the next run removes it',
+    async () => {
+      const folder = await tempDir()
+      await run({ type: 'sync', project: project(folder) })
+      await run({ type: 'download', project: project(folder) })
+      fake.project.things = fake.project.things.filter(t => t.id != 1010)
+      const faults = injectFaults([{ op: 'unlink', path: f => f.endsWith('prodotto-10.jpg'), code: 'EBUSY' }])
+      expect(await run({ type: 'sync', project: project(folder) })).toMatchObject({ outcome: 'completed', removed: 2 })
+      const activity = await ask<ActivityEntry[]>({ type: 'get_activity', project_id: 'p1' })
+      expect(activity).toContainEqual(
+        expect.objectContaining({ name: 'prodotto-10.jpg', outcome: 'failed', reason: 'in_use' }),
+      )
+      expect(await listDir(folder)).toContain('prodotto-10.jpg')
+      faults.clear()
+      expect(await run({ type: 'sync', project: project(folder) })).toMatchObject({ outcome: 'completed', removed: 1 })
+      expect(await listDir(folder)).not.toContain('prodotto-10.jpg')
+    },
+  )
 })
 
 describe('what the disk does', () => {
@@ -454,7 +478,11 @@ describe('the registry of the folder', () => {
     const file = path.join(folder, 'data', 'manifest.json')
     await fs.writeFile(file, (await fs.readFile(file, 'utf8')).slice(0, 80))
     const hits = storageHits()
-    expect(await run({ type: 'sync', project: project(folder) })).toMatchObject({ outcome: 'completed', downloaded: 0, removed: 0 })
+    expect(await run({ type: 'sync', project: project(folder) })).toMatchObject({
+      outcome: 'completed',
+      downloaded: 0,
+      removed: 0,
+    })
     expect(storageHits()).toBe(hits)
     const manifest = JSON.parse(await fs.readFile(file, 'utf8'))
     expect(Object.keys(manifest.files)).toHaveLength(remoteNames().size)

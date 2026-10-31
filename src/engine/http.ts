@@ -42,18 +42,12 @@ export async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /** Exponential backoff with ±25% jitter */
 export function backoffDelay(attempt: number, policy: RetryPolicy): number {
-  const base = Math.min(
-    policy.max_delay_ms,
-    policy.base_delay_ms * 2 ** Math.max(0, attempt - 1),
-  )
+  const base = Math.min(policy.max_delay_ms, policy.base_delay_ms * 2 ** Math.max(0, attempt - 1))
   return Math.round(base * (0.75 + Math.random() * 0.5))
 }
 
 /** Retry-After as seconds or as an HTTP date, in milliseconds */
-export function parseRetryAfter(
-  value: string | null,
-  now = Date.now(),
-): number | undefined {
+export function parseRetryAfter(value: string | null, now = Date.now()): number | undefined {
   if (!value) return undefined
   const seconds = Number(value)
   if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000)
@@ -81,10 +75,7 @@ export async function withRetry<T>(
       if (attempt >= policy.attempts || !isRetryable(error)) throw error
       let delay = backoffDelay(attempt, policy)
       if (error instanceof HttpError && error.retry_after_ms !== undefined) {
-        delay = Math.max(
-          delay,
-          Math.min(error.retry_after_ms, policy.max_retry_after_ms),
-        )
+        delay = Math.max(delay, Math.min(error.retry_after_ms, policy.max_retry_after_ms))
       }
       hooks.onRetry?.(error, attempt, delay)
       await sleep(delay, hooks.signal)
@@ -132,20 +123,15 @@ export interface AdapterOptions {
   onServerDate?: (date: Date) => void
 }
 
-export function joinUrl(
-  base: string | undefined,
-  url: string | undefined,
-): string {
+export function joinUrl(base: string | undefined, url: string | undefined): string {
   if (url && /^https?:\/\//i.test(url)) return url
   const left = (base ?? '').replace(/\/+$/, '')
   const right = (url ?? '').replace(/^\/+/, '')
   return right ? `${left}/${right}` : left
 }
 
-function flattenHeaders(
-  headers: AdapterConfig['headers'],
-): Record<string, string> {
-  const raw = headers?.toJSON ? headers.toJSON() : headers ?? {}
+function flattenHeaders(headers: AdapterConfig['headers']): Record<string, string> {
+  const raw = headers?.toJSON ? headers.toJSON() : (headers ?? {})
   const out: Record<string, string> = {}
   for (const [key, value] of Object.entries(raw)) {
     if (value === undefined || value === null || value === false) continue
@@ -160,9 +146,7 @@ function flattenHeaders(
  * requests through the injected fetch, with a timeout per attempt and
  * retries on network errors, 5xx and 429.
  */
-export function fetchAdapter(
-  options: AdapterOptions,
-): (config: AdapterConfig) => Promise<AdapterResponse> {
+export function fetchAdapter(options: AdapterOptions): (config: AdapterConfig) => Promise<AdapterResponse> {
   const policy = options.policy ?? API_RETRY
   const timeout_ms = options.timeout_ms ?? 120_000
   return async config => {
@@ -174,57 +158,46 @@ export function fetchAdapter(
       config.data === undefined || method == 'GET'
         ? undefined
         : typeof config.data == 'string'
-        ? config.data
-        : JSON.stringify(config.data)
-    return withRetry(
-      policy,
-      { signal: parent, onRetry: options.onRetry },
-      async () => {
-        // Our timeout, or the job's stop
-        const own = new AbortController()
-        const signal = AbortSignal.any(parent ? [parent, own.signal] : [own.signal])
-        const timer = setTimeout(
-          () => own.abort(new TimeoutError('request')),
-          timeout_ms,
-        )
-        try {
-          const response = await options.fetch(url, {
-            method,
-            headers,
-            body,
-            signal,
-          })
-          const text = await response.text()
-          if (!response.ok) {
-            throw new HttpError(
-              response.status,
-              parseRetryAfter(response.headers.get('retry-after')),
-              safeJson(text),
-            )
-          }
-          const date = response.headers.get('date')
-          if (date && options.onServerDate) {
-            const parsed = new Date(date)
-            if (!isNaN(parsed.getTime())) options.onServerDate(parsed)
-          }
-          const out_headers: Record<string, string> = {}
-          response.headers.forEach((value, key) => (out_headers[key] = value))
-          return {
-            data: text,
-            status: response.status,
-            statusText: response.statusText,
-            headers: out_headers,
-            config,
-            request: undefined,
-          }
-        } catch (error) {
-          if (signal.aborted) throw abortReason(signal, parent)
-          throw error
-        } finally {
-          clearTimeout(timer)
+          ? config.data
+          : JSON.stringify(config.data)
+    return withRetry(policy, { signal: parent, onRetry: options.onRetry }, async () => {
+      // Our timeout, or the job's stop
+      const own = new AbortController()
+      const signal = AbortSignal.any(parent ? [parent, own.signal] : [own.signal])
+      const timer = setTimeout(() => own.abort(new TimeoutError('request')), timeout_ms)
+      try {
+        const response = await options.fetch(url, {
+          method,
+          headers,
+          body,
+          signal,
+        })
+        const text = await response.text()
+        if (!response.ok) {
+          throw new HttpError(response.status, parseRetryAfter(response.headers.get('retry-after')), safeJson(text))
         }
-      },
-    )
+        const date = response.headers.get('date')
+        if (date && options.onServerDate) {
+          const parsed = new Date(date)
+          if (!isNaN(parsed.getTime())) options.onServerDate(parsed)
+        }
+        const out_headers: Record<string, string> = {}
+        response.headers.forEach((value, key) => (out_headers[key] = value))
+        return {
+          data: text,
+          status: response.status,
+          statusText: response.statusText,
+          headers: out_headers,
+          config,
+          request: undefined,
+        }
+      } catch (error) {
+        if (signal.aborted) throw abortReason(signal, parent)
+        throw error
+      } finally {
+        clearTimeout(timer)
+      }
+    })
   }
 }
 

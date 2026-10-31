@@ -2,13 +2,7 @@ import { promises as fs } from 'fs'
 import os from 'os'
 import path from 'path'
 import { afterAll, describe, expect, it } from 'vitest'
-import {
-  destinationKind,
-  inspectFolder,
-  InspectContext,
-  isInside,
-  isProtectedPath,
-} from './folder-inspect'
+import { destinationKind, inspectFolder, InspectContext, isInside, isProtectedPath } from './folder-inspect'
 import { FolderLock } from './lock'
 import { Manifest } from './manifest'
 import { cleanupTempDirs, listDir, tempDir, writeFiles } from './testing/tmp'
@@ -25,9 +19,7 @@ describe('protected paths and overlaps', () => {
   it('drive roots, home and system folders are protected; share roots are not', () => {
     expect(isProtectedPath(path.parse(process.cwd()).root)).toBe(true)
     expect(isProtectedPath(os.homedir())).toBe(true)
-    expect(isProtectedPath(path.join(os.homedir(), 'Documents', 'Media'))).toBe(
-      false,
-    )
+    expect(isProtectedPath(path.join(os.homedir(), 'Documents', 'Media'))).toBe(false)
     if (IS_WIN) {
       expect(isProtectedPath('C:\\Windows\\System32\\x', 'win32')).toBe(true)
       expect(isProtectedPath('C:\\Program Files\\App', 'win32')).toBe(true)
@@ -41,8 +33,7 @@ describe('protected paths and overlaps', () => {
     expect(isInside(path.join(base, 'sub'), base)).toBe(true)
     expect(isInside(base, path.join(base, 'sub'))).toBe(false)
     expect(isInside(base + '-bis', base)).toBe(false)
-    if (IS_WIN)
-      expect(isInside('C:\\Media\\X', 'c:\\media', 'win32')).toBe(true)
+    if (IS_WIN) expect(isInside('C:\\Media\\X', 'c:\\media', 'win32')).toBe(true)
   })
 })
 
@@ -121,15 +112,12 @@ describe('inspectFolder', () => {
     await lock.release()
   })
 
-  it.runIf(IS_WIN)(
-    'a share is a network folder; an unreachable one is reported',
-    async () => {
-      const dir = await tempDir()
-      const unc = '\\\\localhost\\' + dir.replace(/^([A-Z]):/i, '$1$')
-      expect(await destinationKind(unc)).toBe('network')
-      const info = await inspectFolder('\\\\10.255.255.1\\media\\vasi', local)
-      expect(info.kind).toBe('network')
-      expect(info.problems).toContain('unreachable')
-    },
-  )
+  it.runIf(IS_WIN)('a share is a network folder; an unreachable one is reported', async () => {
+    const dir = await tempDir()
+    const unc = '\\\\localhost\\' + dir.replace(/^([A-Z]):/i, '$1$')
+    expect(await destinationKind(unc)).toBe('network')
+    const info = await inspectFolder('\\\\10.255.255.1\\media\\vasi', local)
+    expect(info.kind).toBe('network')
+    expect(info.problems).toContain('unreachable')
+  })
 })

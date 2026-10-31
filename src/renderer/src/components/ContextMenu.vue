@@ -46,7 +46,9 @@ function onFocusOut(event: FocusEvent): void {
   if (!card.value?.contains(event.relatedTarget as Node | null)) close()
 }
 
-const actions = (): HTMLElement[] => [...(card.value?.querySelectorAll<HTMLElement>('[role=menuitem]:not(:disabled)') ?? [])]
+const actions = (): HTMLElement[] => [
+  ...(card.value?.querySelectorAll<HTMLElement>('[role=menuitem]:not(:disabled)') ?? []),
+]
 function onKey(event: KeyboardEvent): void {
   const list = actions()
   const now = list.indexOf(document.activeElement as HTMLElement)

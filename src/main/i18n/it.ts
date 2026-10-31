@@ -6,15 +6,19 @@ export const it = {
   new_project: 'Nuovo progetto',
   quit: 'Esci',
   tray_idle: 'Tutti i progetti aggiornati',
-  tray_running: (count: number): string => (count == 1 ? '1 sincronizzazione in corso' : `${count} sincronizzazioni in corso`),
-  tray_attention: (count: number): string => (count == 1 ? '1 progetto da controllare' : `${count} progetti da controllare`),
+  tray_running: (count: number): string =>
+    count == 1 ? '1 sincronizzazione in corso' : `${count} sincronizzazioni in corso`,
+  tray_attention: (count: number): string =>
+    count == 1 ? '1 progetto da controllare' : `${count} progetti da controllare`,
   done_title: (label: string): string => `${label} aggiornato`,
   done_body: (files: number, duration: string): string =>
     files == 1 ? `1 file scaricato in ${duration}` : `${files} file scaricati in ${duration}`,
   done_nothing: 'Nessun file nuovo',
   failed_title: (label: string): string => `${label}: file non scaricati`,
   failed_body: (count: number): string =>
-    count == 1 ? '1 file non è stato scaricato. Apri per riprovare.' : `${count} file non sono stati scaricati. Apri per riprovare.`,
+    count == 1
+      ? '1 file non è stato scaricato. Apri per riprovare.'
+      : `${count} file non sono stati scaricati. Apri per riprovare.`,
   error_title: (label: string): string => `${label}: sincronizzazione non riuscita`,
   error_body: {
     token_invalid: 'Il token API non è valido.',
@@ -30,7 +34,8 @@ export const it = {
   quit_title: 'Download in corso',
   quit_message: 'Ci sono download in corso. Se chiudi, si interrompono: i file già scaricati restano.',
   deleting_title: 'Eliminazione in corso',
-  deleting_message: 'Si stanno eliminando i file di un progetto. Se chiudi, l’eliminazione si interrompe e alcuni file restano nella cartella.',
+  deleting_message:
+    'Si stanno eliminando i file di un progetto. Se chiudi, l’eliminazione si interrompe e alcuni file restano nella cartella.',
   quit_confirm: 'Interrompi e chiudi',
   cancel: 'Annulla',
   ok: 'OK',

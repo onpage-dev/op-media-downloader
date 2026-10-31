@@ -27,8 +27,7 @@ const index: RemoteIndex = {
   ],
 }
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise(resolve => setTimeout(resolve, ms))
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 async function store(max_age_ms: number): Promise<ListingStore> {
   const dir = await tempDir('opmd-cache-')

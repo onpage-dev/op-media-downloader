@@ -29,7 +29,8 @@ const OUTCOMES: Record<Exclude<ActivityOutcome, 'downloading'>, [StatusTone, ico
 }
 function fileIcon(name: string): icons.IconDefinition {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'tif', 'tiff', 'svg', 'bmp', 'heic', 'avif'].includes(ext)) return icons.faFileImage
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'tif', 'tiff', 'svg', 'bmp', 'heic', 'avif'].includes(ext))
+    return icons.faFileImage
   if (ext == 'pdf') return icons.faFilePdf
   if (['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext)) return icons.faFileVideo
   return icons.faFileLines
@@ -51,12 +52,7 @@ function note(entry: ActivityEntry): string {
       <span class="self-center px-sm">{{ t('activity.size') }}</span>
       <span class="self-center px-sm">{{ t('activity.outcome') }}</span>
     </div>
-    <div
-      v-for="entry in entries"
-      :key="entry.id"
-      class="grid h-8 items-center text-xs"
-      :class="COLUMNS"
-    >
+    <div v-for="entry in entries" :key="entry.id" class="grid h-8 items-center text-xs" :class="COLUMNS">
       <span class="tabular px-sm text-secondary">{{ formatClock(entry.at) }}</span>
       <span class="flex min-w-0 items-center gap-sm px-sm">
         <span class="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-sm bg-box-soft text-secondary">
@@ -66,9 +62,19 @@ function note(entry: ActivityEntry): string {
       </span>
       <span class="tabular px-sm text-secondary">{{ entry.size != null ? formatBytes(entry.size) : '—' }}</span>
       <span class="flex min-w-0 items-center gap-sm px-sm">
-        <ProgressBar v-if="entry.outcome == 'downloading'" class="w-[140px]" size="xs" :value="entry.progress ?? 0" :name="entry.name" />
+        <ProgressBar
+          v-if="entry.outcome == 'downloading'"
+          class="w-[140px]"
+          size="xs"
+          :value="entry.progress ?? 0"
+          :name="entry.name"
+        />
         <template v-else>
-          <StatusTag :tone="OUTCOMES[entry.outcome][0]" :icon="OUTCOMES[entry.outcome][1]" :label="t(`activity.result.${entry.outcome}`)" />
+          <StatusTag
+            :tone="OUTCOMES[entry.outcome][0]"
+            :icon="OUTCOMES[entry.outcome][1]"
+            :label="t(`activity.result.${entry.outcome}`)"
+          />
           <span class="truncate text-secondary">{{ note(entry) }}</span>
         </template>
       </span>

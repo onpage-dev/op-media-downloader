@@ -23,7 +23,10 @@ watch(
 /** The names the app created there: those in place after the last plan, else what the last run brought */
 const created = computed(() => {
   const runtime = project.value?.runtime
-  return runtime?.plan?.up_to_date ?? (runtime?.last_result ? runtime.last_result.downloaded + runtime.last_result.already_present : undefined)
+  return (
+    runtime?.plan?.up_to_date ??
+    (runtime?.last_result ? runtime.last_result.downloaded + runtime.last_result.already_present : undefined)
+  )
 })
 /** Their size, as the last plan has it: what On Page has less what was still to download */
 const createdBytes = computed(() => {
@@ -31,7 +34,12 @@ const createdBytes = computed(() => {
   return plan && formatBytes(Math.max(0, plan.remote_bytes - plan.to_download_bytes))
 })
 const foreign = computed(() => project.value?.folder_info?.foreign_entries ?? 0)
-const cleanup = computed(() => project.value?.runtime.issues.find(i => i.code == 'cleanup_needs_confirmation')?.count ?? project.value?.runtime.plan?.to_remove ?? 0)
+const cleanup = computed(
+  () =>
+    project.value?.runtime.issues.find(i => i.code == 'cleanup_needs_confirmation')?.count ??
+    project.value?.runtime.plan?.to_remove ??
+    0,
+)
 const cancel = (): void => {
   app.dialog = undefined
 }
@@ -56,12 +64,18 @@ const cancel = (): void => {
           <li class="flex items-start gap-sm">
             <AppIcon :icon="icons.faTrashCan" class="mt-[2px] text-danger-fg" />
             <template v-if="created == null">{{ t('delete.removes_unknown') }}</template>
-            <template v-else-if="createdBytes">{{ t('delete.removes_size', { count: formatNumber(created), size: createdBytes }, created) }}</template>
+            <template v-else-if="createdBytes">{{
+              t('delete.removes_size', { count: formatNumber(created), size: createdBytes }, created)
+            }}</template>
             <template v-else>{{ t('delete.removes', { count: formatNumber(created) }, created) }}</template>
           </li>
           <li class="flex items-start gap-sm">
             <AppIcon :icon="icons.faFolder" class="mt-[2px] text-secondary" />
-            {{ foreign ? t('delete.keeps', { count: formatNumber(foreign), folder: project.folder }, foreign) : t('delete.keeps_none', { folder: project.folder }) }}
+            {{
+              foreign
+                ? t('delete.keeps', { count: formatNumber(foreign), folder: project.folder }, foreign)
+                : t('delete.keeps_none', { folder: project.folder })
+            }}
           </li>
         </ul>
         <p v-else class="text-xs text-secondary">{{ t('delete.keeps_all') }}</p>

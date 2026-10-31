@@ -7,13 +7,20 @@
 import { TONE_FG, TONE_ICON, TONE_SOFT, toneText } from '../../lib/status-view'
 import AppIcon from './AppIcon.vue'
 
-withDefaults(defineProps<{ tone: 'success' | 'info' | 'warning' | 'danger' | 'neutral'; title?: string; below?: boolean }>(), {
-  below: false,
-})
+withDefaults(
+  defineProps<{ tone: 'success' | 'info' | 'warning' | 'danger' | 'neutral'; title?: string; below?: boolean }>(),
+  {
+    below: false,
+  },
+)
 </script>
 
 <template>
-  <div class="flex gap-sm rounded-xl p-lg" :class="[TONE_SOFT[tone], below ? 'items-start' : 'items-center']" role="status">
+  <div
+    class="flex gap-sm rounded-xl p-lg"
+    :class="[TONE_SOFT[tone], below ? 'items-start' : 'items-center']"
+    role="status"
+  >
     <AppIcon :icon="TONE_ICON[tone]" class="self-start pt-[3px]" :class="TONE_FG[tone]" />
     <div class="flex min-w-0 flex-1 gap-lg" :class="below ? 'flex-col items-start' : 'items-center'">
       <div class="min-w-0 flex-1" :class="toneText(tone)">

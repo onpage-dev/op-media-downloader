@@ -32,11 +32,23 @@ const tools = computed<(Tool | '|')[]>(() => [
   { key: 'download', icon: icons.faArrowDownToBracket, on: can.value.download, action: () => download() },
   { key: 'stop', icon: icons.faStop, on: can.value.stop, action: () => ask('stop') },
   '|',
-  { key: 'sync_all', icon: icons.faLayerGroup, keys: mac ? '⌘⇧R' : `${t('keys.ctrl')}+${t('keys.shift')}+R`, on: can.value.sync_all, action: syncAll },
+  {
+    key: 'sync_all',
+    icon: icons.faLayerGroup,
+    keys: mac ? '⌘⇧R' : `${t('keys.ctrl')}+${t('keys.shift')}+R`,
+    on: can.value.sync_all,
+    action: syncAll,
+  },
   '|',
   { key: 'open', icon: icons.faFolderOpen, keys: `${mod.value}O`, on: can.value.selected, action: () => openFolder() },
   { key: 'edit', icon: icons.faPenToSquare, on: can.value.selected, action: () => edit() },
-  { key: 'delete', icon: icons.faTrashCan, keys: mac ? '⌘⌫' : t('keys.delete'), on: can.value.selected, action: () => ask('delete') },
+  {
+    key: 'delete',
+    icon: icons.faTrashCan,
+    keys: mac ? '⌘⌫' : t('keys.delete'),
+    on: can.value.selected,
+    action: () => ask('delete'),
+  },
 ])
 
 const search = ref<InstanceType<typeof SearchField>>()
@@ -100,7 +112,14 @@ onBeforeUnmount(() => observer.disconnect())
       :clear-label="t('common.close')"
       class="w-[200px]"
     />
-    <IconButton v-if="compact" :icon="icons.faGear" :label="`${t('toolbar.settings')} · ${mod},`" :size="36" class="ml-xs" @click="openSettings()" />
+    <IconButton
+      v-if="compact"
+      :icon="icons.faGear"
+      :label="`${t('toolbar.settings')} · ${mod},`"
+      :size="36"
+      class="ml-xs"
+      @click="openSettings()"
+    />
     <button
       v-else
       v-tooltip="`${t('toolbar.settings')} · ${mod},`"

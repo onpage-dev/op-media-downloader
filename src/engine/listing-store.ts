@@ -109,8 +109,7 @@ export class ListingStore {
   /** The schema of the last listing, or loaded once for the names kept */
   async schema(id: ProjectId, token: string, load: () => Promise<Schema>): Promise<Schema> {
     const kept = this.kept.get(id)
-    if (kept?.token == token && (kept.listing || kept.schema))
-      return kept.listing?.schema ?? kept.schema!
+    if (kept?.token == token && (kept.listing || kept.schema)) return kept.listing?.schema ?? kept.schema!
     const schema = await load()
     const now_kept = this.kept.get(id)
     if (now_kept?.token == token && !now_kept.listing) now_kept.schema = schema

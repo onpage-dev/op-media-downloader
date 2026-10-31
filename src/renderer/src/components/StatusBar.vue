@@ -42,7 +42,12 @@ const update = computed(() => {
     <span v-else class="text-secondary">{{ t('status_bar.empty') }}</span>
     <span class="flex-1" />
     <span v-if="app.version" class="text-secondary">v{{ app.version.current.replace(/^v/, '') }}</span>
-    <button v-if="update" type="button" class="flex items-center gap-xs font-medium text-accent-fg hover:underline" @click="openRelease">
+    <button
+      v-if="update"
+      type="button"
+      class="flex items-center gap-xs font-medium text-accent-fg hover:underline"
+      @click="openRelease"
+    >
       <AppIcon :icon="icons.faArrowDownToBracket" class="text-xs" />
       {{ t('status_bar.update', { version: `v${update.replace(/^v/, '')}` }) }}
     </button>

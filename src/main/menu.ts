@@ -21,7 +21,12 @@ export function setupMenu(language: AppLanguage, send: (command: AppCommand) => 
       submenu: [
         { role: 'about' },
         { type: 'separator' },
-        { label: t.settings, accelerator: 'Cmd+,', registerAccelerator: false, click: () => send({ type: 'open_settings' }) },
+        {
+          label: t.settings,
+          accelerator: 'Cmd+,',
+          registerAccelerator: false,
+          click: () => send({ type: 'open_settings' }),
+        },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -35,10 +40,25 @@ export function setupMenu(language: AppLanguage, send: (command: AppCommand) => 
     {
       label: t.file,
       submenu: [
-        { label: t.new_project, accelerator: 'Cmd+N', registerAccelerator: false, click: () => send({ type: 'new_project' }) },
-        { label: t.open_folder, accelerator: 'Cmd+O', registerAccelerator: false, click: () => send({ type: 'open_folder_selected' }) },
+        {
+          label: t.new_project,
+          accelerator: 'Cmd+N',
+          registerAccelerator: false,
+          click: () => send({ type: 'new_project' }),
+        },
+        {
+          label: t.open_folder,
+          accelerator: 'Cmd+O',
+          registerAccelerator: false,
+          click: () => send({ type: 'open_folder_selected' }),
+        },
         { type: 'separator' },
-        { label: t.find, accelerator: 'Cmd+F', registerAccelerator: false, click: () => send({ type: 'focus_search' }) },
+        {
+          label: t.find,
+          accelerator: 'Cmd+F',
+          registerAccelerator: false,
+          click: () => send({ type: 'focus_search' }),
+        },
         { type: 'separator' },
         { role: 'close' },
       ],
@@ -47,8 +67,18 @@ export function setupMenu(language: AppLanguage, send: (command: AppCommand) => 
     {
       label: t.sync,
       submenu: [
-        { label: t.sync_selected, accelerator: 'Cmd+R', registerAccelerator: false, click: () => send({ type: 'sync_selected' }) },
-        { label: t.sync_all, accelerator: 'Shift+Cmd+R', registerAccelerator: false, click: () => send({ type: 'sync_all' }) },
+        {
+          label: t.sync_selected,
+          accelerator: 'Cmd+R',
+          registerAccelerator: false,
+          click: () => send({ type: 'sync_selected' }),
+        },
+        {
+          label: t.sync_all,
+          accelerator: 'Shift+Cmd+R',
+          registerAccelerator: false,
+          click: () => send({ type: 'sync_all' }),
+        },
         { type: 'separator' },
         { label: t.download, click: () => send({ type: 'download_selected' }) },
         { label: t.stop, click: () => send({ type: 'stop_selected' }) },

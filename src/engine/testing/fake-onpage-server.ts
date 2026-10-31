@@ -179,11 +179,7 @@ function hasMedia(thing: FakeThing, fields: FakeField[]): boolean {
 type Clause = unknown[] | { field?: string; operator?: string; value?: unknown }
 
 /** The filters onpage-js and the engine send: `_or` not_empty, `_updated_at >`, `_id in` */
-function matches(
-  thing: FakeThing,
-  resource: FakeResource,
-  filters: Clause[],
-): boolean {
+function matches(thing: FakeThing, resource: FakeResource, filters: Clause[]): boolean {
   for (const clause of filters) {
     if (Array.isArray(clause)) {
       if (clause[0] == '_or') {
@@ -199,37 +195,26 @@ function matches(
       continue
     }
     if (clause && clause.field == '_id' && clause.operator == 'in') {
-      if (!(clause.value as number[]).map(Number).includes(thing.id))
-        return false
+      if (!(clause.value as number[]).map(Number).includes(thing.id)) return false
     }
   }
   return true
 }
 
-function thingJson(
-  thing: FakeThing,
-  resource: FakeResource,
-  wanted: string[],
-  langs: string[],
-): unknown {
+function thingJson(thing: FakeThing, resource: FakeResource, wanted: string[], langs: string[]): unknown {
   const fields: Record<string, unknown[]> = {}
   for (const field of resource.fields) {
     if (wanted.length && !wanted.includes(field.name)) continue
     if (field.type == 'string') {
       if (thing.label !== undefined)
-        fields[field.translatable ? `${field.name}_${langs[0]}` : field.name] =
-          [thing.label]
+        fields[field.translatable ? `${field.name}_${langs[0]}` : field.name] = [thing.label]
       continue
     }
     const value = thing.files[field.name]
     if (!value) continue
     if (field.translatable) {
       for (const lang of langs) {
-        const files = Array.isArray(value)
-          ? lang == langs[0]
-            ? value
-            : []
-          : value[lang] ?? []
+        const files = Array.isArray(value) ? (lang == langs[0] ? value : []) : (value[lang] ?? [])
         if (files.length) fields[`${field.name}_${lang}`] = files.map(rawFile)
       }
     } else {
@@ -254,12 +239,7 @@ async function readBody(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-function json(
-  res: ServerResponse,
-  status: number,
-  body: unknown,
-  headers: Record<string, string> = {},
-): void {
+function json(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
   const text = JSON.stringify(body)
   res.writeHead(status, {
     'content-type': 'application/json',
@@ -295,25 +275,17 @@ export async function startFakeOnPage(options: {
     close: () => close(),
   }
 
-  const handle = async (
-    req: IncomingMessage,
-    res: ServerResponse,
-  ): Promise<void> => {
+  const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? '/', 'http://localhost')
-    const parts = url.pathname
-      .split('/')
-      .filter(Boolean)
-      .map(decodeURIComponent)
+    const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
 
     if (parts[0] == 'view') {
       fake.hits.api++
       const body = req.method == 'POST' ? await readBody(req) : ''
       const auth = req.headers.authorization ?? parts[1]
-      const path_token =
-        parts[0] == 'view' && parts.length > 2 ? parts[1] : undefined
+      const path_token = parts[0] == 'view' && parts.length > 2 ? parts[1] : undefined
       if (fake.api.delay_ms) await wait(fake.api.delay_ms)
-      if ((path_token ?? auth) != token && auth != token)
-        return json(res, 401, { message: 'Unauthenticated' })
+      if ((path_token ?? auth) != token && auth != token) return json(res, 401, { message: 'Unauthenticated' })
       if (fake.api.rate_limit_times > 0) {
         fake.api.rate_limit_times--
         return json(
@@ -333,13 +305,9 @@ export async function startFakeOnPage(options: {
       if (endpoint == 'things') {
         if (fake.api.fail_resource && data.resource == fake.api.fail_resource)
           return json(res, 500, { message: 'Server error' })
-        const resource = fake.project.resources.find(
-          r => r.name == data.resource || r.id == data.resource,
-        )
+        const resource = fake.project.resources.find(r => r.name == data.resource || r.id == data.resource)
         if (!resource) return json(res, 404, { message: 'Resource not found' })
-        const filters: Clause[] = Array.isArray(data.filters)
-          ? data.filters
-          : []
+        const filters: Clause[] = Array.isArray(data.filters) ? data.filters : []
         const things = fake.project.things
           .filter(t => t.resource_id == resource.id)
           .filter(t => matches(t, resource, filters))
@@ -366,22 +334,13 @@ export async function startFakeOnPage(options: {
     // Storage: /<token>[.transform]/<name> (sample tokens have no dots)
     const file_token = (parts[0] ?? '').split('.')[0]
     const file = findFile(fake.project, file_token)
-    fake.hits.storage.set(
-      file_token,
-      (fake.hits.storage.get(file_token) ?? 0) + 1,
-    )
+    fake.hits.storage.set(file_token, (fake.hits.storage.get(file_token) ?? 0) + 1)
     const behaviour = fake.storage.get(file_token) ?? {}
     if (behaviour.delay_ms) await wait(behaviour.delay_ms)
-    if (!file || behaviour.missing)
-      return json(res, 404, { message: 'Not found' })
+    if (!file || behaviour.missing) return json(res, 404, { message: 'Not found' })
     if (behaviour.rate_limit_times) {
       behaviour.rate_limit_times--
-      return json(
-        res,
-        429,
-        { message: 'Too many requests' },
-        { 'retry-after': String(behaviour.retry_after_s ?? 1) },
-      )
+      return json(res, 429, { message: 'Too many requests' }, { 'retry-after': String(behaviour.retry_after_s ?? 1) })
     }
     if (behaviour.fail_times) {
       behaviour.fail_times--
@@ -414,9 +373,7 @@ export async function startFakeOnPage(options: {
     sockets.add(socket)
     socket.on('close', () => sockets.delete(socket))
   })
-  await new Promise<void>(resolve =>
-    server.listen(options.port ?? 0, '127.0.0.1', resolve),
-  )
+  await new Promise<void>(resolve => server.listen(options.port ?? 0, '127.0.0.1', resolve))
   fake.port = (server.address() as AddressInfo).port
   fake.url = `http://127.0.0.1:${fake.port}`
 
@@ -450,9 +407,7 @@ export function token(seed: string): string {
  * a content (same token, two names) and a few names have different files
  * (duplicates).
  */
-export function sampleProject(
-  options: { things?: number; duplicates?: number; seed?: string } = {},
-): FakeProject {
+export function sampleProject(options: { things?: number; duplicates?: number; seed?: string } = {}): FakeProject {
   const count = options.things ?? 50
   const seed = options.seed ?? 'opmd'
   const duplicates = options.duplicates ?? 2
@@ -566,7 +521,7 @@ export function sampleProject(
 
 function arg(name: string, fallback: string): string {
   const index = process.argv.indexOf(`--${name}`)
-  return index > 0 ? process.argv[index + 1] ?? fallback : fallback
+  return index > 0 ? (process.argv[index + 1] ?? fallback) : fallback
 }
 
 async function main(): Promise<void> {
@@ -583,11 +538,7 @@ async function main(): Promise<void> {
   const files = fake.project.things.reduce(
     (sum, t) =>
       sum +
-      Object.values(t.files).reduce(
-        (s, v) =>
-          s + (Array.isArray(v) ? v.length : Object.values(v).flat().length),
-        0,
-      ),
+      Object.values(t.files).reduce((s, v) => s + (Array.isArray(v) ? v.length : Object.values(v).flat().length), 0),
     0,
   )
   console.log(`Fake On Page on ${fake.url}`)

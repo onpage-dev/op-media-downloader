@@ -6,15 +6,7 @@
  * itself, so the two never disagree.
  */
 import { EngineToMain } from '../shared/engine-protocol'
-import {
-  Issue,
-  IssueCode,
-  JobKind,
-  JobPhase,
-  ProjectId,
-  ProjectRuntime,
-  SyncResult,
-} from '../shared/models'
+import { Issue, IssueCode, JobKind, JobPhase, ProjectId, ProjectRuntime, SyncResult } from '../shared/models'
 import { ActivityLog, FailedList } from './activity'
 import { Summary } from './plan'
 import { ProgressTracker } from './progress'
@@ -65,10 +57,7 @@ export class ProjectState {
     this.job_issues = []
     this.rate_limited = false
     this.runtime.job = kind
-    this.batches = setInterval(
-      () => this.flushActivity(),
-      this.options.activity_interval_ms,
-    )
+    this.batches = setInterval(() => this.flushActivity(), this.options.activity_interval_ms)
     this.setPhase('preparing')
   }
 
@@ -83,8 +72,7 @@ export class ProjectState {
     this.runtime.last_result = result
     this.runtime.phase = 'idle'
     this.emit(true)
-    if (!this.closed)
-      this.options.post({ kind: 'result', project_id: this.id, result })
+    if (!this.closed) this.options.post({ kind: 'result', project_id: this.id, result })
   }
 
   /** «Interruzione» stays until the job ends */
@@ -101,8 +89,7 @@ export class ProjectState {
   /** Throttled; `force` sends now (a new phase, the end of a job) */
   emit(force = false): void {
     if (this.closed) return
-    const wait =
-      this.options.state_interval_ms - (this.options.now() - this.last_sent)
+    const wait = this.options.state_interval_ms - (this.options.now() - this.last_sent)
     if (force || wait <= 0) {
       clearTimeout(this.timer)
       this.send()
@@ -114,8 +101,7 @@ export class ProjectState {
   flushActivity(): void {
     if (this.closed) return
     const entries = this.activity.takeChanged()
-    if (entries.length)
-      this.options.post({ kind: 'activity', project_id: this.id, entries })
+    if (entries.length) this.options.post({ kind: 'activity', project_id: this.id, entries })
   }
 
   private send(): void {
@@ -142,10 +128,8 @@ export class ProjectState {
     }
     const plan = this.runtime.plan
     if (this.rate_limited && this.runtime.job) warn('rate_limited')
-    if (plan?.cleanup_needs_confirmation)
-      warn('cleanup_needs_confirmation', plan.to_remove)
-    if (this.incomplete !== undefined)
-      warn('listing_incomplete', undefined, this.incomplete)
+    if (plan?.cleanup_needs_confirmation) warn('cleanup_needs_confirmation', plan.to_remove)
+    if (this.incomplete !== undefined) warn('listing_incomplete', undefined, this.incomplete)
     const failed = this.failed.retryable().length
     if (failed) warn('failed_files', failed)
     if (plan?.duplicates) warn('duplicates', plan.duplicates)

@@ -8,15 +8,7 @@ import { promises as fs } from 'fs'
 import { atomicWrite } from './fsx'
 
 /** [field_id, lang | null, remote name, token, size | null, width | null, height | null] */
-export type RemoteFileTuple = [
-  number,
-  string | null,
-  string,
-  string,
-  number | null,
-  number | null,
-  number | null,
-]
+export type RemoteFileTuple = [number, string | null, string, string, number | null, number | null, number | null]
 
 export interface RemoteResource {
   id: number
@@ -45,9 +37,7 @@ interface CacheJson {
 const gzipAsync = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
 
-export async function readIndexCache(
-  file: string,
-): Promise<RemoteIndex | undefined> {
+export async function readIndexCache(file: string): Promise<RemoteIndex | undefined> {
   let raw: Buffer
   try {
     raw = await fs.readFile(file)
@@ -55,9 +45,7 @@ export async function readIndexCache(
     return undefined
   }
   try {
-    const json = JSON.parse(
-      (await gunzipAsync(raw)).toString('utf8'),
-    ) as CacheJson
+    const json = JSON.parse((await gunzipAsync(raw)).toString('utf8')) as CacheJson
     if (json.version != 1 || !Array.isArray(json.resources)) return undefined
     return {
       schema_id: json.schema_id,
@@ -74,10 +62,7 @@ export async function readIndexCache(
   }
 }
 
-export async function writeIndexCache(
-  file: string,
-  index: RemoteIndex,
-): Promise<void> {
+export async function writeIndexCache(file: string, index: RemoteIndex): Promise<void> {
   const json: CacheJson = {
     version: 1,
     schema_id: index.schema_id,

@@ -8,13 +8,8 @@ import { JobContext } from '../job'
 import { onlyNames, summaryAfter, summaryLeft } from '../plan'
 import { compare, execute, inFolder, list, resultOf, stopped } from './steps'
 
-export function runDownload(
-  ctx: JobContext,
-  only_failed: boolean,
-): Promise<SyncResult> {
-  const retry = only_failed
-    ? new Set(ctx.slot.failed.retryable().map(e => e.name))
-    : undefined
+export function runDownload(ctx: JobContext, only_failed: boolean): Promise<SyncResult> {
+  const retry = only_failed ? new Set(ctx.slot.failed.retryable().map(e => e.name)) : undefined
   return inFolder(ctx, async session => {
     const listed = await list(ctx, { full: false, reuse: true })
     const plan = await compare(ctx, session, listed)

@@ -6,13 +6,7 @@ import { failedLabels, listRemote } from './listing'
 import { resolveNames } from './names'
 import { OnPageContext, verifyToken } from './onpage'
 import { readIndexCache, RemoteIndex, writeIndexCache } from './remote-index'
-import {
-  FakeFile,
-  FakeOnPage,
-  sampleProject,
-  startFakeOnPage,
-  token,
-} from './testing/fake-onpage-server'
+import { FakeFile, FakeOnPage, sampleProject, startFakeOnPage, token } from './testing/fake-onpage-server'
 import { cleanupTempDirs, tempDir } from './testing/tmp'
 
 const FAST: RetryPolicy = {
@@ -26,8 +20,7 @@ let fake: FakeOnPage
 
 function countFiles(index: RemoteIndex): number {
   let n = 0
-  for (const r of index.resources)
-    for (const files of r.things.values()) n += files.length
+  for (const r of index.resources) for (const files of r.things.values()) n += files.length
   return n
 }
 
@@ -131,9 +124,7 @@ describe('listing', () => {
       ...first.index,
       checkpoint: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
     }
-    expect(
-      (await listRemote({ token: fake.token, ctx: ctx(), cache: old })).mode,
-    ).toBe('full')
+    expect((await listRemote({ token: fake.token, ctx: ctx(), cache: old })).mode).toBe('full')
   })
 
   it('429 waits and goes on', async () => {
@@ -165,16 +156,12 @@ describe('listing', () => {
   })
 
   it('a refused token ends the listing as token_invalid', async () => {
-    await expect(
-      listRemote({ token: 'wrong', ctx: ctx() }),
-    ).rejects.toMatchObject({ issue: 'token_invalid' })
+    await expect(listRemote({ token: 'wrong', ctx: ctx() })).rejects.toMatchObject({ issue: 'token_invalid' })
   })
 
   it('no server at all is «offline»', async () => {
     const closed = { ...ctx(), domain: 'http://127.0.0.1:9' }
-    const error = await listRemote({ token: fake.token, ctx: closed }).catch(
-      e => e,
-    )
+    const error = await listRemote({ token: fake.token, ctx: closed }).catch(e => e)
     expect(error).toBeInstanceOf(JobError)
     expect(error.issue).toBe('offline')
   })

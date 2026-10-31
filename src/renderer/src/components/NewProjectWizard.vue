@@ -65,7 +65,13 @@ const done = computed(() => (folderOk.value && step.value < 1 ? [1] : []))
 function next(): void {
   if (!canNext.value) return
   if (step.value == 2) {
-    void create({ label: label.value.trim(), token: token.value.trim(), folder: path.value, keep_old_files: keep.value, sync_now: syncNow.value })
+    void create({
+      label: label.value.trim(),
+      token: token.value.trim(),
+      folder: path.value,
+      keep_old_files: keep.value,
+      sync_now: syncNow.value,
+    })
     return
   }
   step.value++
@@ -78,7 +84,11 @@ const close = (): void => {
 <template>
   <UiModal size="m" :title="t('wizard.title')" @close="close">
     <form id="new-project" ref="form" class="flex flex-col gap-lg" @submit.prevent="next">
-      <UiStepper :steps="[t('wizard.step.token'), t('wizard.step.folder'), t('wizard.step.options')]" :current="step" :done="done" />
+      <UiStepper
+        :steps="[t('wizard.step.token'), t('wizard.step.folder'), t('wizard.step.options')]"
+        :current="step"
+        :done="done"
+      />
 
       <template v-if="step == 0">
         <FormItem v-slot="{ id, describedby }" :label="t('project.token')" required :note="t('project.token_note')">
@@ -115,7 +125,9 @@ const close = (): void => {
             >
               {{ path || t('wizard.folder_placeholder') }}
             </button>
-            <UiButton :icon="icons.faFolderOpen" class="-ml-px rounded-l-none" @click="pick">{{ t('wizard.pick') }}</UiButton>
+            <UiButton :icon="icons.faFolderOpen" class="-ml-px rounded-l-none" @click="pick">{{
+              t('wizard.pick')
+            }}</UiButton>
           </div>
         </FormItem>
         <div v-if="info == 'inspecting'" class="flex items-center gap-sm text-sm" role="status">
@@ -135,7 +147,9 @@ const close = (): void => {
       </template>
     </form>
     <template #footer>
-      <UiButton v-if="step == 0" variant="ghost" :icon="icons.faXmark" @click="close">{{ t('common.cancel') }}</UiButton>
+      <UiButton v-if="step == 0" variant="ghost" :icon="icons.faXmark" @click="close">{{
+        t('common.cancel')
+      }}</UiButton>
       <UiButton v-else variant="ghost" :icon="icons.faArrowLeft" @click="step--">{{ t('wizard.back') }}</UiButton>
       <span class="flex-1" />
       <UiButton

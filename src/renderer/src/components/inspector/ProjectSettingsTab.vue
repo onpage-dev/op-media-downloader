@@ -74,7 +74,11 @@ const dirty = computed(
 )
 /** What the folder is known to be: as inspected here, else as main last saw the project's own */
 const known = computed(() =>
-  typeof inspected.value == 'object' ? inspected.value : folder.value == props.project.folder ? props.project.folder_info : undefined,
+  typeof inspected.value == 'object'
+    ? inspected.value
+    : folder.value == props.project.folder
+      ? props.project.folder_info
+      : undefined,
 )
 const blocked = computed(
   () =>
@@ -138,10 +142,21 @@ async function save(): Promise<void> {
           @update:model-value="typeToken"
           @focus="selectMask"
         />
-        <UiButton v-if="!editing" variant="ghost" :icon="revealed == null ? icons.faEye : icons.faEyeSlash" :loading="revealing" @click="toggleToken">
+        <UiButton
+          v-if="!editing"
+          variant="ghost"
+          :icon="revealed == null ? icons.faEye : icons.faEyeSlash"
+          :loading="revealing"
+          @click="toggleToken"
+        >
           {{ revealed == null ? t('project.show') : t('project.hide') }}
         </UiButton>
-        <UiButton :icon="icons.faCircleCheck" :disabled="editing && !form.token.trim()" :loading="check == 'checking'" @click="verify">
+        <UiButton
+          :icon="icons.faCircleCheck"
+          :disabled="editing && !form.token.trim()"
+          :loading="check == 'checking'"
+          @click="verify"
+        >
           {{ t('project.verify') }}
         </UiButton>
       </div>
@@ -191,7 +206,14 @@ async function save(): Promise<void> {
     <div v-if="dirty || saveError" class="flex items-center justify-end gap-sm">
       <FieldError class="min-w-0 flex-1" :text="saveError" />
       <UiButton :icon="icons.faXmark" @click="reset()">{{ t('common.cancel') }}</UiButton>
-      <UiButton type="submit" variant="primary" :icon="icons.faFloppyDisk" :disabled="blocked || !dirty" :loading="saving">{{ t('common.save') }}</UiButton>
+      <UiButton
+        type="submit"
+        variant="primary"
+        :icon="icons.faFloppyDisk"
+        :disabled="blocked || !dirty"
+        :loading="saving"
+        >{{ t('common.save') }}</UiButton
+      >
     </div>
   </form>
 </template>

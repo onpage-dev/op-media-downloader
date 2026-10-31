@@ -28,7 +28,9 @@ const { t } = useI18n()
         </span>
         <span
           class="text-xs font-medium"
-          :class="n == current ? 'text-accent-fg' : n < current || done?.includes(n) ? 'text-secondary' : 'text-disabled'"
+          :class="
+            n == current ? 'text-accent-fg' : n < current || done?.includes(n) ? 'text-secondary' : 'text-disabled'
+          "
         >
           {{ label }}
         </span>

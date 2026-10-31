@@ -25,13 +25,7 @@ import {
 } from './errors'
 import { freeSpace, reachable, unlinkQuiet } from './fsx'
 import { DOWNLOAD_RETRY, FetchLike, RetryPolicy, withRetry } from './http'
-import {
-  LinkCapability,
-  placeName,
-  probeHardLinks,
-  removeName,
-  renameName,
-} from './link'
+import { LinkCapability, placeName, probeHardLinks, removeName, renameName } from './link'
 import { Manifest } from './manifest'
 import { DownloadTask, LinkTask, Plan } from './plan'
 import { ProgressTracker } from './progress'
@@ -86,11 +80,7 @@ const FULL_MARGIN = 16 * 1024 * 1024
  * read-only. ENOSPC with plenty of room left is a limit on one file (4 GB on
  * FAT32): that file fails, the run goes on.
  */
-async function fatalError(
-  error: unknown,
-  ctx: ExecuteContext,
-  size?: number,
-): Promise<JobError | undefined> {
+async function fatalError(error: unknown, ctx: ExecuteContext, size?: number): Promise<JobError | undefined> {
   if (error instanceof JobError) return error
   const code = errorCode(error) ?? ''
   const detail = errorDetail(error)
@@ -222,13 +212,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
       outcome: 'conflict',
       reason: 'name_conflict',
     })
-    fail(
-      conflict.name,
-      conflict.token,
-      'name_conflict',
-      undefined,
-      conflict.size,
-    )
+    fail(conflict.name, conflict.token, 'name_conflict', undefined, conflict.size)
   }
   changed()
 
@@ -255,13 +239,9 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
 
   try {
     // Links or copies, decided once for the whole job
-    if (
-      ctx.capability.hardlinks === undefined &&
-      (plan.links.length || plan.downloads.length)
-    ) {
+    if (ctx.capability.hardlinks === undefined && (plan.links.length || plan.downloads.length)) {
       ctx.capability.hardlinks = await probeHardLinks(ctx.data_dir)
-      if (ctx.capability.hardlinks === false)
-        ctx.log?.('info', 'The folder does not take hard links: names are copies')
+      if (ctx.capability.hardlinks === false) ctx.log?.('info', 'The folder does not take hard links: names are copies')
     }
 
     // 1. Case changes
@@ -285,14 +265,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
           })
         } catch (error) {
           const reason = await handle(error, task.entry.size)
-          if (reason)
-            fail(
-              task.to,
-              task.token,
-              linkFailure(reason),
-              errorDetail(error),
-              task.entry.size,
-            )
+          if (reason) fail(task.to, task.token, linkFailure(reason), errorDetail(error), task.entry.size)
         }
         await checkpoint()
         changed()
@@ -348,17 +321,11 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
 
     // 3. Downloads
     if (plan.downloads.length) ctx.onStage?.('downloads')
-    await runQueue(
-      plan.downloads,
-      Math.max(1, ctx.concurrency),
-      task => download(task),
-      ctx.signal,
-    )
+    await runQueue(plan.downloads, Math.max(1, ctx.concurrency), task => download(task), ctx.signal)
 
     // 4. Removals
     if (!ctx.signal.aborted) {
-      if (plan.remove_names.length || plan.remove_tokens.length)
-        ctx.onStage?.('removals')
+      if (plan.remove_names.length || plan.remove_tokens.length) ctx.onStage?.('removals')
       await runQueue(
         plan.remove_names,
         fs_lanes,
@@ -404,11 +371,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
             await removeName(ctx.data_dir, token)
           } catch (error) {
             const reason = await handle(error)
-            if (reason)
-              ctx.log?.(
-                'warn',
-                `Cannot remove data/${token}: ${errorDetail(error)}`,
-              )
+            if (reason) ctx.log?.('warn', `Cannot remove data/${token}: ${errorDetail(error)}`)
           }
         },
         ctx.signal,
@@ -444,14 +407,8 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
             progress.addBytes(-attempt_bytes)
             attempt_bytes = 0
             activity.update(entry.id, { progress: 0 })
-            if (error instanceof HttpError && error.status == 429)
-              ctx.onRateLimited?.(delay)
-            ctx.log?.(
-              'debug',
-              `Retry ${attempt} for ${task.token} in ${delay} ms: ${errorDetail(
-                error,
-              )}`,
-            )
+            if (error instanceof HttpError && error.status == 429) ctx.onRateLimited?.(delay)
+            ctx.log?.('debug', `Retry ${attempt} for ${task.token} in ${delay} ms: ${errorDetail(error)}`)
             changed()
           },
         },
@@ -502,15 +459,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
         reason,
         progress: undefined,
       })
-      for (const target of task.names)
-        fail(
-          target.name,
-          task.token,
-          reason,
-          errorDetail(error),
-          task.size,
-          attempts,
-        )
+      for (const target of task.names) fail(target.name, task.token, reason, errorDetail(error), task.size, attempts)
       changed()
       return
     }

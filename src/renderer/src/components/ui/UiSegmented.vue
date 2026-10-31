@@ -8,7 +8,8 @@ const model = defineModel<T>({ required: true })
 const props = defineProps<{ options: { value: T; label: string }[] }>()
 
 /** The stop for Tab: the chosen option, or the first when none is */
-const stop = (value: T): boolean => (props.options.some(o => o.value == model.value) ? value == model.value : value == props.options[0]?.value)
+const stop = (value: T): boolean =>
+  props.options.some(o => o.value == model.value) ? value == model.value : value == props.options[0]?.value
 
 const STEPS: Partial<Record<string, number>> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
 function onKey(event: KeyboardEvent): void {

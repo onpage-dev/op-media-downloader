@@ -12,19 +12,10 @@ export async function tempDir(prefix = 'opmd-test-'): Promise<string> {
 }
 
 export async function cleanupTempDirs(): Promise<void> {
-  await Promise.all(
-    created
-      .splice(0)
-      .map(dir =>
-        fs.rm(dir, { recursive: true, force: true }).catch(() => undefined),
-      ),
-  )
+  await Promise.all(created.splice(0).map(dir => fs.rm(dir, { recursive: true, force: true }).catch(() => undefined)))
 }
 
-export async function writeFiles(
-  dir: string,
-  files: Record<string, string | Buffer>,
-): Promise<void> {
+export async function writeFiles(dir: string, files: Record<string, string | Buffer>): Promise<void> {
   for (const [name, content] of Object.entries(files)) {
     await fs.mkdir(path.dirname(path.join(dir, name)), { recursive: true })
     await fs.writeFile(path.join(dir, name), content)

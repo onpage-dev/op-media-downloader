@@ -20,7 +20,11 @@ defineSlots<{ default(props: { items: T[] }): unknown }>()
 const { t } = useI18n()
 
 const end = ref<HTMLElement>()
-useInfiniteScroll(end, () => emit('more'), () => props.list?.items.length ?? 0)
+useInfiniteScroll(
+  end,
+  () => emit('more'),
+  () => props.list?.items.length ?? 0,
+)
 </script>
 
 <template>

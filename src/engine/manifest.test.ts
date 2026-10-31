@@ -37,38 +37,25 @@ describe('manifest', () => {
       'd.jpg': '../evil',
       'e.jpg': 'tok-e',
     }
-    await fs.writeFile(
-      path.join(dir, LINK_JSON_FILE),
-      JSON.stringify(link_json),
-    )
+    await fs.writeFile(path.join(dir, LINK_JSON_FILE), JSON.stringify(link_json))
     const { manifest, source } = await Manifest.load(dir, 'p1')
     expect(source).toBe('link.json')
-    expect(
-      manifest.entries().map(([name, e]) => [name, e.token, e.mode]),
-    ).toEqual([
+    expect(manifest.entries().map(([name, e]) => [name, e.token, e.mode])).toEqual([
       ['a.jpg', 'tok-a', 'unknown'],
       ['e.jpg', 'tok-e', 'unknown'],
     ])
     await manifest.flush()
     // link.json is left alone, the manifest takes over
-    expect(
-      JSON.parse(await fs.readFile(path.join(dir, LINK_JSON_FILE), 'utf8')),
-    ).toEqual(link_json)
+    expect(JSON.parse(await fs.readFile(path.join(dir, LINK_JSON_FILE), 'utf8'))).toEqual(link_json)
     expect((await Manifest.load(dir, 'p1')).source).toBe('manifest')
   })
 
   it('a broken manifest falls back to link.json, or to empty, without throwing', async () => {
     const dir = await tempDir()
-    await fs.writeFile(
-      path.join(dir, MANIFEST_FILE),
-      '{"version":2,"files":{"a.jpg":',
-    )
+    await fs.writeFile(path.join(dir, MANIFEST_FILE), '{"version":2,"files":{"a.jpg":')
     let load = await Manifest.load(dir, 'p1')
     expect(load).toMatchObject({ source: 'empty', recovered: true })
-    await fs.writeFile(
-      path.join(dir, LINK_JSON_FILE),
-      JSON.stringify({ 'x.jpg': 'tx' }),
-    )
+    await fs.writeFile(path.join(dir, LINK_JSON_FILE), JSON.stringify({ 'x.jpg': 'tx' }))
     load = await Manifest.load(dir, 'p1')
     expect(load).toMatchObject({ source: 'link.json', recovered: true })
     expect(load.manifest.size).toBe(1)
@@ -147,9 +134,9 @@ describe('folder lock', () => {
       instance_id: 'A',
       project_id: 'p1',
     })
-    await expect(
-      FolderLock.acquire(dir, { instance_id: 'A', project_id: 'p2' }),
-    ).rejects.toMatchObject({ issue: 'folder_locked' })
+    await expect(FolderLock.acquire(dir, { instance_id: 'A', project_id: 'p2' })).rejects.toMatchObject({
+      issue: 'folder_locked',
+    })
     await lock.release()
   })
 

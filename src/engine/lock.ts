@@ -42,16 +42,12 @@ type Settings = Required<Omit<LockOptions, 'signal'>> & { signal?: AbortSignal }
 export const LOCK_STALE_MS = 120_000
 export const LOCK_HEARTBEAT_MS = 30_000
 
-export async function readLock(
-  data_dir: string,
-): Promise<LockInfo | undefined> {
+export async function readLock(data_dir: string): Promise<LockInfo | undefined> {
   return (await readLockFile(path.join(data_dir, LOCK_FILE))).info
 }
 
 /** `exists` without `info`: a lock being written, or broken */
-async function readLockFile(
-  file: string,
-): Promise<{ exists: boolean; info?: LockInfo }> {
+async function readLockFile(file: string): Promise<{ exists: boolean; info?: LockInfo }> {
   let text: string
   try {
     text = await fs.readFile(file, 'utf8')
@@ -80,26 +76,17 @@ function processAlive(pid: number): boolean {
 
 /** A lock of this computer whose process is gone: the app crashed, no need to wait */
 function crashedHere(info: LockInfo): boolean {
-  return (
-    info.host == os.hostname() &&
-    Number.isInteger(info.pid) &&
-    info.pid != process.pid &&
-    !processAlive(info.pid)
-  )
+  return info.host == os.hostname() && Number.isInteger(info.pid) && info.pid != process.pid && !processAlive(info.pid)
 }
 
 /** Whether the lock in the folder can be taken over; otherwise who holds it */
-async function takeOver(
-  file: string,
-  opts: Settings,
-): Promise<{ take: boolean; holder?: LockInfo }> {
+async function takeOver(file: string, opts: Settings): Promise<{ take: boolean; holder?: LockInfo }> {
   const first = await readLockFile(file)
   if (!first.exists) return { take: true }
   const held = first.info
   if (held) {
     // Ours from an earlier job
-    if (held.instance_id == opts.instance_id && held.project_id == opts.project_id)
-      return { take: true }
+    if (held.instance_id == opts.instance_id && held.project_id == opts.project_id) return { take: true }
     if (crashedHere(held)) return { take: true }
     if (!isStale(held, opts.now(), opts.stale_ms)) return { take: false, holder: held }
   }
@@ -107,16 +94,11 @@ async function takeOver(
   await sleep(held ? opts.confirm_ms : Math.min(opts.confirm_ms, 2000), opts.signal)
   const second = await readLockFile(file)
   if (!second.exists) return { take: true }
-  if (JSON.stringify(second.info) != JSON.stringify(held))
-    return { take: false, holder: second.info ?? held }
+  if (JSON.stringify(second.info) != JSON.stringify(held)) return { take: false, holder: second.info ?? held }
   return { take: true }
 }
 
-export function isStale(
-  info: LockInfo,
-  now: number,
-  stale_ms = LOCK_STALE_MS,
-): boolean {
+export function isStale(info: LockInfo, now: number, stale_ms = LOCK_STALE_MS): boolean {
   const beat = Date.parse(info.heartbeat_at)
   return !Number.isFinite(beat) || now - beat > stale_ms
 }
@@ -146,10 +128,7 @@ export class FolderLock {
     return this.signal.aborted
   }
 
-  static async acquire(
-    data_dir: string,
-    options: LockOptions,
-  ): Promise<FolderLock> {
+  static async acquire(data_dir: string, options: LockOptions): Promise<FolderLock> {
     // `??`, not a spread: an option passed as undefined must keep the default
     // (setInterval with undefined runs every millisecond)
     const heartbeat_ms = Math.max(10, options.heartbeat_ms ?? LOCK_HEARTBEAT_MS)
@@ -230,8 +209,7 @@ export class FolderLock {
     } catch {
       // A missed beat is not fatal, the next one retries; but after most of
       // the stale time without one, another computer may take the folder
-      if (this.options.now() - this.last_beat > this.options.stale_ms * 0.75)
-        this.lose()
+      if (this.options.now() - this.last_beat > this.options.stale_ms * 0.75) this.lose()
     }
   }
 

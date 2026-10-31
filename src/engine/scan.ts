@@ -4,13 +4,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { isNotFound } from './errors'
-import {
-  DATA_DIR,
-  LINK_JSON_FILE,
-  LOCK_FILE,
-  MANIFEST_FILE,
-  TEMP_PREFIX,
-} from './manifest'
+import { DATA_DIR, LINK_JSON_FILE, LOCK_FILE, MANIFEST_FILE, TEMP_PREFIX } from './manifest'
 import { isSafeToken, nameKey } from './names'
 
 export type EntryType = 'file' | 'dir' | 'other'
@@ -33,10 +27,7 @@ export interface FolderScan {
 
 const DATA_OWN_FILES = new Set([MANIFEST_FILE, LINK_JSON_FILE, LOCK_FILE])
 
-function entryType(entry: {
-  isFile(): boolean
-  isDirectory(): boolean
-}): EntryType {
+function entryType(entry: { isFile(): boolean; isDirectory(): boolean }): EntryType {
   return entry.isFile() ? 'file' : entry.isDirectory() ? 'dir' : 'other'
 }
 
@@ -55,17 +46,12 @@ export async function scanFolder(folder: string): Promise<FolderScan> {
     }
     const key = nameKey(entry.name)
     // Case-sensitive folders can hold two names with one key: keep the first
-    if (!scan.entries.has(key))
-      scan.entries.set(key, { name: entry.name, type: entryType(entry) })
+    if (!scan.entries.has(key)) scan.entries.set(key, { name: entry.name, type: entryType(entry) })
   }
   for (const entry of await readdirSafe(path.join(folder, DATA_DIR))) {
     if (!entry.isFile()) continue
     if (DATA_OWN_FILES.has(entry.name)) continue
-    if (
-      entry.name.endsWith('.download') ||
-      entry.name.endsWith('.tmp') ||
-      entry.name.startsWith(TEMP_PREFIX)
-    ) {
+    if (entry.name.endsWith('.download') || entry.name.endsWith('.tmp') || entry.name.startsWith(TEMP_PREFIX)) {
       scan.data_leftovers.push(entry.name)
       continue
     }

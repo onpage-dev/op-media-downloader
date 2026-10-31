@@ -40,7 +40,12 @@ const yesterday = (hours: number, minutes: number): string => {
   return d.toISOString()
 }
 
-function plan(remote_names: number, remote_bytes: number, to_download_names = 0, more: Partial<PlanSummary> = {}): PlanSummary {
+function plan(
+  remote_names: number,
+  remote_bytes: number,
+  to_download_names = 0,
+  more: Partial<PlanSummary> = {},
+): PlanSummary {
   return {
     created_at: minutesAgo(3),
     remote_names,
@@ -91,11 +96,23 @@ function folder(path: string, kind: DestinationKind, more: Partial<FolderInfo> =
   }
 }
 
-const issue = (code: Issue['code'], severity: Issue['severity'], count?: number): Issue => ({ code, severity, count, at: minutesAgo(2) })
+const issue = (code: Issue['code'], severity: Issue['severity'], count?: number): Issue => ({
+  code,
+  severity,
+  count,
+  at: minutesAgo(2),
+})
 const idle = (more: Partial<ProjectRuntime> = {}): ProjectRuntime => ({ phase: 'idle', issues: [], ...more })
 
 let created = 0
-function project(id: string, label: string, path: string, info: FolderInfo, runtime: ProjectRuntime, keep_old_files = false): ProjectView {
+function project(
+  id: string,
+  label: string,
+  path: string,
+  info: FolderInfo,
+  runtime: ProjectRuntime,
+  keep_old_files = false,
+): ProjectView {
   // Added a day apart, in the order of the mockup
   const created_at = new Date(new Date(2026, 8, 2).getTime() + created++ * 86400000).toISOString()
   return { id, label, folder: path, keep_old_files, created_at, has_token: true, folder_info: info, runtime }
@@ -210,13 +227,20 @@ const version: VersionInfo = {
 
 let nextActivity = 1
 const at = (seconds: number): string => new Date(Date.now() - seconds * 1000).toISOString()
-const entry = (more: Omit<ActivityEntry, 'id' | 'at'>, seconds = 0): ActivityEntry => ({ id: nextActivity++, at: at(seconds), ...more })
+const entry = (more: Omit<ActivityEntry, 'id' | 'at'>, seconds = 0): ActivityEntry => ({
+  id: nextActivity++,
+  at: at(seconds),
+  ...more,
+})
 const activity: Record<string, ActivityEntry[]> = {
   vasi: [
     entry({ name: 'listino-vasi-2025.pdf', outcome: 'removed' }, 6),
     entry({ name: 'cassetta-legno-60.jpg', size: 930 * 1024, outcome: 'downloaded' }, 5),
     entry({ name: 'vaso-smaltato-verde.png', outcome: 'failed', reason: 'not_found' }, 4),
-    entry({ name: 'vaso-terracotta-24-retro.jpg', size: 1.1 * MB, outcome: 'linked', same_as: 'vaso-terracotta-24.jpg' }, 3),
+    entry(
+      { name: 'vaso-terracotta-24-retro.jpg', size: 1.1 * MB, outcome: 'linked', same_as: 'vaso-terracotta-24.jpg' },
+      3,
+    ),
     entry({ name: 'vaso-terracotta-24.jpg', size: 1.1 * MB, outcome: 'downloaded' }, 3),
     entry({ name: 'vaso-smaltato-blu-18.jpg', size: 1.2 * MB, outcome: 'downloading', progress: 0.22 }, 1),
     entry({ name: 'sottovaso-30-terracotta.jpg', size: 845 * 1024, outcome: 'downloading', progress: 0.6 }, 1),
@@ -225,11 +249,25 @@ const activity: Record<string, ActivityEntry[]> = {
 const failed: Record<string, FailedEntry[]> = {
   vasi: [
     { name: 'vaso-smaltato-verde.png', token: 't1', reason: 'not_found', detail: '404', attempts: 1, at: at(40) },
-    { name: 'sottovaso-tondo-40.jpg', token: 't2', size: 2.1 * MB, reason: 'network', detail: 'ECONNRESET', attempts: 4, at: at(30) },
+    {
+      name: 'sottovaso-tondo-40.jpg',
+      token: 't2',
+      size: 2.1 * MB,
+      reason: 'network',
+      detail: 'ECONNRESET',
+      attempts: 4,
+      at: at(30),
+    },
     { name: 'scheda «vaso:alto».pdf', token: 't3', size: 310 * 1024, reason: 'invalid_name', attempts: 1, at: at(20) },
   ],
 }
-const use = (resource_label: string, field_label: string, thing_label: string, thing_id: number, lang?: string): DuplicateUse => ({
+const use = (
+  resource_label: string,
+  field_label: string,
+  thing_label: string,
+  thing_id: number,
+  lang?: string,
+): DuplicateUse => ({
   resource_label,
   field_label,
   thing_label,
@@ -242,22 +280,70 @@ const duplicates: Record<string, DuplicateGroup[]> = {
     {
       name: 'aloe-vera.jpg',
       variants: [
-        { token: 'd1', size: 865234, width: 1200, height: 1200, chosen: true, uses: [use('Prodotti', 'Foto principale', 'Aloe vera 20 cm', 120034), use('Varianti', 'Immagine', 'Aloe vera vaso 14 cm', 120211)] },
-        { token: 'd2', size: 319488, width: 800, height: 800, chosen: false, uses: [use('Prodotti', 'Galleria', 'Aloe vera XL', 120090, 'it'), use('Prodotti', 'Galleria', 'Aloe vera XL', 120090, 'en')] },
+        {
+          token: 'd1',
+          size: 865234,
+          width: 1200,
+          height: 1200,
+          chosen: true,
+          uses: [
+            use('Prodotti', 'Foto principale', 'Aloe vera 20 cm', 120034),
+            use('Varianti', 'Immagine', 'Aloe vera vaso 14 cm', 120211),
+          ],
+        },
+        {
+          token: 'd2',
+          size: 319488,
+          width: 800,
+          height: 800,
+          chosen: false,
+          uses: [
+            use('Prodotti', 'Galleria', 'Aloe vera XL', 120090, 'it'),
+            use('Prodotti', 'Galleria', 'Aloe vera XL', 120090, 'en'),
+          ],
+        },
       ],
     },
     {
       name: 'begonia.jpg',
       variants: [
-        { token: 'd3', size: 1258291, width: 1600, height: 1067, chosen: true, uses: [use('Prodotti', 'Foto principale', 'Begonia maculata', 120120)] },
-        { token: 'd4', size: 1003520, width: 1600, height: 1067, chosen: false, uses: [use('Prodotti', 'Foto principale', 'Begonia ferox', 120121)] },
+        {
+          token: 'd3',
+          size: 1258291,
+          width: 1600,
+          height: 1067,
+          chosen: true,
+          uses: [use('Prodotti', 'Foto principale', 'Begonia maculata', 120120)],
+        },
+        {
+          token: 'd4',
+          size: 1003520,
+          width: 1600,
+          height: 1067,
+          chosen: false,
+          uses: [use('Prodotti', 'Foto principale', 'Begonia ferox', 120121)],
+        },
       ],
     },
     {
       name: 'monstera.jpg',
       variants: [
-        { token: 'd5', size: 2516582, width: 2000, height: 2000, chosen: true, uses: [use('Prodotti', 'Foto principale', 'Monstera deliciosa', 120300)] },
-        { token: 'd6', size: 412672, width: 1000, height: 1000, chosen: false, uses: [use('Schede tecniche', 'Allegati', 'Scheda Monstera', 88012, 'it')] },
+        {
+          token: 'd5',
+          size: 2516582,
+          width: 2000,
+          height: 2000,
+          chosen: true,
+          uses: [use('Prodotti', 'Foto principale', 'Monstera deliciosa', 120300)],
+        },
+        {
+          token: 'd6',
+          size: 412672,
+          width: 1000,
+          height: 1000,
+          chosen: false,
+          uses: [use('Schede tecniche', 'Allegati', 'Scheda Monstera', 88012, 'it')],
+        },
       ],
     },
   ],
@@ -316,7 +402,12 @@ async function fakeSync(id: string): Promise<void> {
   emitProjects()
   await later(1500)
   const remote = p.runtime.plan?.remote_names ?? 2400
-  p.runtime = { phase: 'idle', issues: [], plan: plan(remote, 1.5 * GB, Math.round(remote / 20)), last_result: p.runtime.last_result }
+  p.runtime = {
+    phase: 'idle',
+    issues: [],
+    plan: plan(remote, 1.5 * GB, Math.round(remote / 20)),
+    last_result: p.runtime.last_result,
+  }
   emitProjects()
 }
 
@@ -345,7 +436,14 @@ const desktop: DesktopApi = {
   projects: {
     list: async () => clone(projects),
     async create(input: NewProjectInput) {
-      const created = project(`p${Date.now()}`, input.label, input.folder, inspect(input.folder), idle(), input.keep_old_files)
+      const created = project(
+        `p${Date.now()}`,
+        input.label,
+        input.folder,
+        inspect(input.folder),
+        idle(),
+        input.keep_old_files,
+      )
       projects = [...projects, created]
       emitProjects()
       if (input.sync_now) void fakeSync(created.id)
@@ -393,7 +491,17 @@ const desktop: DesktopApi = {
       p.runtime = { ...p.runtime, phase: 'stopping' }
       emitProjects()
       await later(1200)
-      p.runtime = { phase: 'idle', issues: p.runtime.issues, plan: p.runtime.plan, last_result: result(new Date().toISOString(), 12840, 12, { outcome: 'stopped', downloaded: 3214, failed: 3, already_present: 0 }) }
+      p.runtime = {
+        phase: 'idle',
+        issues: p.runtime.issues,
+        plan: p.runtime.plan,
+        last_result: result(new Date().toISOString(), 12840, 12, {
+          outcome: 'stopped',
+          downloaded: 3214,
+          failed: 3,
+          already_present: 0,
+        }),
+      }
       emitProjects()
     },
     getActivity: async id => clone(activity[id] ?? []),
@@ -407,7 +515,11 @@ const desktop: DesktopApi = {
       await later(400)
       const query = page.query?.toLowerCase()
       const all = (duplicates[id] ?? []).filter(g => !query || g.name.toLowerCase().includes(query))
-      return clone({ total: all.length, language_variants: 0, groups: all.slice(page.offset, page.offset + page.limit) })
+      return clone({
+        total: all.length,
+        language_variants: 0,
+        groups: all.slice(page.offset, page.offset + page.limit),
+      })
     },
   },
   folders: {

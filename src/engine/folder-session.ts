@@ -14,13 +14,7 @@ import { sleep } from './http'
 import { Job, LogLevel } from './job'
 import { FolderLock } from './lock'
 import { DATA_DIR, Manifest } from './manifest'
-import {
-  AdoptionStat,
-  adoptionCandidates,
-  buildPlan,
-  Plan,
-  PlanInput,
-} from './plan'
+import { AdoptionStat, adoptionCandidates, buildPlan, Plan, PlanInput } from './plan'
 import { runQueue } from './queue'
 import { scanFolder } from './scan'
 
@@ -62,31 +56,15 @@ export class FolderSession {
     const project = job.project
     const folder = normalize(project.folder)
     if (isProtectedPath(folder)) {
-      throw new JobError(
-        'folder_protected',
-        'This folder cannot be used',
-        folder,
-      )
+      throw new JobError('folder_protected', 'This folder cannot be used', folder)
     }
     const other = options.project_folders.find(
-      f =>
-        f.id != project.id &&
-        (isInside(folder, f.folder) || isInside(f.folder, folder)),
+      f => f.id != project.id && (isInside(folder, f.folder) || isInside(f.folder, folder)),
     )
-    if (other)
-      throw new JobError(
-        'folder_protected',
-        'The folder is used by another project',
-        other.id,
-      )
-    const root =
-      /^\\\\[^\\]+\\[^\\]+/.exec(folder)?.[0] ?? path.parse(folder).root
+    if (other) throw new JobError('folder_protected', 'The folder is used by another project', other.id)
+    const root = /^\\\\[^\\]+\\[^\\]+/.exec(folder)?.[0] ?? path.parse(folder).root
     if (!(await reachable(root, options.reach_timeout_ms, job.signal))) {
-      throw new JobError(
-        'folder_unreachable',
-        'The folder cannot be reached',
-        root,
-      )
+      throw new JobError('folder_unreachable', 'The folder cannot be reached', root)
     }
     job.check()
     const data_dir = path.join(folder, DATA_DIR)
@@ -101,21 +79,10 @@ export class FolderSession {
     try {
       await fs.mkdir(data_dir, { recursive: true })
     } catch (error) {
-      if (
-        !(await pathExists(folder)) &&
-        !(await pathExists(path.dirname(folder)))
-      ) {
-        throw new JobError(
-          'folder_unreachable',
-          'The folder cannot be reached',
-          errorDetail(error),
-        )
+      if (!(await pathExists(folder)) && !(await pathExists(path.dirname(folder)))) {
+        throw new JobError('folder_unreachable', 'The folder cannot be reached', errorDetail(error))
       }
-      throw new JobError(
-        'folder_not_writable',
-        'The folder cannot be written',
-        errorDetail(error),
-      )
+      throw new JobError('folder_not_writable', 'The folder cannot be written', errorDetail(error))
     }
     const lock = await FolderLock.acquire(data_dir, {
       instance_id: options.instance_id,
@@ -126,14 +93,9 @@ export class FolderSession {
     }).catch(asJobError)
     try {
       job.check()
-      const { manifest, source, recovered } = await Manifest.load(
-        data_dir,
-        project.id,
-      ).catch(asJobError)
-      if (source == 'link.json')
-        options.log('info', 'Imported data/link.json from 1.x')
-      if (recovered)
-        options.log('warn', 'data/manifest.json was unreadable: rebuilt')
+      const { manifest, source, recovered } = await Manifest.load(data_dir, project.id).catch(asJobError)
+      if (source == 'link.json') options.log('info', 'Imported data/link.json from 1.x')
+      if (recovered) options.log('warn', 'data/manifest.json was unreadable: rebuilt')
       const session = new FolderSession(folder, data_dir, manifest, lock)
       if (lock.lost) job.fail(lockLost())
       lock.signal.addEventListener('abort', () => job.fail(lockLost()), {
@@ -152,10 +114,7 @@ export class FolderSession {
   }
 
   /** Scan, adoption checks, plan */
-  async plan(
-    input: Omit<PlanInput, 'manifest' | 'scan' | 'adoption'>,
-    signal: AbortSignal,
-  ): Promise<Plan> {
+  async plan(input: Omit<PlanInput, 'manifest' | 'scan' | 'adoption'>, signal: AbortSignal): Promise<Plan> {
     const scan = await scanFolder(this.folder).catch(asJobError)
     // Leftovers of interrupted runs: ours by name
     const leftovers = [
@@ -209,19 +168,13 @@ export class FolderSession {
     const contents = plan.downloads.reduce((sum, t) => sum + (t.size ?? 0), 0)
     if (!contents) return
     const copied = copies
-      ? plan.downloads.reduce(
-          (sum, t) => sum + (t.size ?? 0) * t.names.length,
-          0,
-        ) + plan.links.reduce((sum, l) => sum + (l.size ?? 0), 0)
+      ? plan.downloads.reduce((sum, t) => sum + (t.size ?? 0) * t.names.length, 0) +
+        plan.links.reduce((sum, l) => sum + (l.size ?? 0), 0)
       : 0
     const needed = contents + copied
     const free = await freeSpace(this.folder)
     if (free !== undefined && free > 0 && free < needed) {
-      throw new JobError(
-        'disk_full',
-        'Not enough free space',
-        `${needed} bytes needed, ${free} free`,
-      )
+      throw new JobError('disk_full', 'Not enough free space', `${needed} bytes needed, ${free} free`)
     }
   }
 

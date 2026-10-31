@@ -9,7 +9,15 @@ import { useI18n } from 'vue-i18n'
 import type { Issue, IssueCode, JobPhase, ProjectView } from '@shared/models'
 import { projectStatus } from '@shared/status'
 import icon from '../../../assets/app-icon.png'
-import { formatBytes, formatEta, formatHour, formatNumber, formatPercent, formatSpeed, formatWhen } from '../../lib/format'
+import {
+  formatBytes,
+  formatEta,
+  formatHour,
+  formatNumber,
+  formatPercent,
+  formatSpeed,
+  formatWhen,
+} from '../../lib/format'
 import * as icons from '../../lib/icons'
 import { KIND_ICONS, kindOf, TONE_FG, TONE_SOFT } from '../../lib/status-view'
 import { app, ask, edit, retryFailed, sync } from '../../store'
@@ -66,7 +74,10 @@ function actionsOf(issue: Issue): Action[] {
     case 'cleanup_needs_confirmation':
       return [{ key: 'confirm', run: () => ask('cleanup', id) }]
     case 'failed_files':
-      return [{ key: 'see', run: () => (app.tab = 'failed') }, { key: 'retry_failed', run: () => retryFailed(id) }]
+      return [
+        { key: 'see', run: () => (app.tab = 'failed') },
+        { key: 'retry_failed', run: () => retryFailed(id) },
+      ]
     case 'duplicates':
       return [{ key: 'see_duplicates', run: () => (app.tab = 'duplicates') }]
     default:
@@ -88,17 +99,55 @@ const narrow = computed(() => props.width < 800)
 const tiles = computed(() => {
   const c = counts.value
   const all = [
-    { key: 'downloaded', icon: icons.faCircleCheck, tone: 'success', value: formatNumber(c.downloaded), lit: c.downloaded > 0 },
-    { key: 'present', icon: icons.faLink, tone: 'info', value: formatNumber(c.present), lit: c.present > 0, wide: true },
-    { key: 'failed', icon: icons.faCircleExclamation, tone: 'danger', value: formatNumber(c.failed), lit: c.failed > 0 },
-    { key: 'total', icon: icons.faHashtag, tone: 'neutral', value: c.total != null ? formatNumber(c.total) : '—', lit: false },
-    { key: 'size', icon: icons.faHardDrive, tone: 'neutral', value: formatBytes(runtime.value.plan?.remote_bytes), lit: false, wide: true },
+    {
+      key: 'downloaded',
+      icon: icons.faCircleCheck,
+      tone: 'success',
+      value: formatNumber(c.downloaded),
+      lit: c.downloaded > 0,
+    },
+    {
+      key: 'present',
+      icon: icons.faLink,
+      tone: 'info',
+      value: formatNumber(c.present),
+      lit: c.present > 0,
+      wide: true,
+    },
+    {
+      key: 'failed',
+      icon: icons.faCircleExclamation,
+      tone: 'danger',
+      value: formatNumber(c.failed),
+      lit: c.failed > 0,
+    },
+    {
+      key: 'total',
+      icon: icons.faHashtag,
+      tone: 'neutral',
+      value: c.total != null ? formatNumber(c.total) : '—',
+      lit: false,
+    },
+    {
+      key: 'size',
+      icon: icons.faHardDrive,
+      tone: 'neutral',
+      value: formatBytes(runtime.value.plan?.remote_bytes),
+      lit: false,
+      wide: true,
+    },
   ] as const
   return all.filter(tile => !narrow.value || !('wide' in tile) || !running.value)
 })
 
 /** The four steps of a sync: read the list, compare it with the folder, download, link and clean up */
-const STEPS: Partial<Record<JobPhase, number>> = { preparing: 1, listing: 1, comparing: 2, downloading: 3, finishing: 4 }
+const STEPS: Partial<Record<JobPhase, number>> = {
+  preparing: 1,
+  listing: 1,
+  comparing: 2,
+  downloading: 3,
+  finishing: 4,
+}
 const meta = computed(() => {
   const { phase, progress } = runtime.value
   if (running.value && progress) {
@@ -126,7 +175,11 @@ const plan = computed(() => runtime.value.plan)
         </div>
         <div class="truncate text-sm font-medium">{{ project.label }}</div>
         <div class="text-xs text-secondary">
-          {{ plan ? t('general.remote', { files: formatNumber(plan.remote_names), size: formatBytes(plan.remote_bytes) }) : t('general.remote_unknown') }}
+          {{
+            plan
+              ? t('general.remote', { files: formatNumber(plan.remote_names), size: formatBytes(plan.remote_bytes) })
+              : t('general.remote_unknown')
+          }}
         </div>
       </div>
       <div class="flex shrink-0 flex-col items-center justify-center gap-2xs text-xs text-secondary">
@@ -140,8 +193,16 @@ const plan = computed(() => runtime.value.plan)
         </div>
         <div v-tooltip="project.folder" class="truncate text-sm font-medium">{{ project.folder }}</div>
         <div class="text-xs text-secondary">
-          <template v-if="info?.free_bytes != null">{{ t('general.free', { free: formatBytes(info.free_bytes) }) }} · </template>
-          {{ info?.hardlinks === true ? t('general.hardlinks_yes') : info?.hardlinks === false ? t('general.hardlinks_no') : t('general.hardlinks_unknown') }}
+          <template v-if="info?.free_bytes != null"
+            >{{ t('general.free', { free: formatBytes(info.free_bytes) }) }} ·
+          </template>
+          {{
+            info?.hardlinks === true
+              ? t('general.hardlinks_yes')
+              : info?.hardlinks === false
+                ? t('general.hardlinks_no')
+                : t('general.hardlinks_unknown')
+          }}
         </div>
         <StatusTag
           v-if="info?.hardlinks === false"
@@ -153,10 +214,17 @@ const plan = computed(() => runtime.value.plan)
       </div>
     </div>
 
-    <UiAlert v-for="issue in issues" :key="issue.code" :tone="toneOf(issue)" :title="t(`issue.${issue.code}.title`, { count: formatNumber(issue.count ?? 0) }, issue.count ?? 0)">
+    <UiAlert
+      v-for="issue in issues"
+      :key="issue.code"
+      :tone="toneOf(issue)"
+      :title="t(`issue.${issue.code}.title`, { count: formatNumber(issue.count ?? 0) }, issue.count ?? 0)"
+    >
       {{ t(`issue.${issue.code}.text`, { folder: project.folder, detail: issue.detail ?? '' }) }}
       <template v-if="actionsOf(issue).length" #actions>
-        <UiButton v-for="action in actionsOf(issue)" :key="action.key" @click="action.run">{{ t(`issue.action.${action.key}`) }}</UiButton>
+        <UiButton v-for="action in actionsOf(issue)" :key="action.key" @click="action.run">{{
+          t(`issue.action.${action.key}`)
+        }}</UiButton>
       </template>
     </UiAlert>
 
@@ -187,7 +255,9 @@ const plan = computed(() => runtime.value.plan)
           <span class="flex-1" />
           <UiSparkline :values="app.speeds[project.id] ?? []" />
         </div>
-        <div class="tabular whitespace-nowrap font-title text-xl font-bold">{{ formatSpeed(runtime.progress.speed_bps) }}</div>
+        <div class="tabular whitespace-nowrap font-title text-xl font-bold">
+          {{ formatSpeed(runtime.progress.speed_bps) }}
+        </div>
       </div>
     </div>
 

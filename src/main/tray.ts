@@ -116,11 +116,15 @@ export class TrayController {
 
   private position(panel: BrowserWindow): void {
     const bounds = this.tray?.getBounds()
-    const point = bounds ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 } : screen.getCursorScreenPoint()
+    const point = bounds
+      ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+      : screen.getCursorScreenPoint()
     const { workArea } = screen.getDisplayNearestPoint(point)
     const below = point.y < workArea.y + workArea.height / 2
     let x = Math.round(point.x - PANEL_WIDTH / 2)
-    let y = below ? Math.round((bounds ? bounds.y + bounds.height : point.y) + 6) : Math.round((bounds ? bounds.y : point.y) - PANEL_HEIGHT - 6)
+    let y = below
+      ? Math.round((bounds ? bounds.y + bounds.height : point.y) + 6)
+      : Math.round((bounds ? bounds.y : point.y) - PANEL_HEIGHT - 6)
     x = Math.min(Math.max(x, workArea.x + 8), workArea.x + workArea.width - PANEL_WIDTH - 8)
     y = Math.min(Math.max(y, workArea.y + 8), workArea.y + workArea.height - PANEL_HEIGHT - 8)
     panel.setPosition(x, y, false)

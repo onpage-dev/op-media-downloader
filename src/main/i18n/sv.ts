@@ -12,7 +12,10 @@ export const sv: Texts = {
   tray_running: count =>
     plural('sv', count, { one: `${count} synkronisering pågår`, other: `${count} synkroniseringar pågår` }),
   tray_attention: count =>
-    plural('sv', count, { one: `${count} projekt behöver kontrolleras`, other: `${count} projekt behöver kontrolleras` }),
+    plural('sv', count, {
+      one: `${count} projekt behöver kontrolleras`,
+      other: `${count} projekt behöver kontrolleras`,
+    }),
   done_title: label => `${label} har uppdaterats`,
   done_body: (files, duration) =>
     plural('sv', files, {
@@ -41,7 +44,8 @@ export const sv: Texts = {
   quit_title: 'Nedladdningar pågår',
   quit_message: 'Nedladdningar pågår. Om du avslutar stoppas de: filer som redan har laddats ner finns kvar.',
   deleting_title: 'Filer tas bort',
-  deleting_message: 'Filerna i ett projekt håller på att tas bort. Om du avslutar avbryts borttagningen: vissa filer blir kvar i mappen.',
+  deleting_message:
+    'Filerna i ett projekt håller på att tas bort. Om du avslutar avbryts borttagningen: vissa filer blir kvar i mappen.',
   quit_confirm: 'Stoppa och avsluta',
   cancel: 'Avbryt',
   ok: 'OK',

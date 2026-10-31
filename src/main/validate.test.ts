@@ -91,7 +91,9 @@ describe('pages of long lists', () => {
 
 describe('projects', () => {
   it('takes a new project with its flags as booleans only', () => {
-    expect(newProjectInput({ label: 'A', token: 't', folder: ABSOLUTE, keep_old_files: 'yes', sync_now: true, x: 1 })).toEqual({
+    expect(
+      newProjectInput({ label: 'A', token: 't', folder: ABSOLUTE, keep_old_files: 'yes', sync_now: true, x: 1 }),
+    ).toEqual({
       label: 'A',
       token: 't',
       folder: ABSOLUTE,
@@ -138,14 +140,20 @@ describe('settings', () => {
         unknown: 1,
       }),
     ).toEqual({ concurrency: 10, close_to_tray: true })
-    expect(settingsPatch({ theme: 'dark', language: 'sv', concurrency: 2.6 })).toEqual({ theme: 'dark', language: 'sv', concurrency: 3 })
+    expect(settingsPatch({ theme: 'dark', language: 'sv', concurrency: 2.6 })).toEqual({
+      theme: 'dark',
+      language: 'sv',
+      concurrency: 3,
+    })
     expect(settingsPatch({ concurrency: NaN })).toEqual({})
     expect(settingsPatch({ concurrency: -3 })).toEqual({ concurrency: 1 })
     expect(() => settingsPatch(null)).toThrow('invalid_input')
   })
 
   it('reads settings back with the fallback for what is not valid', () => {
-    expect(cleanSettings({ theme: 'neon', language: 'xx', concurrency: '4', notifications: false }, DEFAULT_SETTINGS)).toEqual({
+    expect(
+      cleanSettings({ theme: 'neon', language: 'xx', concurrency: '4', notifications: false }, DEFAULT_SETTINGS),
+    ).toEqual({
       ...DEFAULT_SETTINGS,
       notifications: false,
     })
@@ -167,12 +175,20 @@ describe('app commands', () => {
       project_id: UUID,
       tab: undefined,
     })
-    expect(appCommand({ type: 'open_settings', section: 'updates' })).toEqual({ type: 'open_settings', section: 'updates' })
+    expect(appCommand({ type: 'open_settings', section: 'updates' })).toEqual({
+      type: 'open_settings',
+      section: 'updates',
+    })
     expect(appCommand({ type: 'new_project', folder: ABSOLUTE })).toEqual({ type: 'new_project', folder: ABSOLUTE })
   })
 
   it('drops the others, and a relative folder', () => {
-    for (const value of [undefined, 'sync_all', { type: 'format_disk' }, { type: 'select_project', project_id: '../x' }])
+    for (const value of [
+      undefined,
+      'sync_all',
+      { type: 'format_disk' },
+      { type: 'select_project', project_id: '../x' },
+    ])
       expect(appCommand(value)).toBeUndefined()
     expect(appCommand({ type: 'new_project', folder: 'relative' })).toEqual({ type: 'new_project', folder: undefined })
   })
@@ -180,7 +196,9 @@ describe('app commands', () => {
 
 describe('links opened in the browser', () => {
   it('opens On Page and GitHub over https, normalized', () => {
-    expect(externalUrl('https://app.onpage.it/#/things/edit/1/2/3/4')).toBe('https://app.onpage.it/#/things/edit/1/2/3/4')
+    expect(externalUrl('https://app.onpage.it/#/things/edit/1/2/3/4')).toBe(
+      'https://app.onpage.it/#/things/edit/1/2/3/4',
+    )
     expect(externalUrl('HTTPS://APP.ONPAGE.IT/x')).toBe('https://app.onpage.it/x')
     expect(externalUrl('https://docs.onpage.it/')).toBe('https://docs.onpage.it/')
     expect(externalUrl('https://github.com/onpage-dev/op-media-downloader/releases/tag/v2.0.1')).toBe(

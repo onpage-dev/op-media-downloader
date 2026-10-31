@@ -43,7 +43,11 @@ const { t } = useI18n()
       <footer class="flex items-center gap-sm">
         <UiButton variant="ghost" data-autofocus @click="emit('cancel')">{{ t('common.cancel') }}</UiButton>
         <span class="flex-1" />
-        <UiButton type="submit" :variant="tone == 'danger' ? 'critical' : tone == 'warning' ? 'warning' : 'primary'" :icon="confirmIcon">
+        <UiButton
+          type="submit"
+          :variant="tone == 'danger' ? 'critical' : tone == 'warning' ? 'warning' : 'primary'"
+          :icon="confirmIcon"
+        >
           {{ confirm }}
         </UiButton>
       </footer>

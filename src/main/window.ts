@@ -46,7 +46,10 @@ export function reloadOnCrash(window: BrowserWindow, route?: string): void {
     const now = Date.now()
     reloads = reloads.filter(at => now - at < RELOAD_WINDOW_MS)
     if (reloads.length >= MAX_RELOADS) {
-      log('error', `Renderer of the ${name} crashed ${reloads.length + 1} times in ${RELOAD_WINDOW_MS / 60_000} minutes: not loaded again`)
+      log(
+        'error',
+        `Renderer of the ${name} crashed ${reloads.length + 1} times in ${RELOAD_WINDOW_MS / 60_000} minutes: not loaded again`,
+      )
       return
     }
     reloads.push(now)
@@ -89,7 +92,8 @@ export function createMainWindow(store: AppStore): BrowserWindow {
     if (window.isDestroyed()) return
     const next = chromeColors()
     window.setBackgroundColor(next.background)
-    if (!is_mac) window.setTitleBarOverlay({ color: next.background, symbolColor: next.symbol, height: TITLE_BAR_HEIGHT })
+    if (!is_mac)
+      window.setTitleBarOverlay({ color: next.background, symbolColor: next.symbol, height: TITLE_BAR_HEIGHT })
   }
   nativeTheme.on('updated', onTheme)
   window.on('closed', () => nativeTheme.off('updated', onTheme))
@@ -120,7 +124,10 @@ export function createMainWindow(store: AppStore): BrowserWindow {
 }
 
 /** Saved bounds only when they are still on a connected display */
-function restoredState(saved: WindowState | undefined): { bounds: Partial<Rectangle> & { width: number; height: number }; maximized: boolean } {
+function restoredState(saved: WindowState | undefined): {
+  bounds: Partial<Rectangle> & { width: number; height: number }
+  maximized: boolean
+} {
   const fallback = { bounds: { ...DEFAULT_SIZE }, maximized: false }
   if (!saved) return fallback
   const width = Math.max(MIN_SIZE.width, saved.width)

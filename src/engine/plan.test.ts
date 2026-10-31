@@ -27,10 +27,7 @@ function want(name: string, token: string, size = 10): DesiredFile {
 function manifest(files: Record<string, string | ManifestEntry>): ManifestView {
   const entries = Object.entries(files).map(
     ([name, value]) =>
-      [
-        name,
-        typeof value == 'string' ? { token: value, mode: 'link' } : value,
-      ] as [string, ManifestEntry],
+      [name, typeof value == 'string' ? { token: value, mode: 'link' } : value] as [string, ManifestEntry],
   )
   return {
     size: entries.length,
@@ -39,14 +36,9 @@ function manifest(files: Record<string, string | ManifestEntry>): ManifestView {
   }
 }
 
-function scan(
-  folder: Record<string, EntryType> | string[],
-  tokens: string[] = [],
-): FolderScan {
+function scan(folder: Record<string, EntryType> | string[], tokens: string[] = []): FolderScan {
   const entries = new Map<string, { name: string; type: EntryType }>()
-  const list = Array.isArray(folder)
-    ? folder.map(n => [n, 'file'] as [string, EntryType])
-    : Object.entries(folder)
+  const list = Array.isArray(folder) ? folder.map(n => [n, 'file'] as [string, EntryType]) : Object.entries(folder)
   for (const [name, type] of list) entries.set(nameKey(name), { name, type })
   return {
     entries,
@@ -131,9 +123,7 @@ describe('plan: what to download and link', () => {
       {
         token: 't2',
         size: 10,
-        names: [
-          { name: 'a.jpg', remote_name: 'a.jpg', size: 10, replace: 'a.jpg' },
-        ],
+        names: [{ name: 'a.jpg', remote_name: 'a.jpg', size: 10, replace: 'a.jpg' }],
       },
     ])
     expect(p.remove_tokens).toEqual(['t1'])
@@ -163,9 +153,7 @@ describe('plan: what to download and link', () => {
       manifest: manifest({ 'foto.jpg': 't1' }),
       scan: scan(['foto.jpg'], ['t1']),
     })
-    expect(p.renames.map(r => [r.from, r.to])).toEqual([
-      ['foto.jpg', 'Foto.jpg'],
-    ])
+    expect(p.renames.map(r => [r.from, r.to])).toEqual([['foto.jpg', 'Foto.jpg']])
     expect(p.downloads).toHaveLength(0)
   })
 })
@@ -175,10 +163,7 @@ describe('plan: rule 1, only what the app created is removed', () => {
     const p = plan({
       desired: [want('a.jpg', 't1')],
       manifest: manifest({ 'a.jpg': 't1', 'old.jpg': 't9' }),
-      scan: scan(
-        ['a.jpg', 'old.jpg', 'appunti.docx', 'desktop.ini'],
-        ['t1', 't9'],
-      ),
+      scan: scan(['a.jpg', 'old.jpg', 'appunti.docx', 'desktop.ini'], ['t1', 't9']),
     })
     expect(p.remove_names).toEqual(['old.jpg'])
     expect(p.remove_tokens).toEqual(['t9'])
@@ -231,9 +216,7 @@ describe('plan: rule 2, unknown files are never overwritten', () => {
   const disk = scan(['a.jpg'], ['t1'])
 
   it('a user file with the same name is a conflict', () => {
-    const adoption = new Map<string, AdoptionStat>([
-      ['a.jpg', { name_ino: 5n, name_size: 7, blob_ino: 9n }],
-    ])
+    const adoption = new Map<string, AdoptionStat>([['a.jpg', { name_ino: 5n, name_size: 7, blob_ino: 9n }]])
     const p = plan({ desired, manifest: manifest({}), scan: disk, adoption })
     expect(p.conflicts.map(c => c.name)).toEqual(['a.jpg'])
     expect(p.downloads).toHaveLength(0)
@@ -241,9 +224,7 @@ describe('plan: rule 2, unknown files are never overwritten', () => {
   })
 
   it('the same file as data/<token> (1.x hard link) is adopted', () => {
-    const adoption = new Map<string, AdoptionStat>([
-      ['a.jpg', { name_ino: 9n, name_size: 1, blob_ino: 9n }],
-    ])
+    const adoption = new Map<string, AdoptionStat>([['a.jpg', { name_ino: 9n, name_size: 1, blob_ino: 9n }]])
     const p = plan({ desired, manifest: manifest({}), scan: disk, adoption })
     expect(p.adoptions).toEqual([
       {
@@ -259,9 +240,7 @@ describe('plan: rule 2, unknown files are never overwritten', () => {
   })
 
   it('a file with exactly the expected size is adopted', () => {
-    const adoption = new Map<string, AdoptionStat>([
-      ['a.jpg', { name_ino: 5n, name_size: 100 }],
-    ])
+    const adoption = new Map<string, AdoptionStat>([['a.jpg', { name_ino: 5n, name_size: 100 }]])
     const p = plan({
       desired,
       manifest: manifest({}),
@@ -340,7 +319,10 @@ describe('plan: rules 3 and 4, removals that wait or never happen', () => {
     })
     // The contents of the names that wait stay
     expect(p.remove_tokens.sort()).toEqual(
-      files.slice(90).map(f => many[f]).sort(),
+      files
+        .slice(90)
+        .map(f => many[f])
+        .sort(),
     )
     // A few more than confirmed (below the threshold) go, as they would without a confirmation
     const few = plan({
@@ -377,12 +359,7 @@ describe('plan: rules 3 and 4, removals that wait or never happen', () => {
 })
 
 describe('plan: parts and what is left', () => {
-  const desired = [
-    want('a.jpg', 't1'),
-    want('b.jpg', 't1'),
-    want('c.jpg', 't2'),
-    want('d.jpg', 't3'),
-  ]
+  const desired = [want('a.jpg', 't1'), want('b.jpg', 't1'), want('c.jpg', 't2'), want('d.jpg', 't3')]
   const many: Record<string, string> = { 'd.jpg': 't9' }
   for (let i = 0; i < 60; i++) many[`old${i}.jpg`] = `o${i}`
   const p = plan({
@@ -409,8 +386,7 @@ describe('plan: parts and what is left', () => {
       ['a.jpg', { token: 't1', mode: 'link' }],
       ['d.jpg', { token: 't3', mode: 'link' }],
     ])
-    for (const name of Object.keys(many).filter(n => n != 'd.jpg'))
-      done.set(name, { token: many[name], mode: 'link' })
+    for (const name of Object.keys(many).filter(n => n != 'd.jpg')) done.set(name, { token: many[name], mode: 'link' })
     expect(summaryLeft(p, done, 0)).toMatchObject({
       to_download: 1,
       to_download_names: 1,

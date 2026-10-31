@@ -19,7 +19,8 @@ vi.mock('electron', () => {
       encryptString: (text: string) => Buffer.from(`enc:${text}`),
       decryptString: (buffer: Buffer) => {
         const text = buffer.toString()
-        if (!text.startsWith('enc:')) throw new Error('Error while decrypting the ciphertext provided to safeStorage.decryptString.')
+        if (!text.startsWith('enc:'))
+          throw new Error('Error while decrypting the ciphertext provided to safeStorage.decryptString.')
         return text.slice(4)
       },
     },
@@ -91,7 +92,13 @@ describe('the 1.x migration', () => {
           total: 17,
         },
       },
-      [B]: { id: B, label: 'Listino', api_token: 'token-b', folder_path: path.resolve('Listino'), keep_old_files: false },
+      [B]: {
+        id: B,
+        label: 'Listino',
+        api_token: 'token-b',
+        folder_path: path.resolve('Listino'),
+        keep_old_files: false,
+      },
       broken: 'not a project',
       no_folder: { id: 'x', label: 'x', api_token: 't' },
     },
@@ -109,7 +116,14 @@ describe('the 1.x migration', () => {
     const [first] = store.projects
     expect(store.token(first)).toBe('token-a')
     expect(first.token_plain).toBeUndefined()
-    expect(first.last_result).toMatchObject({ job: 'download', outcome: 'completed', downloaded: 10, failed: 2, already_present: 5, total: 17 })
+    expect(first.last_result).toMatchObject({
+      job: 'download',
+      outcome: 'completed',
+      downloaded: 10,
+      failed: 2,
+      already_present: 5,
+      total: 17,
+    })
     expect(store.settings).toMatchObject({ theme: 'dark', language: 'en', concurrency: 10 })
 
     const file = fs.readFileSync(configFile(), 'utf8')
@@ -223,7 +237,8 @@ describe('values read back', () => {
 
   it('never saves a project under a name every object has', () => {
     const store = new AppStore({ cwd: dir })
-    for (const id of ['__proto__', 'constructor', 'a.b']) expect(() => store.saveProject(project(id))).toThrow('invalid_input')
+    for (const id of ['__proto__', 'constructor', 'a.b'])
+      expect(() => store.saveProject(project(id))).toThrow('invalid_input')
     expect(store.patchProject('constructor', { label: 'x' })).toBeUndefined()
     store.removeProject('constructor')
     expect(readConfig().projects).toEqual({})

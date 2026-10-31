@@ -7,7 +7,8 @@ function arrange(): void {
   open.forEach((overlay, n) => overlay.toggleAttribute('inert', n < open.length - 1))
 }
 
-const TABBABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]'
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]'
 const tabbables = (root: HTMLElement): HTMLElement[] =>
   [...root.querySelectorAll<HTMLElement>(TABBABLE)].filter(el => el.tabIndex >= 0 && el.getClientRects().length > 0)
 </script>
@@ -84,7 +85,11 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div ref="veil" class="fixed inset-0 z-50 flex items-center justify-center bg-veil p-lg" @mousedown.self="emit('close')">
+    <div
+      ref="veil"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-veil p-lg"
+      @mousedown.self="emit('close')"
+    >
       <div
         ref="panel"
         :role="role"

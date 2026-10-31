@@ -24,7 +24,11 @@ defineProps<{ tone: StatusTone; label: string; icon?: IconDefinition; dot?: bool
     <AppIcon v-if="icon" :icon="icon" />
     <span v-else class="h-[7px] w-[7px] rounded-full" :class="TONE_DOT[tone]" />
   </span>
-  <span v-else class="inline-flex h-6 shrink-0 items-center gap-xs whitespace-nowrap rounded-full px-sm text-xs" :class="TONE_SOFT[tone]">
+  <span
+    v-else
+    class="inline-flex h-6 shrink-0 items-center gap-xs whitespace-nowrap rounded-full px-sm text-xs"
+    :class="TONE_SOFT[tone]"
+  >
     <AppIcon v-if="icon" :icon="icon" class="text-[11px]" :class="TONE_FG[tone]" />
     <span v-else-if="dot" class="h-[7px] w-[7px] rounded-full" :class="TONE_DOT[tone]" />
     {{ label }}

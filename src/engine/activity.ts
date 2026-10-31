@@ -44,12 +44,8 @@ export class ActivityLog {
   update(id: number, patch: Partial<Omit<ActivityEntry, 'id'>>): void {
     const entry = this.by_id.get(id)
     if (!entry) return
-    const progress_only =
-      Object.keys(patch).length == 1 && patch.progress !== undefined
-    if (
-      progress_only &&
-      Math.abs((patch.progress ?? 0) - (entry.progress ?? 0)) < PROGRESS_STEP
-    ) {
+    const progress_only = Object.keys(patch).length == 1 && patch.progress !== undefined
+    if (progress_only && Math.abs((patch.progress ?? 0) - (entry.progress ?? 0)) < PROGRESS_STEP) {
       entry.progress = patch.progress
       return
     }
@@ -94,8 +90,6 @@ export class FailedList {
 
   /** Real failures, the ones «Riprova i falliti» can fix (not conflicts) */
   retryable(): FailedEntry[] {
-    return this.list().filter(
-      e => e.reason != 'name_conflict' && e.reason != 'invalid_name',
-    )
+    return this.list().filter(e => e.reason != 'name_conflict' && e.reason != 'invalid_name')
   }
 }

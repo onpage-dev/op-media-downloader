@@ -113,9 +113,14 @@ const counts = computed(() => {
   const { issues, progress, plan, last_result } = props.project.runtime
   const failed = progress
     ? progress.failed
-    : (issues.find(i => i.code == 'failed_files')?.count ?? app.failed[props.project.id]?.total ?? last_result?.failed ?? 0)
+    : (issues.find(i => i.code == 'failed_files')?.count ??
+      app.failed[props.project.id]?.total ??
+      last_result?.failed ??
+      0)
   const duplicates = issues.find(i => i.code == 'duplicates')?.count ?? plan?.duplicates ?? 0
-  return { failed: [failed, TONE_SOFT.danger], duplicates: [duplicates, TONE_SOFT.warning] } as Partial<Record<InspectorTab, [number, string]>>
+  return { failed: [failed, TONE_SOFT.danger], duplicates: [duplicates, TONE_SOFT.warning] } as Partial<
+    Record<InspectorTab, [number, string]>
+  >
 })
 </script>
 
@@ -140,7 +145,12 @@ const counts = computed(() => {
     >
       <span class="h-[3px] w-7 rounded-full bg-disabled" />
     </div>
-    <div role="tablist" :aria-label="project.label" class="flex h-[37px] shrink-0 items-end gap-xs border-b border-line px-sm" @keydown="onTabKey">
+    <div
+      role="tablist"
+      :aria-label="project.label"
+      class="flex h-[37px] shrink-0 items-end gap-xs border-b border-line px-sm"
+      @keydown="onTabKey"
+    >
       <button
         v-for="tab in TABS"
         :id="tabId(tab)"
@@ -153,9 +163,16 @@ const counts = computed(() => {
         class="flex flex-col gap-xs-sm"
         @click="app.tab = tab"
       >
-        <span class="flex items-center gap-xs-sm px-sm text-xs font-medium" :class="app.tab == tab ? 'text-accent-fg' : 'hover:text-accent-fg'">
+        <span
+          class="flex items-center gap-xs-sm px-sm text-xs font-medium"
+          :class="app.tab == tab ? 'text-accent-fg' : 'hover:text-accent-fg'"
+        >
           {{ t(`tabs.${tab}`) }}
-          <span v-if="counts[tab]?.[0]" class="tabular rounded-full px-xs-sm py-px text-xs leading-[14px] text-text" :class="counts[tab]?.[1]">
+          <span
+            v-if="counts[tab]?.[0]"
+            class="tabular rounded-full px-xs-sm py-px text-xs leading-[14px] text-text"
+            :class="counts[tab]?.[1]"
+          >
             {{ formatNumber(counts[tab]?.[0] ?? 0) }}
           </span>
         </span>

@@ -20,12 +20,15 @@ import UiButton from './ui/UiButton.vue'
 
 const { t } = useI18n()
 const rows = computed(() =>
-  [...app.projects].sort((a, b) => a.created_at.localeCompare(b.created_at)).map(project => ({ project, status: projectStatus(project) })),
+  [...app.projects]
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map(project => ({ project, status: projectStatus(project) })),
 )
 const summary = computed(() => {
   const status = app.status
   if (!app.projects.length) return t('tray.empty')
-  if (status?.running_jobs) return t('tray.running', { count: status.running_jobs, speed: formatSpeed(status.speed_bps) })
+  if (status?.running_jobs)
+    return t('tray.running', { count: status.running_jobs, speed: formatSpeed(status.speed_bps) })
   return t('tray.idle')
 })
 /** What a row says under its name: the state's words, with when for a project up to date */

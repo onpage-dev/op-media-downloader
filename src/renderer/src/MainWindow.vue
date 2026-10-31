@@ -136,17 +136,26 @@ onBeforeUnmount(() => {
     <AppToolbar />
     <div class="flex min-h-0 flex-1">
       <FilterPanel />
-      <main class="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-md border-l border-t border-line bg-box">
+      <main
+        class="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-md border-l border-t border-line bg-box"
+      >
         <EmptyTable v-if="app.ready && !app.projects.length" :over="app.dropping" />
         <template v-else>
           <JobsTable :class="selected && !inspectorHeight ? 'max-h-[300px] flex-none' : 'min-h-[120px] flex-1'" />
-          <InspectorPanel v-if="selected" v-model:height="inspectorHeight" :project="selected" @resized="rememberHeight" />
+          <InspectorPanel
+            v-if="selected"
+            v-model:height="inspectorHeight"
+            :project="selected"
+            @resized="rememberHeight"
+          />
         </template>
         <div
           v-if="app.dropping && app.projects.length"
           class="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent-soft/95"
         >
-          <div class="flex flex-col items-center gap-md rounded-xl border-[1.5px] border-dashed border-accent-fg bg-box px-[64px] py-3xl">
+          <div
+            class="flex flex-col items-center gap-md rounded-xl border-[1.5px] border-dashed border-accent-fg bg-box px-[64px] py-3xl"
+          >
             <AppIcon :icon="icons.faFolderOpen" class="text-[27px] text-accent-fg" />
             <p class="text-lg font-medium text-accent-fg">{{ t('empty.drop_on_table') }}</p>
             <p class="text-xs text-secondary">{{ t('empty.drop_text') }}</p>

@@ -6,12 +6,8 @@ import { contextBridge, ipcRenderer, IpcRendererEvent, webUtils } from 'electron
 import { DesktopApi, Unsubscribe } from '../shared/desktop-api'
 import { EVENTS, INVOKE, SEND } from '../shared/ipc-channels'
 
-function listen<T extends unknown[]>(
-  channel: string,
-  listener: (...args: T) => void,
-): Unsubscribe {
-  const handler = (_event: IpcRendererEvent, ...args: unknown[]): void =>
-    listener(...(args as T))
+function listen<T extends unknown[]>(channel: string, listener: (...args: T) => void): Unsubscribe {
+  const handler = (_event: IpcRendererEvent, ...args: unknown[]): void => listener(...(args as T))
   ipcRenderer.on(channel, handler)
   return () => ipcRenderer.removeListener(channel, handler)
 }
@@ -55,8 +51,7 @@ const desktop: DesktopApi = {
     list: () => invoke(INVOKE.projectsList),
     create: input => invoke(INVOKE.projectsCreate, input),
     update: (id, patch) => invoke(INVOKE.projectsUpdate, id, patch),
-    remove: (id, options) =>
-      invoke(INVOKE.projectsRemove, id, options),
+    remove: (id, options) => invoke(INVOKE.projectsRemove, id, options),
     revealToken: id => invoke(INVOKE.projectsRevealToken, id),
     onChanged: listener => listen(EVENTS.projectsChanged, listener),
   },
@@ -68,18 +63,15 @@ const desktop: DesktopApi = {
     retryFailed: id => invoke(INVOKE.syncRetryFailed, id),
     confirmCleanup: id => invoke(INVOKE.syncConfirmCleanup, id),
     stop: id => invoke(INVOKE.syncStop, id),
-    getActivity: (id, limit) =>
-      invoke(INVOKE.syncGetActivity, id, limit),
+    getActivity: (id, limit) => invoke(INVOKE.syncGetActivity, id, limit),
     onActivity: listener => listen(EVENTS.syncActivity, listener),
     getFailed: (id, page) => invoke(INVOKE.syncGetFailed, id, page),
-    getDuplicates: (id, page) =>
-      invoke(INVOKE.syncGetDuplicates, id, page),
+    getDuplicates: (id, page) => invoke(INVOKE.syncGetDuplicates, id, page),
   },
 
   folders: {
     pick: default_path => invoke(INVOKE.foldersPick, default_path),
-    inspect: (path, project_id) =>
-      invoke(INVOKE.foldersInspect, path, project_id),
+    inspect: (path, project_id) => invoke(INVOKE.foldersInspect, path, project_id),
     openProject: id => invoke(INVOKE.foldersOpenProject, id),
     pathForDroppedFile: file => webUtils.getPathForFile(file),
   },

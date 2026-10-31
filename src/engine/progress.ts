@@ -41,10 +41,7 @@ export class ProgressTracker {
     this.progress.bytes_total += delta
   }
 
-  count(
-    kind: 'downloaded' | 'linked' | 'removed' | 'already_present' | 'failed',
-    n = 1,
-  ): void {
+  count(kind: 'downloaded' | 'linked' | 'removed' | 'already_present' | 'failed', n = 1): void {
     this.progress[kind] += n
   }
 
@@ -52,20 +49,13 @@ export class ProgressTracker {
   snapshot(): Progress {
     const now = this.now()
     this.samples.push([now, this.progress.bytes_done])
-    while (this.samples.length > 2 && now - this.samples[0][0] > WINDOW_MS)
-      this.samples.shift()
+    while (this.samples.length > 2 && now - this.samples[0][0] > WINDOW_MS) this.samples.shift()
     const [t0, b0] = this.samples[0]
     const elapsed = (now - t0) / 1000
-    if (elapsed >= 0.5)
-      this.progress.speed_bps = Math.max(
-        0,
-        (this.progress.bytes_done - b0) / elapsed,
-      )
+    if (elapsed >= 0.5) this.progress.speed_bps = Math.max(0, (this.progress.bytes_done - b0) / elapsed)
     const left = this.progress.bytes_total - this.progress.bytes_done
     this.progress.eta_seconds =
-      this.progress.speed_bps > 0 && left > 0
-        ? Math.round(left / this.progress.speed_bps)
-        : undefined
+      this.progress.speed_bps > 0 && left > 0 ? Math.round(left / this.progress.speed_bps) : undefined
     return {
       ...this.progress,
       listing: this.progress.listing && { ...this.progress.listing },

@@ -11,7 +11,8 @@ export const fr: Texts = {
   tray_idle: 'Tous les projets sont à jour',
   tray_running: count =>
     plural('fr', count, { one: `${count} synchronisation en cours`, other: `${count} synchronisations en cours` }),
-  tray_attention: count => plural('fr', count, { one: `${count} projet à vérifier`, other: `${count} projets à vérifier` }),
+  tray_attention: count =>
+    plural('fr', count, { one: `${count} projet à vérifier`, other: `${count} projets à vérifier` }),
   done_title: label => `${label}\u00a0: à jour`,
   done_body: (files, duration) =>
     plural('fr', files, {

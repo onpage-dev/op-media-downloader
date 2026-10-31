@@ -9,7 +9,11 @@ import { inject, onBeforeUnmount, onMounted, watch, type InjectionKey, type Ref,
 
 export const SCROLLER: InjectionKey<Ref<HTMLElement | undefined>> = Symbol('scroller')
 
-export function useInfiniteScroll(end: Ref<HTMLElement | undefined>, more: () => void, size: WatchSource<number>): void {
+export function useInfiniteScroll(
+  end: Ref<HTMLElement | undefined>,
+  more: () => void,
+  size: WatchSource<number>,
+): void {
   const scroller = inject(SCROLLER, undefined)
   let observer: IntersectionObserver | undefined
   const look = (): void => {

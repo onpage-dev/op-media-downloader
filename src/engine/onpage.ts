@@ -52,36 +52,20 @@ export function createApi(token: string, ctx: OnPageContext): Api {
 /** Turns transport errors on the schema into the issue the user sees */
 export function schemaError(error: unknown): JobError {
   if (error instanceof JobError) return error
-  if (
-    error instanceof HttpError &&
-    (error.status == 401 || error.status == 403)
-  ) {
-    return new JobError(
-      'token_invalid',
-      'The API token was refused',
-      `HTTP ${error.status}`,
-    )
+  if (error instanceof HttpError && (error.status == 401 || error.status == 403)) {
+    return new JobError('token_invalid', 'The API token was refused', `HTTP ${error.status}`)
   }
   if (isNetworkError(error) || error instanceof TimeoutError) {
-    return new JobError(
-      'offline',
-      'On Page cannot be reached',
-      String((error as Error).message),
-    )
+    return new JobError('offline', 'On Page cannot be reached', String((error as Error).message))
   }
   return new JobError(
     'project_unavailable',
     'The project could not be loaded',
-    error instanceof HttpError
-      ? `HTTP ${error.status}`
-      : String((error as Error)?.message ?? error),
+    error instanceof HttpError ? `HTTP ${error.status}` : String((error as Error)?.message ?? error),
   )
 }
 
-export async function loadSchema(
-  token: string,
-  ctx: OnPageContext,
-): Promise<Schema> {
+export async function loadSchema(token: string, ctx: OnPageContext): Promise<Schema> {
   const api = createApi(token, ctx)
   let schema: Schema
   try {
@@ -118,10 +102,7 @@ export function schemaSignature(schema: Schema, token: string): string {
   return createHash('sha1').update(JSON.stringify(shape)).digest('hex')
 }
 
-export async function verifyToken(
-  token: string,
-  ctx: OnPageContext,
-): Promise<TokenCheck> {
+export async function verifyToken(token: string, ctx: OnPageContext): Promise<TokenCheck> {
   try {
     const schema = await loadSchema(token, ctx)
     return {
@@ -134,27 +115,17 @@ export async function verifyToken(
     const issue = schemaError(error).issue
     return {
       ok: false,
-      error:
-        issue == 'token_invalid' || issue == 'offline'
-          ? issue
-          : 'project_unavailable',
+      error: issue == 'token_invalid' || issue == 'offline' ? issue : 'project_unavailable',
     }
   }
 }
 
 /** A storage URL builder without network: `file.link()` of onpage-js */
-export function storageLinker(
-  domain = DEFAULT_DOMAIN,
-): (token: string, name: string) => string {
+export function storageLinker(domain = DEFAULT_DOMAIN): (token: string, name: string) => string {
   const api = new Api({ token: '', domain: domain as ApiOptions['domain'] })
   return (token, name) => api.storageLink(token, name)
 }
 
-export function thingEditUrl(
-  schema_id: number,
-  resource_id: number,
-  thing_id: number,
-  field_id: number,
-): string {
+export function thingEditUrl(schema_id: number, resource_id: number, thing_id: number, field_id: number): string {
   return `https://app.onpage.it/#/things/edit/${thing_id}/${schema_id}/${resource_id}/${field_id}`
 }

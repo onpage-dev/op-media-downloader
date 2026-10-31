@@ -69,7 +69,9 @@ describe('errors', () => {
 
   it('names any other code in the generic text, and never shows a message that is not a code', () => {
     expect(errorText(new Error('engine_crashed'))).toBe(t('errors.generic', { detail: 'engine_crashed' }))
-    expect(errorText(new Error("Error invoking remote method 'x': TypeError: boom"))).toBe(t('errors.generic', { detail: 'unexpected' }))
+    expect(errorText(new Error("Error invoking remote method 'x': TypeError: boom"))).toBe(
+      t('errors.generic', { detail: 'unexpected' }),
+    )
     expect(errorText('generic')).toBe(t('errors.generic', { detail: 'generic' }))
   })
 })

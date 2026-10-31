@@ -21,7 +21,13 @@ const { t } = useI18n()
     :style="{ width: `${(size == 's' ? 434 : 682) + 28}px` }"
     @close="emit('close')"
   >
-    <IconButton :icon="faXmark" :label="t('common.close')" :size="36" class="absolute right-sm-md top-sm-md" @click="emit('close')" />
+    <IconButton
+      :icon="faXmark"
+      :label="t('common.close')"
+      :size="36"
+      class="absolute right-sm-md top-sm-md"
+      @click="emit('close')"
+    />
     <header class="flex flex-col gap-xs">
       <h3 :id="titleId" class="font-title text-2xl font-bold">{{ title }}</h3>
       <p v-if="subtitle" class="text-secondary">{{ subtitle }}</p>

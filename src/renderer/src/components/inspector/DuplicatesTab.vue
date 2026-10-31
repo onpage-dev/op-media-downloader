@@ -39,7 +39,12 @@ onBeforeUnmount(() => window.clearTimeout(typing))
       </UiButton>
     </div>
     <div v-if="list && (list.total || list.query)" class="flex items-center gap-md">
-      <SearchField v-model="query" class="w-[240px] shrink-0" :placeholder="t('duplicates.search')" :clear-label="t('common.close')" />
+      <SearchField
+        v-model="query"
+        class="w-[240px] shrink-0"
+        :placeholder="t('duplicates.search')"
+        :clear-label="t('common.close')"
+      />
       <span v-if="list.language_variants" class="min-w-0 truncate text-xs text-secondary">
         {{ t('duplicates.languages', { count: formatNumber(list.language_variants) }, list.language_variants) }}
       </span>

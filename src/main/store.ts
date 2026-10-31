@@ -226,7 +226,9 @@ export class AppStore {
 
     const projects: Record<string, unknown> = isRecord(raw.projects) ? { ...raw.projects } : {}
     const folders = new Set(
-      Object.entries(projects).flatMap(([id, value]) => readProject(id, value)?.folder ?? []).map(folderKey),
+      Object.entries(projects)
+        .flatMap(([id, value]) => readProject(id, value)?.folder ?? [])
+        .map(folderKey),
     )
     let imported = 0
     for (const project of v1Projects(raw.storage_data, token => this.encryptToken(token))) {
@@ -264,7 +266,10 @@ function openStore(cwd: string | undefined): { store: Store<StoreSchema>; set_as
   } catch (error) {
     if ((error as Error | undefined)?.name != 'SyntaxError') throw error
     const file = path.join(cwd ?? app.getPath('userData'), `${STORE_NAME}.json`)
-    const set_aside = path.join(path.dirname(file), `${STORE_NAME}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
+    const set_aside = path.join(
+      path.dirname(file),
+      `${STORE_NAME}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+    )
     log('error', `The config file cannot be parsed: set aside as ${set_aside}`, error)
     try {
       fs.renameSync(file, set_aside)

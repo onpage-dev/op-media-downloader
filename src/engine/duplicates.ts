@@ -17,12 +17,9 @@ export async function duplicatesPage(
   schemaOf: () => Promise<Schema>,
   log: (message: string) => void,
 ): Promise<DuplicatePage> {
-  if (!resolved?.duplicates.length)
-    return { total: 0, language_variants: 0, groups: [] }
+  if (!resolved?.duplicates.length) return { total: 0, language_variants: 0, groups: [] }
   const query = page.query?.trim().normalize('NFC').toLowerCase()
-  const matching = query
-    ? resolved.duplicates.filter(group => group.key.includes(query))
-    : resolved.duplicates
+  const matching = query ? resolved.duplicates.filter(group => group.key.includes(query)) : resolved.duplicates
   const offset = Math.max(0, page.offset ?? 0)
   const groups = matching.slice(offset, offset + Math.max(1, page.limit ?? 50))
   const total = {
@@ -80,40 +77,24 @@ export async function duplicatesPage(
     groups: groups.map(group => ({
       name: group.name,
       variants: group.variants.map(variant => {
-        const file = new OpFile(
-          { token: variant.token, name: variant.remote_name },
-          schema.api,
-        )
+        const file = new OpFile({ token: variant.token, name: variant.remote_name }, schema.api)
         return {
           token: variant.token,
           size: variant.size,
           width: variant.width,
           height: variant.height,
-          thumb_url: file.isImage()
-            ? file.link({ x: 100, y: 100, mode: 'contain' })
-            : undefined,
+          thumb_url: file.isImage() ? file.link({ x: 100, y: 100, mode: 'contain' }) : undefined,
           chosen: variant.chosen,
           uses: variant.uses.slice(0, MAX_USES).map(use => {
             const resource = schema.resource(use.resource_id)
             const field = schema.field(use.field_id)
             return {
-              resource_label: label(
-                () => resource?.getLabel(lang),
-                String(use.resource_id),
-              ),
-              field_label: label(
-                () => field?.getLabel(lang),
-                String(use.field_id),
-              ),
+              resource_label: label(() => resource?.getLabel(lang), String(use.resource_id)),
+              field_label: label(() => field?.getLabel(lang), String(use.field_id)),
               thing_id: use.thing_id,
               thing_label: labels.get(use.thing_id),
               lang: use.lang ?? undefined,
-              edit_url: thingEditUrl(
-                schema.id,
-                use.resource_id,
-                use.thing_id,
-                use.field_id,
-              ),
+              edit_url: thingEditUrl(schema.id, use.resource_id, use.thing_id, use.field_id),
             }
           }),
         }

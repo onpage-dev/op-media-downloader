@@ -24,7 +24,10 @@ export default defineConfigWithVueTs(
       '@typescript-eslint/prefer-promise-reject-errors': 'off',
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
       '@typescript-eslint/ban-ts-comment': ['error', { 'ts-ignore': 'allow-with-description' }],
-      '@typescript-eslint/explicit-function-return-type': ['error', { allowExpressions: true, allowTypedFunctionExpressions: true }],
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        { allowExpressions: true, allowTypedFunctionExpressions: true },
+      ],
       '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',

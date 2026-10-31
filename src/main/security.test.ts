@@ -66,7 +66,16 @@ describe('permissions', () => {
 
 describe('debugging switches', () => {
   it('are found however they are written', () => {
-    for (const arg of ['--inspect', '--inspect=9229', '--inspect-brk=0', '--inspect-port=1', '--remote-debugging-port=9222', '-remote-debugging-port=9222', '--remote-debugging-pipe', '/inspect'])
+    for (const arg of [
+      '--inspect',
+      '--inspect=9229',
+      '--inspect-brk=0',
+      '--inspect-port=1',
+      '--remote-debugging-port=9222',
+      '-remote-debugging-port=9222',
+      '--remote-debugging-pipe',
+      '/inspect',
+    ])
       expect(debugSwitch(['app.exe', arg]), arg).toBe(arg)
   })
 

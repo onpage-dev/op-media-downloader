@@ -7,13 +7,7 @@
  */
 import { utilityProcess, UtilityProcess } from 'electron'
 import path from 'path'
-import {
-  EngineCommand,
-  EngineInit,
-  EngineRequest,
-  EngineToMain,
-  MainToEngine,
-} from '../shared/engine-protocol'
+import { EngineCommand, EngineInit, EngineRequest, EngineToMain, MainToEngine } from '../shared/engine-protocol'
 import { ProjectId } from '../shared/models'
 import { log } from './log'
 

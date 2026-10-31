@@ -152,7 +152,15 @@ async function until(condition: () => unknown, timeout_ms = 2_000): Promise<void
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 function info(target: string, problems: FolderProblem[] = [], problem_detail?: string): FolderInfo {
-  return { path: target, kind: 'local', exists: true, writable: true, problems, problem_detail, inspected_at: new Date().toISOString() }
+  return {
+    path: target,
+    kind: 'local',
+    exists: true,
+    writable: true,
+    problems,
+    problem_detail,
+    inspected_at: new Date().toISOString(),
+  }
 }
 
 /** A project on the test folder, the inspection answered as fine */
@@ -182,7 +190,9 @@ describe('editing', () => {
     const view = await first
     await until(() => engine.pending('inspect_folder'))
     /** The engine knows the folder of the first project by now */
-    expect(engine.commands.filter(c => c.type == 'configure').at(-1)).toMatchObject({ project_folders: [{ id: view.id, folder }] })
+    expect(engine.commands.filter(c => c.type == 'configure').at(-1)).toMatchObject({
+      project_folders: [{ id: view.id, folder }],
+    })
     engine.pending('inspect_folder')!.resolve(info(folder, ['used_by_other_project'], view.id))
 
     await expect(second).rejects.toThrow('folder_used_by_other_project')
@@ -191,7 +201,12 @@ describe('editing', () => {
 
   it('an edit waits for a create in progress', async () => {
     const view = await created()
-    const creating = projects.create({ label: 'Other', token: 't', folder: path.join(folder, '..', 'Other'), keep_old_files: false })
+    const creating = projects.create({
+      label: 'Other',
+      token: 't',
+      folder: path.join(folder, '..', 'Other'),
+      keep_old_files: false,
+    })
     const editing = projects.update(view.id, { label: 'Renamed' })
     await sleep(20)
     expect(store.project(view.id)?.label).toBe('Catalogo')
@@ -217,7 +232,9 @@ describe('editing', () => {
 
   it('a new token or folder forgets what was known of the project', async () => {
     const view = await created()
-    store.patchProject(view.id, { issues: [{ code: 'failed_files', severity: 'warning', count: 3, at: '2026-01-01T00:00:00.000Z' }] })
+    store.patchProject(view.id, {
+      issues: [{ code: 'failed_files', severity: 'warning', count: 3, at: '2026-01-01T00:00:00.000Z' }],
+    })
     const next = await projects.update(view.id, { token: 'another' })
     expect(next.runtime.issues).toEqual([])
     expect(engine.commands).toContainEqual({ type: 'forget', project_id: view.id })
@@ -319,7 +336,11 @@ describe('jobs', () => {
   it('an engine that keeps stopping gives every project the unexpected issue until a job starts it again', async () => {
     const view = await created()
     engine.giveUp()
-    expect(projects.views()[0].runtime.issues[0]).toMatchObject({ code: 'unexpected', severity: 'error', detail: ENGINE_DOWN })
+    expect(projects.views()[0].runtime.issues[0]).toMatchObject({
+      code: 'unexpected',
+      severity: 'error',
+      detail: ENGINE_DOWN,
+    })
     /** What main does on its own does not start it */
     void projects.refreshFolders()
     projects.configureEngine()

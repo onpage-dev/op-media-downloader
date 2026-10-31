@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isSafeToken, nameKey, resolveNames, sanitizeName } from './names'
 import { RemoteFileTuple, RemoteIndex } from './remote-index'
 
-function index(
-  resources: [number, [number, RemoteFileTuple[]][]][],
-): RemoteIndex {
+function index(resources: [number, [number, RemoteFileTuple[]][]][]): RemoteIndex {
   return {
     schema_id: 1,
     signature: 's',
@@ -18,17 +16,13 @@ function index(
 
 describe('sanitizeName', () => {
   it('keeps ordinary names', () => {
-    expect(sanitizeName('Prodotto 12 - vista frontale.jpg')).toBe(
-      'Prodotto 12 - vista frontale.jpg',
-    )
+    expect(sanitizeName('Prodotto 12 - vista frontale.jpg')).toBe('Prodotto 12 - vista frontale.jpg')
     expect(sanitizeName('àèìòù ñ 漢字.png')).toBe('àèìòù ñ 漢字.png')
   })
 
   it('never lets a name leave the folder', () => {
     expect(sanitizeName('../../etc/passwd')).toBe('.._.._etc_passwd')
-    expect(sanitizeName('..\\..\\Windows\\win.ini')).toBe(
-      '.._.._Windows_win.ini',
-    )
+    expect(sanitizeName('..\\..\\Windows\\win.ini')).toBe('.._.._Windows_win.ini')
     expect(sanitizeName('..')).toBe('_')
     expect(sanitizeName('.')).toBe('_')
     expect(sanitizeName('')).toBe('_')
@@ -105,9 +99,7 @@ describe('resolveNames', () => {
       token: 'tok-a',
     })
     expect(resolved.duplicates).toHaveLength(1)
-    expect(
-      resolved.duplicates[0].variants.map(v => [v.token, v.chosen]),
-    ).toEqual([
+    expect(resolved.duplicates[0].variants.map(v => [v.token, v.chosen])).toEqual([
       ['tok-a', true],
       ['tok-b', false],
     ])
@@ -175,9 +167,7 @@ describe('resolveNames', () => {
   })
 
   it('files with an unsafe token are set apart', () => {
-    const resolved = resolveNames(
-      index([[1, [[1, [[12, null, 'x.jpg', '../evil', 1, null, null]]]]]]),
-    )
+    const resolved = resolveNames(index([[1, [[1, [[12, null, 'x.jpg', '../evil', 1, null, null]]]]]]))
     expect(resolved.desired).toHaveLength(0)
     expect(resolved.invalid).toHaveLength(1)
   })
@@ -198,8 +188,7 @@ describe('resolveNames', () => {
 
   it('100,000 uses of the chosen file of a duplicated name resolve in under a second', () => {
     const things: [number, RemoteFileTuple[]][] = []
-    for (let id = 1; id <= 100_000; id++)
-      things.push([id, [[12, null, 'logo.png', 'tok-a', 10, null, null]]])
+    for (let id = 1; id <= 100_000; id++) things.push([id, [[12, null, 'logo.png', 'tok-a', 10, null, null]]])
     things.push([100_001, [[12, null, 'LOGO.png', 'tok-b', 20, null, null]]])
     const started = performance.now()
     const resolved = resolveNames(index([[1, things]]))
@@ -207,8 +196,6 @@ describe('resolveNames', () => {
     expect(resolved.duplicates).toHaveLength(1)
     const [chosen, other] = resolved.duplicates[0].variants
     expect(chosen.uses).toHaveLength(100_000)
-    expect(other.uses).toEqual([
-      { resource_id: 1, thing_id: 100_001, field_id: 12, lang: null },
-    ])
+    expect(other.uses).toEqual([{ resource_id: 1, thing_id: 100_001, field_id: 12, lang: null }])
   })
 })

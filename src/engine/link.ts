@@ -71,7 +71,12 @@ async function copyTo(blob: string, dest: string, exclusive: boolean): Promise<v
   }
 }
 
-async function linkOrCopy(blob: string, dest: string, capability: LinkCapability, exclusive: boolean): Promise<PlaceMode> {
+async function linkOrCopy(
+  blob: string,
+  dest: string,
+  capability: LinkCapability,
+  exclusive: boolean,
+): Promise<PlaceMode> {
   if (capability.hardlinks !== false) {
     try {
       await withLockRetry(() => fs.link(blob, dest), 4)

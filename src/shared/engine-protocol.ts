@@ -78,9 +78,7 @@ export type EngineRequest =
 
 export type EngineRequestEnvelope = { request_id: number; request: EngineRequest }
 
-export type MainToEngine =
-  | { kind: 'command'; command: EngineCommand }
-  | ({ kind: 'request' } & EngineRequestEnvelope)
+export type MainToEngine = { kind: 'command'; command: EngineCommand } | ({ kind: 'request' } & EngineRequestEnvelope)
 
 /* ------------------------------------------------------------------ engine → main */
 
@@ -92,12 +90,7 @@ export interface DeleteFilesResult {
 }
 
 export type EngineResponseData =
-  | FolderInfo
-  | TokenCheck
-  | ActivityEntry[]
-  | FailedPage
-  | DuplicatePage
-  | DeleteFilesResult
+  FolderInfo | TokenCheck | ActivityEntry[] | FailedPage | DuplicatePage | DeleteFilesResult
 
 export type EngineToMain =
   /** Throttled by the engine (at most ~4 per second per project) */

@@ -16,8 +16,10 @@ const electron = vi.hoisted(() => ({
 vi.mock('electron', () => ({
   app: { isPackaged: true, getVersion: () => '2.0.0', getPath: () => '/tmp' },
   ipcMain: {
-    handle: (channel: string, handler: (event: unknown, ...args: unknown[]) => unknown) => electron.handlers.set(channel, handler),
-    on: (channel: string, listener: (event: unknown, ...args: unknown[]) => void) => electron.listeners.set(channel, listener),
+    handle: (channel: string, handler: (event: unknown, ...args: unknown[]) => unknown) =>
+      electron.handlers.set(channel, handler),
+    on: (channel: string, listener: (event: unknown, ...args: unknown[]) => void) =>
+      electron.listeners.set(channel, listener),
   },
   BrowserWindow: { fromWebContents: () => null },
   clipboard: { writeText: () => undefined },
@@ -82,7 +84,12 @@ describe('the IPC handlers', () => {
 
   it('pass checked arguments only', async () => {
     await invoke(INVOKE.projectsUpdate, UUID, { label: 'B', id: 'other', keep_old_files: 'yes' })
-    expect(projects.update).toHaveBeenCalledWith(UUID, { label: 'B', token: undefined, folder: undefined, keep_old_files: undefined })
+    expect(projects.update).toHaveBeenCalledWith(UUID, {
+      label: 'B',
+      token: undefined,
+      folder: undefined,
+      keep_old_files: undefined,
+    })
 
     invoke(INVOKE.syncSync, UUID, { full_listing: 'yes' })
     expect(projects.startJob).toHaveBeenLastCalledWith(UUID, 'sync', { full_listing: false })
@@ -105,7 +112,10 @@ describe('the IPC handlers', () => {
   })
 
   it('save valid settings only', () => {
-    expect(invoke(INVOKE.settingsSet, { theme: 'neon', concurrency: 50 })).toEqual({ ...DEFAULT_SETTINGS, concurrency: 10 })
+    expect(invoke(INVOKE.settingsSet, { theme: 'neon', concurrency: 50 })).toEqual({
+      ...DEFAULT_SETTINGS,
+      concurrency: 10,
+    })
     expect(() => invoke(INVOKE.settingsSet, 'dark')).toThrow('invalid_input')
   })
 })

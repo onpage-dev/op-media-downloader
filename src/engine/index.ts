@@ -21,9 +21,7 @@ function post(message: EngineToMain): void {
 }
 
 const electronFetch: FetchLike | undefined =
-  typeof net?.fetch == 'function'
-    ? (url, init): Promise<Response> => net.fetch(url, init)
-    : undefined
+  typeof net?.fetch == 'function' ? (url, init): Promise<Response> => net.fetch(url, init) : undefined
 
 const engine = new Engine({
   fetch: electronFetch ?? ((url, init): Promise<Response> => fetch(url, init)),

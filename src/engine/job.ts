@@ -29,10 +29,7 @@ export class Job {
     readonly project: EngineProject,
     readonly started_at: string,
   ) {
-    this.signal = AbortSignal.any([
-      this.stop_controller.signal,
-      this.fail_controller.signal,
-    ])
+    this.signal = AbortSignal.any([this.stop_controller.signal, this.fail_controller.signal])
   }
 
   /** The user's stop: what is in flight aborts, what is done stays */
@@ -110,10 +107,7 @@ export interface EngineServices {
   instanceId(): string
   apiDomain(): string
   projectFolders(): { id: ProjectId; folder: string }[]
-  onPageContext(
-    signal?: AbortSignal,
-    onRetry?: OnPageContext['onRetry'],
-  ): OnPageContext
+  onPageContext(signal?: AbortSignal, onRetry?: OnPageContext['onRetry']): OnPageContext
 }
 
 /** What a flow works with */

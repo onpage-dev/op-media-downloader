@@ -65,7 +65,10 @@ export class StatusController {
     const t = texts(this.deps.store.settings.language)
     const running = views.filter(view => view.runtime.phase != 'idle').length
     const attention = views.filter(view => ['danger', 'warning'].includes(projectStatus(view).tone)).length
-    const tooltip = [t.app_name, running ? t.tray_running(running) : attention ? t.tray_attention(attention) : t.tray_idle].join('\n')
+    const tooltip = [
+      t.app_name,
+      running ? t.tray_running(running) : attention ? t.tray_attention(attention) : t.tray_idle,
+    ].join('\n')
     const tone = aggregateTone(views)
     this.deps.tray.update(tone == 'success' ? undefined : tone, tooltip)
   }

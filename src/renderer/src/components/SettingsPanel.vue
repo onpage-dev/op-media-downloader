@@ -39,7 +39,9 @@ const SECTIONS: [SettingsSection, icons.IconDefinition][] = [
   ['updates', icons.faArrowsRotate],
 ]
 /** Starting with the system does nothing on Linux: not offered there */
-const GENERAL = (['open_at_login', 'close_to_tray', 'notifications'] as const).filter(key => key != 'open_at_login' || os != 'linux')
+const GENERAL = (['open_at_login', 'close_to_tray', 'notifications'] as const).filter(
+  key => key != 'open_at_login' || os != 'linux',
+)
 const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]): void => void setSettings({ [key]: value })
 const s = computed(() => app.settings)
 const concurrency = computed({
@@ -49,14 +51,18 @@ const concurrency = computed({
     if (n >= 1 && n <= 10) set('concurrency', n)
   },
 })
-const themes = computed(() => (['system', 'light', 'dark'] as ThemeSetting[]).map(value => ({ value, label: t(`settings.theme.${value}`) })))
+const themes = computed(() =>
+  (['system', 'light', 'dark'] as ThemeSetting[]).map(value => ({ value, label: t(`settings.theme.${value}`) })),
+)
 const checking = ref(false)
 async function checkNow(): Promise<void> {
   checking.value = true
   await checkForUpdates()
   checking.value = false
 }
-const update = computed(() => (app.version?.latest && app.version.latest != app.version.current ? app.version.latest : undefined))
+const update = computed(() =>
+  app.version?.latest && app.version.latest != app.version.current ? app.version.latest : undefined,
+)
 /** What the last check found: a new version, none, a check that failed, or no check yet */
 const found = computed(() => {
   const version = app.version
@@ -71,7 +77,10 @@ const v = (version: string): string => `v${bare(version)}`
 </script>
 
 <template>
-  <div class="flex flex-col overflow-hidden bg-mica" :class="alone ? 'h-full w-full' : 'h-[540px] w-[760px] max-w-full rounded-md shadow-window'">
+  <div
+    class="flex flex-col overflow-hidden bg-mica"
+    :class="alone ? 'h-full w-full' : 'h-[540px] w-[760px] max-w-full rounded-md shadow-window'"
+  >
     <div class="flex shrink-0 items-center">
       <TitleBar v-if="alone" :title="t('settings.title')" />
       <template v-else>
@@ -98,7 +107,9 @@ const v = (version: string): string => `v${bare(version)}`
           {{ t(`settings.section.${item}`) }}
         </button>
       </nav>
-      <section class="flex min-w-0 flex-1 flex-col gap-lg overflow-auto rounded-tl-md border-l border-t border-line bg-box p-xl">
+      <section
+        class="flex min-w-0 flex-1 flex-col gap-lg overflow-auto rounded-tl-md border-l border-t border-line bg-box p-xl"
+      >
         <h4 class="font-title text-xl font-bold">{{ t(`settings.section.${section}`) }}</h4>
         <div class="flex flex-col divide-y divide-line">
           <template v-if="section == 'general'">
@@ -107,7 +118,11 @@ const v = (version: string): string => `v${bare(version)}`
                 <div class="font-medium">{{ forOs(`settings.${key}.title`) }}</div>
                 <div class="text-secondary">{{ forOs(`settings.${key}.text`) }}</div>
               </div>
-              <UiToggle :model-value="s[key]" :label="forOs(`settings.${key}.title`)" @update:model-value="set(key, $event)" />
+              <UiToggle
+                :model-value="s[key]"
+                :label="forOs(`settings.${key}.title`)"
+                @update:model-value="set(key, $event)"
+              />
             </div>
           </template>
           <template v-if="section == 'download'">
@@ -130,7 +145,11 @@ const v = (version: string): string => `v${bare(version)}`
                 <div class="font-medium">{{ t('settings.auto_retry.title') }}</div>
                 <div class="text-secondary">{{ t('settings.auto_retry.text') }}</div>
               </div>
-              <UiToggle :model-value="s.auto_retry_failed" :label="t('settings.auto_retry.title')" @update:model-value="set('auto_retry_failed', $event)" />
+              <UiToggle
+                :model-value="s.auto_retry_failed"
+                :label="t('settings.auto_retry.title')"
+                @update:model-value="set('auto_retry_failed', $event)"
+              />
             </div>
           </template>
           <div v-if="section == 'appearance'" class="flex items-center gap-lg py-lg first:pt-0">
@@ -138,32 +157,49 @@ const v = (version: string): string => `v${bare(version)}`
               <div :id="themeTitle" class="font-medium">{{ t('settings.theme.title') }}</div>
               <div class="text-secondary">{{ forOs('settings.theme.text') }}</div>
             </div>
-            <UiSegmented :model-value="s.theme" :options="themes" :aria-labelledby="themeTitle" @update:model-value="set('theme', $event)" />
+            <UiSegmented
+              :model-value="s.theme"
+              :options="themes"
+              :aria-labelledby="themeTitle"
+              @update:model-value="set('theme', $event)"
+            />
           </div>
           <div v-if="section == 'language'" class="flex items-center gap-lg py-lg first:pt-0">
             <div class="min-w-0 flex-1">
               <div :id="languageTitle" class="font-medium">{{ t('settings.language.title') }}</div>
               <div class="text-secondary">{{ t('settings.language.text') }}</div>
             </div>
-            <LangSelect :model-value="s.language" :aria-labelledby="languageTitle" @update:model-value="set('language', $event)" />
+            <LangSelect
+              :model-value="s.language"
+              :aria-labelledby="languageTitle"
+              @update:model-value="set('language', $event)"
+            />
           </div>
           <template v-if="section == 'updates'">
             <div class="flex items-center gap-lg py-lg first:pt-0">
               <div class="min-w-0 flex-1">
-                <div class="font-medium">{{ t('settings.updates.version', { version: app.version ? bare(app.version.current) : '' }) }}</div>
+                <div class="font-medium">
+                  {{ t('settings.updates.version', { version: app.version ? bare(app.version.current) : '' }) }}
+                </div>
                 <div class="text-secondary" role="status">{{ found }}</div>
               </div>
               <UiButton v-if="update" variant="primary" :icon="icons.faArrowDownToBracket" @click="openRelease">
                 {{ t('settings.updates.download', { version: v(update) }) }}
               </UiButton>
-              <UiButton v-else :icon="icons.faArrowsRotate" :loading="checking" @click="checkNow">{{ t('settings.updates.check') }}</UiButton>
+              <UiButton v-else :icon="icons.faArrowsRotate" :loading="checking" @click="checkNow">{{
+                t('settings.updates.check')
+              }}</UiButton>
             </div>
             <div class="flex items-center gap-lg py-lg">
               <div class="min-w-0 flex-1">
                 <div class="font-medium">{{ t('settings.updates.check_updates.title') }}</div>
                 <div class="text-secondary">{{ t('settings.updates.check_updates.text') }}</div>
               </div>
-              <UiToggle :model-value="s.check_updates" :label="t('settings.updates.check_updates.title')" @update:model-value="set('check_updates', $event)" />
+              <UiToggle
+                :model-value="s.check_updates"
+                :label="t('settings.updates.check_updates.title')"
+                @update:model-value="set('check_updates', $event)"
+              />
             </div>
             <div class="py-lg">
               <UiButton variant="link" class="-ml-md" :icon="icons.faArrowUpRightFromSquare" @click="openLicenses">

@@ -11,13 +11,7 @@ import { storageLinker } from './onpage'
 import { buildPlan } from './plan'
 import { ProgressTracker } from './progress'
 import { scanFolder } from './scan'
-import {
-  FakeFile,
-  fileContent,
-  FakeOnPage,
-  startFakeOnPage,
-  token,
-} from './testing/fake-onpage-server'
+import { FakeFile, fileContent, FakeOnPage, startFakeOnPage, token } from './testing/fake-onpage-server'
 import { cleanupTempDirs, listDir, tempDir } from './testing/tmp'
 
 const FAST: RetryPolicy = {
@@ -86,8 +80,7 @@ async function run(
   })
   await options.beforeExecute?.(folder)
   const controller = new AbortController()
-  if (options.abortAfterMs !== undefined)
-    setTimeout(() => controller.abort(), options.abortAfterMs)
+  if (options.abortAfterMs !== undefined) setTimeout(() => controller.abort(), options.abortAfterMs)
   const failed = new FailedList()
   const activity = new ActivityLog()
   let rate_limited = 0
@@ -127,10 +120,7 @@ afterAll(async () => {
 describe('downloads', () => {
   it('one content under two names is downloaded once and linked twice', async () => {
     const [file] = serve({ token: token('shared'), name: 'a.jpg', size: 3000 })
-    const { folder, result, manifest } = await run([
-      want(file, 'a.jpg'),
-      want(file, 'b.jpg'),
-    ])
+    const { folder, result, manifest } = await run([want(file, 'a.jpg'), want(file, 'b.jpg')])
     expect(fake.hits.storage.get(file.token)).toBe(1)
     expect(result.downloaded).toBe(2)
     const a = await fs.stat(path.join(folder, 'a.jpg'), { bigint: true })
@@ -140,16 +130,12 @@ describe('downloads', () => {
     })
     expect(a.ino).toBe(blob.ino)
     expect(b.ino).toBe(blob.ino)
-    expect(await fs.readFile(path.join(folder, 'a.jpg'))).toEqual(
-      fileContent(file),
-    )
+    expect(await fs.readFile(path.join(folder, 'a.jpg'))).toEqual(fileContent(file))
     expect(manifest.get('a.jpg')).toMatchObject({
       token: file.token,
       mode: 'link',
     })
-    expect(await listDir(path.join(folder, 'data'))).toEqual(
-      [file.token, 'manifest.json'].sort(),
-    )
+    expect(await listDir(path.join(folder, 'data'))).toEqual([file.token, 'manifest.json'].sort())
   })
 
   it('500 and connection resets are retried', async () => {
@@ -189,11 +175,7 @@ describe('downloads', () => {
       reason: 'timeout',
       attempts: FAST.attempts,
     })
-    expect(
-      (await listDir(path.join(folder, 'data'))).filter(n =>
-        n.endsWith('.download'),
-      ),
-    ).toEqual([])
+    expect((await listDir(path.join(folder, 'data'))).filter(n => n.endsWith('.download'))).toEqual([])
   })
 
   it('429 waits (Retry-After) and retries', async () => {
@@ -233,34 +215,26 @@ describe('downloads', () => {
     expect(Date.now() - started).toBeLessThan(1500)
     expect(failed.list()).toEqual([])
     expect(activity.recent().every(e => e.outcome != 'downloaded')).toBe(true)
-    expect(
-      (await listDir(path.join(folder, 'data'))).filter(n =>
-        n.endsWith('.download'),
-      ),
-    ).toEqual([])
+    expect((await listDir(path.join(folder, 'data'))).filter(n => n.endsWith('.download'))).toEqual([])
   })
 
   it('a file that appeared after the plan is never overwritten: conflict', async () => {
     const [file] = serve({ token: token('late'), name: 'late.jpg', size: 100 })
     const { failed, folder } = await run([want(file)], {
-      beforeExecute: folder =>
-        fs.writeFile(path.join(folder, 'late.jpg'), 'mio file'),
+      beforeExecute: folder => fs.writeFile(path.join(folder, 'late.jpg'), 'mio file'),
     })
     expect(failed.list()[0]).toMatchObject({
       name: 'late.jpg',
       reason: 'name_conflict',
     })
-    expect(await fs.readFile(path.join(folder, 'late.jpg'), 'utf8')).toBe(
-      'mio file',
-    )
+    expect(await fs.readFile(path.join(folder, 'late.jpg'), 'utf8')).toBe('mio file')
   })
 
   it('where links are not possible the content is copied', async () => {
     const [file] = serve({ token: token('copy'), name: 'copy.jpg', size: 500 })
-    const { result, manifest, folder } = await run(
-      [want(file), want(file, 'copy-2.jpg')],
-      { capability: { hardlinks: false } },
-    )
+    const { result, manifest, folder } = await run([want(file), want(file, 'copy-2.jpg')], {
+      capability: { hardlinks: false },
+    })
     expect(result.copies).toBe(2)
     expect(manifest.get('copy.jpg')?.mode).toBe('copy')
     const a = await fs.stat(path.join(folder, 'copy.jpg'), { bigint: true })
@@ -268,8 +242,6 @@ describe('downloads', () => {
       bigint: true,
     })
     expect(a.ino).not.toBe(blob.ino)
-    expect(await fs.readFile(path.join(folder, 'copy-2.jpg'))).toEqual(
-      fileContent(file),
-    )
+    expect(await fs.readFile(path.join(folder, 'copy-2.jpg'))).toEqual(fileContent(file))
   })
 })

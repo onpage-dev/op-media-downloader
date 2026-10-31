@@ -43,7 +43,13 @@ vi.mock('electron', () => ({
 }))
 vi.mock('./log', () => ({ log: () => undefined }))
 
-const INIT: EngineInit = { cache_dir: '/cache', project_folders: [], concurrency: 4, app_version: '2.0.0', instance_id: 'test' }
+const INIT: EngineInit = {
+  cache_dir: '/cache',
+  project_folders: [],
+  concurrency: 4,
+  app_version: '2.0.0',
+  instance_id: 'test',
+}
 const PROJECT: EngineProject = { id: 'p1', label: 'P', token: 't', folder: '/p1', keep_old_files: false }
 
 const last = (): InstanceType<typeof fake.FakeChild> => fake.children.at(-1)!
@@ -136,7 +142,10 @@ describe('requests', () => {
     host.start()
     last().emit('message', { kind: 'ready' })
     const timed = host.request({ type: 'get_activity', project_id: 'p1' })
-    const untimed = host.request<{ removed_files: number }>({ type: 'delete_project_files', project: PROJECT }, NO_TIMEOUT)
+    const untimed = host.request<{ removed_files: number }>(
+      { type: 'delete_project_files', project: PROJECT },
+      NO_TIMEOUT,
+    )
     const settled = vi.fn()
     void untimed.then(settled, settled)
     vi.advanceTimersByTime(5 * 60_000)

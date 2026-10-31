@@ -24,13 +24,7 @@ import { resultOfError } from './flows/steps'
 import { runSync } from './flows/sync'
 import { inspectFolder } from './folder-inspect'
 import { FetchLike } from './http'
-import {
-  EngineServices,
-  Job,
-  JobContext,
-  LogLevel,
-  ProjectSlot,
-} from './job'
+import { EngineServices, Job, JobContext, LogLevel, ProjectSlot } from './job'
 import { ListingStore } from './listing-store'
 import { DEFAULT_DOMAIN, loadSchema, OnPageContext, verifyToken } from './onpage'
 import { DEFAULT_TIMINGS, EngineTimings } from './timings'
@@ -95,27 +89,20 @@ export class Engine {
       case 'configure':
         if (!this.init) return
         if (command.concurrency) this.init.concurrency = command.concurrency
-        if (command.project_folders)
-          this.init.project_folders = command.project_folders
+        if (command.project_folders) this.init.project_folders = command.project_folders
         return
       case 'sync':
-        this.start(command.project, 'sync', ctx =>
-          runSync(ctx, !!command.full_listing),
-        )
+        this.start(command.project, 'sync', ctx => runSync(ctx, !!command.full_listing))
         return
       case 'download':
         this.start(command.project, 'download', ctx => runDownload(ctx, false))
         return
       case 'retry_failed':
-        this.start(command.project, 'retry_failed', ctx =>
-          runDownload(ctx, true),
-        )
+        this.start(command.project, 'retry_failed', ctx => runDownload(ctx, true))
         return
       case 'confirm_cleanup': {
         // The removals the user saw: what the plan held back last
-        const confirmed = new Set(
-          this.slots.get(command.project.id)?.withheld ?? [],
-        )
+        const confirmed = new Set(this.slots.get(command.project.id)?.withheld ?? [])
         this.start(command.project, 'cleanup', ctx => runCleanup(ctx, confirmed))
         return
       }
@@ -162,10 +149,7 @@ export class Engine {
           timeout_ms: 20_000,
         })
       case 'get_activity':
-        return (
-          this.slots.get(request.project_id)?.activity.recent(request.limit) ??
-          []
-        )
+        return this.slots.get(request.project_id)?.activity.recent(request.limit) ?? []
       case 'get_failed':
         return this.failedPage(request.project_id, request)
       case 'get_duplicates': {
@@ -174,10 +158,7 @@ export class Engine {
         return duplicatesPage(
           await this.listings.resolved(id, token),
           request,
-          () =>
-            this.listings.schema(id, token, () =>
-              loadSchema(token, this.onPageContext()),
-            ),
+          () => this.listings.schema(id, token, () => loadSchema(token, this.onPageContext())),
           message => this.log('warn', message, id),
         )
       }
@@ -188,9 +169,7 @@ export class Engine {
 
   /** Waits for every running job and deletion to end (tests, shutdown) */
   async idle(): Promise<void> {
-    await Promise.all(
-      Array.from(this.slots.values(), s => Promise.all([s.job?.done, s.deleting])),
-    )
+    await Promise.all(Array.from(this.slots.values(), s => Promise.all([s.job?.done, s.deleting])))
   }
 
   /* ------------------------------------------------------------------ jobs */
@@ -294,10 +273,7 @@ export class Engine {
     }
   }
 
-  private onPageContext(
-    signal?: AbortSignal,
-    onRetry?: OnPageContext['onRetry'],
-  ): OnPageContext {
+  private onPageContext(signal?: AbortSignal, onRetry?: OnPageContext['onRetry']): OnPageContext {
     return {
       fetch: this.deps.fetch,
       domain: this.init?.api_domain ?? DEFAULT_DOMAIN,

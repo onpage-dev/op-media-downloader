@@ -44,11 +44,30 @@ const lines = computed(() => {
     title: t(`check.${kind}.title`),
     text: t(`check.${kind}.text`),
   })
-  if (!info.exists) result.push({ key: 'missing', tone: 'info', icon: icons.faFolder, title: t('check.missing.title'), text: t('check.missing.text') })
+  if (!info.exists)
+    result.push({
+      key: 'missing',
+      tone: 'info',
+      icon: icons.faFolder,
+      title: t('check.missing.title'),
+      text: t('check.missing.text'),
+    })
   if (info.hardlinks === false)
-    result.push({ key: 'links', tone: 'warning', icon: icons.faLinkSimpleSlash, title: t('check.hardlinks_no.title'), text: t('check.hardlinks_no.text') })
+    result.push({
+      key: 'links',
+      tone: 'warning',
+      icon: icons.faLinkSimpleSlash,
+      title: t('check.hardlinks_no.title'),
+      text: t('check.hardlinks_no.text'),
+    })
   if (info.hardlinks === true)
-    result.push({ key: 'links', tone: 'success', icon: icons.faLink, title: t('check.hardlinks_yes.title'), text: t('check.hardlinks_yes.text') })
+    result.push({
+      key: 'links',
+      tone: 'success',
+      icon: icons.faLink,
+      title: t('check.hardlinks_yes.title'),
+      text: t('check.hardlinks_yes.text'),
+    })
   if (info.free_bytes != null) {
     const needed = props.needed != null ? props.needed * (info.hardlinks === false ? 2 : 1) : undefined
     const short = needed != null && needed > info.free_bytes
@@ -74,7 +93,12 @@ const lines = computed(() => {
 
 <template>
   <ul class="flex flex-col gap-sm">
-    <li v-for="line in lines" :key="line.key" class="flex items-start gap-sm-md rounded-md px-md py-sm" :class="TONE_SOFT[line.tone]">
+    <li
+      v-for="line in lines"
+      :key="line.key"
+      class="flex items-start gap-sm-md rounded-md px-md py-sm"
+      :class="TONE_SOFT[line.tone]"
+    >
       <AppIcon :icon="line.icon" class="mt-[3px]" :class="TONE_FG[line.tone]" />
       <div class="min-w-0" :class="toneText(line.tone)">
         <div class="text-sm font-medium leading-normal">{{ line.title }}</div>

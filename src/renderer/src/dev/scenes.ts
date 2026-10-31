@@ -39,7 +39,8 @@ export async function playScene(): Promise<void> {
   if (get('query')) app.query = get('query')!
   if (get('select')) select(get('select'))
   if (get('tab')) app.tab = get('tab') as InspectorTab
-  if (params.has('wizard')) app.wizard = { folder: get('folder'), step: Number(get('wizard')) || 0, token: get('token') }
+  if (params.has('wizard'))
+    app.wizard = { folder: get('folder'), step: Number(get('wizard')) || 0, token: get('token') }
   if (get('dialog')) ask(get('dialog') as DialogState['kind'])
   if (get('settings')) openSettings(get('settings') as SettingsSection)
   if (params.has('dropping')) app.dropping = true

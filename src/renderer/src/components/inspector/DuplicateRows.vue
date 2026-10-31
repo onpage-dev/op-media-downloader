@@ -14,7 +14,9 @@ import StatusTag from '../ui/StatusTag.vue'
 defineProps<{ groups: DuplicateGroup[] }>()
 const { t } = useI18n()
 const size = (v: DuplicateVariant): string =>
-  [v.width && v.height ? `${v.width}×${v.height}` : '', v.size != null ? formatBytes(v.size) : ''].filter(Boolean).join(' · ')
+  [v.width && v.height ? `${v.width}×${v.height}` : '', v.size != null ? formatBytes(v.size) : '']
+    .filter(Boolean)
+    .join(' · ')
 </script>
 
 <template>
@@ -25,8 +27,17 @@ const size = (v: DuplicateVariant): string =>
       class="flex items-center gap-sm-md border-b border-line px-md py-xs-sm [contain-intrinsic-size:auto_40px] [content-visibility:auto] last:border-b-0"
     >
       <span class="w-[150px] shrink-0 truncate text-sm font-medium">{{ n ? '' : group.name }}</span>
-      <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-box-soft text-secondary">
-        <img v-if="variant.thumb_url" :src="variant.thumb_url" loading="lazy" decoding="async" class="h-full w-full object-cover" alt="" />
+      <span
+        class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-box-soft text-secondary"
+      >
+        <img
+          v-if="variant.thumb_url"
+          :src="variant.thumb_url"
+          loading="lazy"
+          decoding="async"
+          class="h-full w-full object-cover"
+          alt=""
+        />
         <AppIcon v-else :icon="icons.faFileImage" />
       </span>
       <span class="flex min-w-0 flex-1 flex-wrap gap-x-sm text-xs">
@@ -37,7 +48,8 @@ const size = (v: DuplicateVariant): string =>
           class="truncate text-accent-fg hover:underline"
           @click="openOnPage(use.edit_url)"
         >
-          {{ use.resource_label }} › {{ use.field_label }} · {{ use.thing_label }} #{{ use.thing_id }}{{ use.lang ? ` (${use.lang})` : '' }}
+          {{ use.resource_label }} › {{ use.field_label }} · {{ use.thing_label }} #{{ use.thing_id
+          }}{{ use.lang ? ` (${use.lang})` : '' }}
         </button>
       </span>
       <span class="tabular shrink-0 text-xs text-secondary">{{ size(variant) }}</span>

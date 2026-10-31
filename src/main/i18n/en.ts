@@ -11,7 +11,8 @@ export const en: Texts = {
   tray_running: count => (count == 1 ? '1 sync running' : `${count} syncs running`),
   tray_attention: count => (count == 1 ? '1 project needs attention' : `${count} projects need attention`),
   done_title: label => `${label} is up to date`,
-  done_body: (files, duration) => (files == 1 ? `1 file downloaded in ${duration}` : `${files} files downloaded in ${duration}`),
+  done_body: (files, duration) =>
+    files == 1 ? `1 file downloaded in ${duration}` : `${files} files downloaded in ${duration}`,
   done_nothing: 'No new files',
   failed_title: label => `${label}: files not downloaded`,
   failed_body: count =>
@@ -31,7 +32,8 @@ export const en: Texts = {
   quit_title: 'Downloads running',
   quit_message: 'Some downloads are running. Quitting stops them: the files already downloaded stay.',
   deleting_title: 'Deleting files',
-  deleting_message: 'The files of a project are being deleted. Quitting stops the deletion: some files stay in the folder.',
+  deleting_message:
+    'The files of a project are being deleted. Quitting stops the deletion: some files stay in the folder.',
   quit_confirm: 'Stop and quit',
   cancel: 'Cancel',
   ok: 'OK',

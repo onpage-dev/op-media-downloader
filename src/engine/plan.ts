@@ -117,8 +117,7 @@ export function adoptionCandidates(
   for (const file of desired) {
     if (manifest.byKey(file.key)) continue
     const entry = scan.entries.get(file.key)
-    if (entry?.type == 'file')
-      out.push({ key: file.key, name: entry.name, token: file.token })
+    if (entry?.type == 'file') out.push({ key: file.key, name: entry.name, token: file.token })
   }
   return out
 }
@@ -170,12 +169,7 @@ export function buildPlan(input: PlanInput): Plan {
     if (owned) {
       const [owned_name, entry] = owned
       if (!on_disk) {
-        need(
-          file.token,
-          owned_name != file.local_name
-            ? { ...target, replace: owned_name }
-            : target,
-        )
+        need(file.token, owned_name != file.local_name ? { ...target, replace: owned_name } : target)
       } else if (entry.token == file.token) {
         if (sameName(on_disk.name, file.local_name)) up_to_date++
         else
@@ -204,10 +198,7 @@ export function buildPlan(input: PlanInput): Plan {
       stat.name_ino != 0n &&
       stat.name_ino == stat.blob_ino &&
       scan.data_tokens.has(file.token)
-    const same_size =
-      stat?.name_size !== undefined &&
-      file.size !== undefined &&
-      stat.name_size == file.size
+    const same_size = stat?.name_size !== undefined && file.size !== undefined && stat.name_size == file.size
     if (same_file || same_size) {
       adoptions.push({
         name: on_disk.name,
@@ -259,18 +250,11 @@ export function buildPlan(input: PlanInput): Plan {
 
   // Rule 3: the names confirmed go; above the threshold the others wait
   const confirmed = input.confirmed
-  const unconfirmed = confirmed
-    ? remove_names.filter(name => !confirmed.has(name))
-    : remove_names
+  const unconfirmed = confirmed ? remove_names.filter(name => !confirmed.has(name)) : remove_names
   let withheld: string[] = []
-  if (
-    unconfirmed.length > CLEANUP_MIN_NAMES &&
-    unconfirmed.length > CLEANUP_MIN_RATIO * manifest.size
-  ) {
+  if (unconfirmed.length > CLEANUP_MIN_NAMES && unconfirmed.length > CLEANUP_MIN_RATIO * manifest.size) {
     withheld = unconfirmed
-    remove_names = confirmed
-      ? remove_names.filter(name => confirmed.has(name))
-      : []
+    remove_names = confirmed ? remove_names.filter(name => confirmed.has(name)) : []
   }
 
   // Contents nobody needs any more
@@ -281,11 +265,9 @@ export function buildPlan(input: PlanInput): Plan {
     const leaving = new Set([...remove_names, ...drop_entries])
     for (const [name, entry] of manifest.entries()) {
       // Wanted names get the wanted token: their old content is no longer needed
-      if (!leaving.has(name) && !desired_keys.has(nameKey(name)))
-        referenced.add(entry.token)
+      if (!leaving.has(name) && !desired_keys.has(nameKey(name))) referenced.add(entry.token)
     }
-    for (const token of scan.data_tokens)
-      if (!referenced.has(token)) remove_tokens.push(token)
+    for (const token of scan.data_tokens) if (!referenced.has(token)) remove_tokens.push(token)
   }
 
   const download_list = Array.from(downloads.values())
@@ -293,10 +275,7 @@ export function buildPlan(input: PlanInput): Plan {
     remote_names: desired.length,
     remote_bytes: desired.reduce((sum, f) => sum + (f.size ?? 0), 0),
     to_download: download_list.length,
-    to_download_names: download_list.reduce(
-      (sum, t) => sum + t.names.length,
-      0,
-    ),
+    to_download_names: download_list.reduce((sum, t) => sum + t.names.length, 0),
     to_download_bytes: download_list.reduce((sum, t) => sum + (t.size ?? 0), 0),
     to_link: links.length + renames.length,
     // What waits for the user, when something does
@@ -355,10 +334,7 @@ export function onlyNames(plan: Plan, names: ReadonlySet<string>): Plan {
  * After the whole plan ran: nothing is left but the removals held back
  * (what failed is in the failed list, «Riprova i falliti» takes it again)
  */
-export function summaryAfter(
-  plan: Plan,
-  done: { linked: number; downloaded: number; conflicts: number },
-): Summary {
+export function summaryAfter(plan: Plan, done: { linked: number; downloaded: number; conflicts: number }): Summary {
   return {
     ...plan.summary,
     to_download: 0,
@@ -382,8 +358,7 @@ export function summaryLeft(
   manifest: { get(name: string): ManifestEntry | undefined },
   conflicts: number,
 ): Summary {
-  const placed = (name: string, token: string): boolean =>
-    manifest.get(name)?.token == token
+  const placed = (name: string, token: string): boolean => manifest.get(name)?.token == token
   let up_to_date = plan.summary.up_to_date
   let to_download = 0
   let to_download_names = 0
@@ -401,10 +376,7 @@ export function summaryLeft(
       to_link += left
     }
   }
-  for (const { name, token } of [
-    ...plan.links,
-    ...plan.renames.map(r => ({ name: r.to, token: r.token })),
-  ]) {
+  for (const { name, token } of [...plan.links, ...plan.renames.map(r => ({ name: r.to, token: r.token }))]) {
     if (placed(name, token)) up_to_date++
     else to_link++
   }

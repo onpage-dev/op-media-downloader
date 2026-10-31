@@ -27,10 +27,7 @@ export interface DeleteOptions {
 /** Removals at a time: a share answers each one slowly */
 const LANES = 8
 
-export async function deleteProjectFiles(
-  project: EngineProject,
-  options: DeleteOptions,
-): Promise<DeleteFilesResult> {
+export async function deleteProjectFiles(project: EngineProject, options: DeleteOptions): Promise<DeleteFilesResult> {
   const folder = normalize(project.folder)
   const data_dir = path.join(folder, DATA_DIR)
   const result: DeleteFilesResult = {
@@ -54,8 +51,7 @@ export async function deleteProjectFiles(
         // Exactly our name, as the disk gives it back (decomposed on macOS), and a plain file
         const entry = scan.entries.get(nameKey(name))
         if (entry?.type != 'file' || !sameName(entry.name, name)) return
-        if (await removeName(folder, entry.name).catch(() => false))
-          result.removed_files++
+        if (await removeName(folder, entry.name).catch(() => false)) result.removed_files++
       })
       await runQueue(scan.folder_leftovers, LANES, async leftover => {
         await unlinkQuiet(path.join(folder, leftover)).catch(() => undefined)
