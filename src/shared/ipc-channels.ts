@@ -29,6 +29,8 @@ export const INVOKE = {
 
 export const SEND = {
   setSelection: 'app:set-selection',
+  showMainWindow: 'app:show-main-window',
+  quit: 'app:quit',
   windowMinimize: 'window:minimize',
   windowToggleMaximize: 'window:toggle-maximize',
   windowClose: 'window:close',

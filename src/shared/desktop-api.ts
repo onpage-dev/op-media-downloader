@@ -113,6 +113,13 @@ export interface DesktopApi {
     onCommand(listener: (command: AppCommand) => void): Unsubscribe
     /** The renderer tells main which project is selected (tray, menu, shortcuts act on it) */
     setSelection(id: ProjectId | undefined): void
+    /**
+     * From the tray panel: show the main window and pass it a command (select a
+     * project, open the settings)
+     */
+    showMainWindow(command?: AppCommand): void
+    /** From the tray panel: quit, also when the app keeps running in the notification area */
+    quit(): void
     /** Window controls drawn by the app on macOS/Linux when needed */
     window: {
       minimize(): void

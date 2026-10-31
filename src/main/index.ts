@@ -277,6 +277,14 @@ function start(): void {
     applySettings,
     /** Menus, tray and shortcuts send commands the renderer applies to its selection */
     setSelection: () => undefined,
+    showMainWindow: command => {
+      if (command) sendCommand(command)
+      else {
+        tray.hidePanel()
+        showWindow()
+      }
+    },
+    quit: () => app.quit(),
   })
 
   setupMenu(store.settings.language, sendCommand)

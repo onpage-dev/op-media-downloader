@@ -3,7 +3,14 @@
  * renderer is checked before use.
  */
 import { BrowserWindow, clipboard, dialog, ipcMain, IpcMainEvent, IpcMainInvokeEvent, shell } from 'electron'
-import { DeleteProjectOptions, NewProjectInput, ProjectPatch } from '../shared/desktop-api'
+import {
+  AppCommand,
+  DeleteProjectOptions,
+  InspectorTab,
+  NewProjectInput,
+  ProjectPatch,
+  SettingsSection,
+} from '../shared/desktop-api'
 import { INVOKE, SEND } from '../shared/ipc-channels'
 import { AppLanguage, AppSettings, AppStatus, ProjectId, ThemeSetting } from '../shared/models'
 import { ProjectService } from './projects'
@@ -16,6 +23,8 @@ export interface IpcDeps {
   status: () => AppStatus
   applySettings: (next: AppSettings, previous: AppSettings) => void
   setSelection: (id: ProjectId | undefined) => void
+  showMainWindow: (command?: AppCommand) => void
+  quit: () => void
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -87,6 +96,8 @@ export function registerIpc(deps: IpcDeps): void {
     ipcMain.on(channel, listener)
   }
   on(SEND.setSelection, (_e, id) => deps.setSelection(typeof id == 'string' ? id : undefined))
+  on(SEND.showMainWindow, (_e, command) => deps.showMainWindow(appCommand(command)))
+  on(SEND.quit, () => deps.quit())
   on(SEND.windowMinimize, event => BrowserWindow.fromWebContents(event.sender)?.minimize())
   on(SEND.windowToggleMaximize, event => {
     const window = BrowserWindow.fromWebContents(event.sender)
@@ -127,6 +138,44 @@ function projectPatch(patch: ProjectPatch): ProjectPatch {
     folder: optionalText(patch.folder),
     keep_old_files: typeof patch.keep_old_files == 'boolean' ? patch.keep_old_files : undefined,
   }
+}
+
+const SIMPLE_COMMANDS: AppCommand['type'][] = [
+  'sync_selected',
+  'sync_all',
+  'download_selected',
+  'stop_selected',
+  'open_folder_selected',
+  'edit_selected',
+  'delete_selected',
+  'focus_search',
+]
+const TABS: InspectorTab[] = ['general', 'activity', 'failed', 'duplicates', 'settings']
+const SECTIONS: SettingsSection[] = ['general', 'download', 'appearance', 'language', 'updates']
+
+/** Only well-formed commands reach the main window */
+function appCommand(value: unknown): AppCommand | undefined {
+  if (!value || typeof value != 'object') return undefined
+  const command = value as Record<string, unknown>
+  switch (command.type) {
+    case 'new_project':
+      return { type: 'new_project', folder: typeof command.folder == 'string' ? command.folder : undefined }
+    case 'select_project':
+      if (typeof command.project_id != 'string') return undefined
+      return {
+        type: 'select_project',
+        project_id: command.project_id,
+        tab: TABS.includes(command.tab as InspectorTab) ? (command.tab as InspectorTab) : undefined,
+      }
+    case 'open_settings':
+      return {
+        type: 'open_settings',
+        section: SECTIONS.includes(command.section as SettingsSection) ? (command.section as SettingsSection) : undefined,
+      }
+  }
+  return SIMPLE_COMMANDS.includes(command.type as AppCommand['type'])
+    ? ({ type: command.type } as AppCommand)
+    : undefined
 }
 
 const THEMES: ThemeSetting[] = ['system', 'light', 'dark']

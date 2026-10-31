@@ -72,6 +72,8 @@ const desktop: DesktopApi = {
     copyText: text => ipcRenderer.invoke(INVOKE.appCopyText, text),
     onCommand: listener => listen(EVENTS.appCommand, listener),
     setSelection: id => ipcRenderer.send(SEND.setSelection, id),
+    showMainWindow: command => ipcRenderer.send(SEND.showMainWindow, command),
+    quit: () => ipcRenderer.send(SEND.quit),
     window: {
       minimize: () => ipcRenderer.send(SEND.windowMinimize),
       toggleMaximize: () => ipcRenderer.send(SEND.windowToggleMaximize),
