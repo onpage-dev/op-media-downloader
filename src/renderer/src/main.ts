@@ -1,25 +1,29 @@
-import { createApp, ref } from 'vue'
-import '../styles/1-before.css'
-import '../styles/2-app.scss'
-import '../styles/3-after.css'
+/**
+ * The renderer: the main window, or the tray panel at `#/tray`, or the
+ * settings alone at `#/settings`. In development without the preload (the
+ * renderer alone in a browser) a stand-in API with the projects of the mockup
+ * takes its place; it never reaches a production build.
+ */
+import { config } from '@fortawesome/fontawesome-svg-core'
+import '@fortawesome/fontawesome-svg-core/styles.css'
+import { createApp, type Component } from 'vue'
+import { i18n } from './i18n'
+import { vTooltip } from './lib/tooltip'
+import './styles/app.scss'
 
-import App from './App.vue'
-const app = createApp(App)
+config.autoAddCss = false
 
-import locale from '../boot/locale'
-import opComponents from '../boot/op-components'
-app.use(locale)
-app.use(opComponents)
+async function start(): Promise<void> {
+  const alone = import.meta.env.DEV && !window.desktop
+  if (alone) (await import('./dev/fake-desktop')).installFakeDesktop()
+  const route = location.hash
+  const root: Component = route.startsWith('#/tray')
+    ? (await import('./TrayView.vue')).default
+    : route.startsWith('#/settings')
+      ? (await import('./SettingsView.vue')).default
+      : (await import('./MainWindow.vue')).default
+  createApp(root).use(i18n).directive('tooltip', vTooltip).mount('#app')
+  if (alone) (await import('./dev/scenes')).playScene()
+}
 
-import VTooltip from 'floating-vue'
-app.use(VTooltip, {
-  defaultBoundariesElement: 'window',
-})
-
-window.version_info = ref(undefined)
-window.electron.ipcRenderer.send('get-version-info')
-window.electron.ipcRenderer.on('update-version-info', (_event, data) => {
-  window.version_info.value = data
-})
-
-app.mount('#app')
+void start()

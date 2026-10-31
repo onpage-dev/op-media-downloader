@@ -1,87 +1,96 @@
-const colors = getColors()
+/**
+ * The renderer's tokens: the default theme's roles of the On Page design system
+ * as CSS variables (light and dark in src/renderer/src/styles/app.css), the
+ * spacing scale, the type scale and the radii.
+ */
+const role = name => `rgb(var(--c-${name}) / <alpha-value>)`
 
-function getColors() {
-  const res = {}
-  ;[
-    'accent',
-    'wallpaper',
-    'darkerwallpaper',
-    'darkwallpaper',
-    'darkerdarkwallpaper',
-    'box',
-    'dbox',
-
-    'white',
-    'light',
-    'grey',
-    'darker',
-    'dark',
-    'black',
-
-    'brand',
-    'info',
-    'success',
-    'warning',
-    'danger',
-
-    'yellow',
-    'blue',
-    'red',
-    'orange',
-    'pink',
-    'green',
-
-    'inherit',
-  ].forEach(name => {
-    if (!res[name]) res[name] = {}
-
-    res[name].DEFAULT = x => generateColor(`${name}`, x)
-    res[name].inv = x => generateColor(`${name}-inv`, x)
-
-    for (let i = 0; i <= 10; i++) {
-      res[name][i] = x => generateColor(`${name}-${i}`, x)
-    }
-  })
-  return res
-}
-function generateColor(name, { opacityVariable, opacityValue }) {
-  if (opacityValue !== undefined) {
-    return `rgba(var(--color-${name}), ${opacityValue})`
-  }
-  if (opacityVariable !== undefined) {
-    return `rgba(var(--color-${name}), var(${opacityVariable}, 1))`
-  }
-  return `rgb(var(--color-${name}))`
-}
+const roles = [
+  'text',
+  'secondary',
+  'disabled',
+  'placeholder',
+  'mica',
+  'box',
+  'box-soft',
+  'line',
+  'wallpaper',
+  'accent',
+  'accent-hover',
+  'accent-fg',
+  'accent-soft',
+  'accent-inv',
+  'accent-off',
+  'success',
+  'success-fg',
+  'success-soft',
+  'info',
+  'info-fg',
+  'info-soft',
+  'warning',
+  'warning-fg',
+  'warning-soft',
+  'warning-inv',
+  'danger',
+  'danger-fg',
+  'danger-soft',
+  'danger-inv',
+  'neutral',
+  'neutral-fg',
+  'neutral-soft',
+  'toggle-off',
+  'toggle-on',
+  'knob',
+  'knob-on',
+]
 
 module.exports = {
-  content: [
-    './src/renderer/misc/classes-to-keep.txt',
-    './src/renderer/**/*.vue',
-    './src/renderer/**/*.html',
-  ],
-  darkMode: 'class',
+  content: ['./src/renderer/index.html', './src/renderer/src/**/*.{vue,ts}'],
   theme: {
-    screens: {
-      sm: '640px',
-      md: '768px',
-      lg: '1024px',
-      xl: '1280px',
-      '2xl': '1536px',
+    colors: {
+      transparent: 'transparent',
+      current: 'currentColor',
+      ...Object.fromEntries(roles.map(name => [name, role(name)])),
     },
-    colors,
+    fontFamily: {
+      sans: ['Manrope', 'system-ui', 'sans-serif'],
+      title: ['Rethink Sans', 'Manrope', 'system-ui', 'sans-serif'],
+      mono: ['ui-monospace', 'Cascadia Mono', 'Menlo', 'monospace'],
+    },
+    fontSize: {
+      '2xs': ['10px', '12px'],
+      xs: ['12px', '1.2'],
+      sm: ['14px', '1.2'],
+      base: ['14px', '1.5'],
+      lg: ['17px', '1.5'],
+      xl: ['20px', '1.2'],
+      '2xl': ['24px', '1.2'],
+      '3xl': ['29px', '1.2'],
+    },
+    borderRadius: {
+      none: '0',
+      sm: '4px',
+      md: '8px',
+      xl: '12px',
+      '2xl': '20px',
+      full: '9999px',
+    },
     extend: {
-      fontFamily: {
-        mono: ['FiraCode'],
-        sans: ['neue', 'ui-sans-serif', 'system-ui'],
-        serif: ['neue', 'ui-serif', 'Georgia'],
-      },
+      /** The design system's spacing scale, next to Tailwind's numeric one */
       spacing: {
-        md: '43rem',
-        'unit-double': '1.2rem',
-        unit: '.6rem',
-        'unit-half': '.3rem',
-        18: '4.5rem',
+        '2xs': '2px',
+        xs: '4px',
+        sm: '8px',
+        md: '12px',
+        lg: '16px',
+        xl: '24px',
+        '2xl': '32px',
+        '3xl': '40px',
+      },
+      boxShadow: {
+        popover: '0 3px 8px rgb(0 0 0 / 0.12)',
+        window: '0 8px 24px rgb(0 0 0 / 0.18)',
+        halo: '0 0 0 3px rgb(var(--c-accent-soft))',
       },
     },
   },

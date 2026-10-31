@@ -1,0 +1,482 @@
+{
+  "app": {
+    "name": "On Page Media Downloader",
+    "short": "Media Downloader"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "retry": "Retry"
+  },
+  "toolbar": {
+    "new": "New project",
+    "sync": "Sync",
+    "download": "Download",
+    "stop": "Stop",
+    "sync_all": "Sync all",
+    "open": "Open folder",
+    "edit": "Edit",
+    "delete": "Delete",
+    "settings": "Settings",
+    "search": "Search projects..."
+  },
+  "filters": {
+    "state": "Status",
+    "destinations": "Destinations",
+    "all": "All",
+    "running": "Running",
+    "todo": "To download",
+    "errors": "With errors",
+    "done": "Up to date",
+    "never": "Never synced",
+    "local": "Local",
+    "network": "Network",
+    "removable": "External drives"
+  },
+  "table": {
+    "status": "Status",
+    "project": "Project",
+    "destination": "Destination",
+    "progress": "Progress",
+    "files": "Files",
+    "speed": "Speed",
+    "last": "Synced",
+    "never": "never",
+    "no_results": "No project matches these filters",
+    "show_all": "Show all"
+  },
+  "kind": {
+    "local": "Local folder",
+    "network": "Network folder",
+    "removable": "External drive",
+    "unknown": "Folder"
+  },
+  "group": {
+    "done": "Up to date",
+    "todo": "To download",
+    "running": "Running",
+    "stopping": "Stopping",
+    "warning": "Attention",
+    "error": "Error",
+    "never": "Never synced",
+    "offline": "Offline"
+  },
+  "status": {
+    "done": "Up to date",
+    "todo": "1 file to download | {count} files to download",
+    "listing": "Reading from On Page…",
+    "listing_progress": "Reading from On Page: {done} of {total}",
+    "comparing": "Comparing…",
+    "downloading": "Downloading",
+    "finishing": "Links and cleanup…",
+    "stopping": "Stopping…",
+    "warning_failed": "1 file not downloaded | {count} files not downloaded",
+    "warning_duplicates": "1 name with different files | {count} names with different files",
+    "warning_conflicts": "1 name used by another file | {count} names used by other files",
+    "warning_copies": "Copies instead of links",
+    "warning_cleanup": "{count} files to remove: needs a confirmation",
+    "warning_interrupted": "Sync interrupted",
+    "error_token": "Invalid token",
+    "error_folder": "Folder unreachable",
+    "error_locked": "Folder in use by another computer",
+    "error_disk": "Disk full",
+    "error_listing": "File list not read",
+    "offline": "Waiting for the network",
+    "never": "Never synced"
+  },
+  "menu": {
+    "sync_now": "Sync now",
+    "download": "Download",
+    "stop": "Stop",
+    "open": "Open folder",
+    "copy_path": "Copy path",
+    "edit": "Edit…",
+    "delete": "Delete…"
+  },
+  "tabs": {
+    "general": "General",
+    "activity": "Activity",
+    "failed": "Failed",
+    "duplicates": "Duplicates",
+    "settings": "Settings"
+  },
+  "general": {
+    "onpage": "On Page project",
+    "remote": "{files} files · {size}",
+    "remote_unknown": "Files are counted at the first sync",
+    "to": "downloads to",
+    "free": "{free} free",
+    "hardlinks_yes": "hard links: yes",
+    "hardlinks_no": "hard links: no",
+    "hardlinks_unknown": "hard links: to be tested",
+    "double_space": "Every file takes twice the space",
+    "downloaded": "Downloaded",
+    "present": "Already there",
+    "failed": "Failed",
+    "total": "Total",
+    "size": "On On Page",
+    "speed": "Speed",
+    "running": "Started at {time} · step {step} of 4, {phase} · {eta} · {concurrency} files at a time",
+    "running_short": "Started at {time} · step {step} of 4, {phase}",
+    "last": "Last sync: {when}, {result}",
+    "never": "Not synced yet",
+    "phase": {
+      "idle": "idle",
+      "preparing": "preparing",
+      "listing": "reading from On Page",
+      "comparing": "comparing with the folder",
+      "downloading": "downloading",
+      "finishing": "links and cleanup",
+      "stopping": "stopping"
+    },
+    "outcome": {
+      "completed": "completed",
+      "stopped": "stopped",
+      "failed": "failed"
+    },
+    "stopping": "Started at {time} · stopping"
+  },
+  "issue": {
+    "token_invalid": {
+      "title": "Invalid token",
+      "text": "On Page does not accept the token: it may have been revoked. Paste a new one in the project settings."
+    },
+    "project_unavailable": {
+      "title": "Project unavailable",
+      "text": "On Page does not answer for this project. Try again in a while."
+    },
+    "listing_failed": {
+      "title": "File list not read",
+      "text": "Reading from On Page stopped: no file was removed from the folder."
+    },
+    "rate_limited": {
+      "title": "On Page asks to slow down",
+      "text": "The sync goes on by itself."
+    },
+    "folder_unreachable": {
+      "title": "Folder unreachable",
+      "text": "{folder} does not answer: check the network or the drive."
+    },
+    "folder_not_writable": {
+      "title": "Folder not writable",
+      "text": "The app cannot create files in {folder}."
+    },
+    "folder_protected": {
+      "title": "Protected folder",
+      "text": "Pick a dedicated folder: drive roots, the user folder and system folders are not used."
+    },
+    "folder_locked": {
+      "title": "Folder in use",
+      "text": "Another computer is syncing this folder. {detail}"
+    },
+    "disk_full": {
+      "title": "Disk full",
+      "text": "Free some space and try again: the files already downloaded stay."
+    },
+    "offline": {
+      "title": "You are offline",
+      "text": "The sync starts again when the network is back."
+    },
+    "duplicates": {
+      "title": "1 name with different files | {count} names with different files",
+      "text": "For each name the first file found is downloaded."
+    },
+    "failed_files": {
+      "title": "1 file not downloaded | {count} files not downloaded",
+      "text": "They can be retried: the other files are fine."
+    },
+    "copies_instead_of_links": {
+      "title": "The folder copies instead of linking",
+      "text": "Hard links do not work here: every file takes twice the space."
+    },
+    "name_conflicts": {
+      "title": "1 name already used | {count} names already used",
+      "text": "The folder has files with the same name that the app did not create: they stay where they are and those files are not downloaded."
+    },
+    "cleanup_needs_confirmation": {
+      "title": "{count} files to remove",
+      "text": "They are no longer on On Page and they are many: the app waits for your confirmation."
+    },
+    "interrupted": {
+      "title": "Sync interrupted",
+      "text": "The last sync did not reach the end: it needs to run again."
+    },
+    "action": {
+      "retry": "Retry",
+      "sync": "Sync",
+      "change_token": "Change token",
+      "change_folder": "Change folder",
+      "retry_failed": "Retry failed",
+      "see": "See",
+      "see_duplicates": "See duplicates",
+      "confirm": "Confirm"
+    }
+  },
+  "activity": {
+    "time": "Time",
+    "file": "File",
+    "size": "Size",
+    "outcome": "Result",
+    "same_as": "same file as {name}",
+    "empty": "No recent activity",
+    "result": {
+      "downloading": "Running",
+      "downloaded": "Downloaded",
+      "linked": "Linked",
+      "removed": "Removed",
+      "failed": "Failed",
+      "conflict": "Conflict"
+    },
+    "removed_why": "no longer on On Page"
+  },
+  "failed": {
+    "summary": "1 file not downloaded in the last sync | {count} files not downloaded in the last sync",
+    "retry_all": "Retry all",
+    "attempts": "1 attempt | {count} attempts",
+    "empty": "No failed files",
+    "summary_running": "1 file not downloaded in this sync | {count} files not downloaded in this sync"
+  },
+  "reason": {
+    "not_found": "no longer on On Page (404)",
+    "http_error": "On Page answered with an error",
+    "rate_limited": "On Page asked to slow down",
+    "network": "the connection dropped",
+    "timeout": "no answer in time",
+    "size_mismatch": "the file arrived incomplete",
+    "disk_full": "disk full",
+    "write_error": "the folder does not accept the file",
+    "link_error": "link failed",
+    "invalid_name": "the name is not valid on Windows",
+    "name_conflict": "another file already has this name",
+    "aborted": "stopped"
+  },
+  "duplicates": {
+    "rule": "Only the first file of each name is downloaded: rename the others on On Page to get them all.",
+    "variants": "{count} different files",
+    "chosen": "Downloaded",
+    "skipped": "Not downloaded",
+    "empty": "No name with different files",
+    "refresh": "Sync again"
+  },
+  "project": {
+    "name": "Name",
+    "token": "API token",
+    "folder": "Folder",
+    "keep": "Keep old local files that are no longer on On Page",
+    "keep_note": "Files removed from On Page stay in the folder.",
+    "token_note": "The token decides what is downloaded: its View filters apply too.",
+    "show": "Show",
+    "hide": "Hide",
+    "verify": "Verify",
+    "change_folder": "Change…",
+    "copies_network": "Network: files are copied",
+    "copies": "Files are copied"
+  },
+  "status_bar": {
+    "online": "Connected",
+    "offline": "Offline",
+    "running": "{count} running",
+    "files": "{count} files",
+    "empty": "No projects",
+    "update": "Update available: {version}"
+  },
+  "empty": {
+    "title": "Add the first project",
+    "text": "Drop here the folder to download the files into, or start from the API token.",
+    "drop_title": "Drop the folder to create a project",
+    "drop_text": "The folder becomes the destination; then the token and the name are needed.",
+    "drop_on_table": "Drop to create a project"
+  },
+  "wizard": {
+    "title": "New project",
+    "step": {
+      "token": "Token",
+      "folder": "Folder",
+      "options": "Options"
+    },
+    "token_placeholder": "Paste the project's token",
+    "checking": "Checking the token…",
+    "ok_title": "Project «{label}»",
+    "ok_text": "1 collection has files | {count} collections have files",
+    "langs": "languages: {langs}",
+    "error": {
+      "token_invalid": {
+        "title": "Invalid token",
+        "text": "Check it on On Page, in the project's API settings."
+      },
+      "offline": {
+        "title": "You are offline",
+        "text": "The token is checked when the network is back."
+      },
+      "project_unavailable": {
+        "title": "Project unavailable",
+        "text": "On Page does not answer for this project: try again in a while."
+      }
+    },
+    "folder_placeholder": "No folder chosen",
+    "pick": "Choose folder",
+    "inspecting": "Checking the folder…",
+    "name_note": "From the On Page project: it can be changed.",
+    "sync_now": "Sync right after creating it",
+    "back": "Back",
+    "next": "Next",
+    "create": "Create project"
+  },
+  "check": {
+    "network": {
+      "title": "Network folder",
+      "text": "Reachable from this computer; the sync depends on the network."
+    },
+    "removable": {
+      "title": "External drive",
+      "text": "The project syncs when the drive is connected."
+    },
+    "local": {
+      "title": "Local folder",
+      "text": "On this computer's disk."
+    },
+    "missing": {
+      "title": "The folder does not exist yet",
+      "text": "It is created at the first sync."
+    },
+    "hardlinks_no": {
+      "title": "Hard links not supported",
+      "text": "Every file is copied and takes twice the space."
+    },
+    "hardlinks_yes": {
+      "title": "Hard links supported",
+      "text": "A file used with more names takes space once."
+    },
+    "free": {
+      "title": "Free space: {free}",
+      "text": "About {needed} are needed.",
+      "text_unknown": "The space needed is known at the first sync."
+    },
+    "foreign": {
+      "title": "The folder is not empty",
+      "text": "There is already 1 item: it stays where it is, the app only removes the files it downloads. | There are already {count} items: they stay where they are, the app only removes the files it downloads."
+    },
+    "unreachable": {
+      "title": "Folder unreachable",
+      "text": "Check the network or the drive."
+    },
+    "not_writable": {
+      "title": "Folder not writable",
+      "text": "The app cannot create files here."
+    },
+    "protected": {
+      "title": "Protected folder",
+      "text": "Drive roots, the user folder and system folders cannot be used."
+    },
+    "used_by_other_project": {
+      "title": "Folder already used",
+      "text": "The project «{detail}» already downloads here or in a folder nearby."
+    },
+    "locked": {
+      "title": "Folder in use",
+      "text": "{detail} is syncing it."
+    },
+    "foreign_data": {
+      "title": "There is already a «data» folder the app did not create",
+      "text": "The app never uses, empties or deletes it: choose another folder."
+    }
+  },
+  "delete": {
+    "title": "Delete the project?",
+    "text": "«{label}» leaves the list.",
+    "files": "Also delete the downloaded files",
+    "removes": "1 file downloaded by the app and its «data» folder | {count} files downloaded by the app and its «data» folder",
+    "removes_unknown": "The files downloaded by the app and its «data» folder",
+    "keeps": "1 item that does not come from On Page stays; the folder {folder} stays | {count} items that do not come from On Page stay; the folder {folder} stays",
+    "keeps_none": "The folder {folder} goes if it is left empty",
+    "keeps_all": "The files stay in the folder.",
+    "removes_size": "1 file downloaded by the app ({size}) and its «data» folder | {count} files downloaded by the app ({size}) and its «data» folder"
+  },
+  "stop": {
+    "title": "Stop the sync?",
+    "text": "The files of «{label}» already downloaded stay in the folder.",
+    "title_download": "Stop the download?"
+  },
+  "cleanup": {
+    "title": "Remove {count} files?",
+    "text": "They are no longer on On Page. The app only removes the files it downloaded: the others stay.",
+    "confirm": "Remove the files"
+  },
+  "settings": {
+    "title": "Settings",
+    "section": {
+      "general": "General",
+      "download": "Downloads",
+      "appearance": "Appearance",
+      "language": "Language",
+      "updates": "Updates"
+    },
+    "open_at_login": {
+      "title": "Start with the system",
+      "text": "The app starts with the system, in the notification area.",
+      "text_win32": "The app starts with Windows, in the notification area.",
+      "text_darwin": "The app starts with macOS, in the menu bar."
+    },
+    "close_to_tray": {
+      "title": "Icon in the notification area",
+      "text": "Closing the window the app stays there and keeps syncing.",
+      "title_darwin": "Icon in the menu bar"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "text": "At the end of a sync, for failed files and errors."
+    },
+    "concurrency": {
+      "title": "Parallel downloads",
+      "text": "How many files to download at once, 1 to 10."
+    },
+    "auto_retry": {
+      "title": "Retry failed files by itself",
+      "text": "Once, after a minute, the files not downloaded because of the network."
+    },
+    "theme": {
+      "title": "Theme",
+      "text": "«System» follows the operating system's theme.",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "text_win32": "«System» follows the Windows theme.",
+      "text_darwin": "«System» follows the macOS appearance."
+    },
+    "language": {
+      "title": "App language",
+      "text": "Italiano or English.",
+      "it": "Italiano",
+      "en": "English"
+    },
+    "updates": {
+      "version": "Version {version}",
+      "available": "Version {version} is available.",
+      "latest": "This is the latest version.",
+      "download": "Download {version}",
+      "check": "Check now",
+      "check_updates": {
+        "title": "Check for updates",
+        "text": "At start-up, on GitHub."
+      }
+    }
+  },
+  "tray": {
+    "running": "{count} running · {speed}",
+    "idle": "All in order",
+    "empty": "No projects",
+    "open": "Open",
+    "quit": "Quit",
+    "comparing": "Comparing with the folder…"
+  },
+  "time": {
+    "now": "now",
+    "minutes_ago": "{n} min ago",
+    "today": "today, {time}",
+    "yesterday": "yesterday, {time}",
+    "less_than_minute": "less than a minute",
+    "about_minutes": "about a minute | about {n} minutes",
+    "about_hours": "about {h} h {m} min"
+  }
+}

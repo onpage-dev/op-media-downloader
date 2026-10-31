@@ -1,0 +1,482 @@
+{
+  "app": {
+    "name": "On Page Media Downloader",
+    "short": "Media Downloader"
+  },
+  "common": {
+    "cancel": "Annulla",
+    "close": "Chiudi",
+    "save": "Salva",
+    "retry": "Riprova"
+  },
+  "toolbar": {
+    "new": "Nuovo progetto",
+    "sync": "Sincronizza",
+    "download": "Scarica",
+    "stop": "Interrompi",
+    "sync_all": "Sincronizza tutto",
+    "open": "Apri cartella",
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "settings": "Impostazioni",
+    "search": "Cerca progetti..."
+  },
+  "filters": {
+    "state": "Stato",
+    "destinations": "Destinazioni",
+    "all": "Tutti",
+    "running": "In corso",
+    "todo": "Da scaricare",
+    "errors": "Con errori",
+    "done": "Aggiornati",
+    "never": "Mai sincronizzati",
+    "local": "Locali",
+    "network": "Di rete",
+    "removable": "Dischi esterni"
+  },
+  "table": {
+    "status": "Stato",
+    "project": "Progetto",
+    "destination": "Destinazione",
+    "progress": "Avanzamento",
+    "files": "File",
+    "speed": "Velocità",
+    "last": "Sincronizzato",
+    "never": "mai",
+    "no_results": "Nessun progetto con questi filtri",
+    "show_all": "Mostra tutti"
+  },
+  "kind": {
+    "local": "Cartella locale",
+    "network": "Cartella di rete",
+    "removable": "Disco esterno",
+    "unknown": "Cartella"
+  },
+  "group": {
+    "done": "Aggiornato",
+    "todo": "Da scaricare",
+    "running": "In corso",
+    "stopping": "Interruzione",
+    "warning": "Attenzione",
+    "error": "Errore",
+    "never": "Mai sincronizzato",
+    "offline": "Offline"
+  },
+  "status": {
+    "done": "Aggiornato",
+    "todo": "{count} file da scaricare",
+    "listing": "Lettura da On Page…",
+    "listing_progress": "Lettura da On Page: {done} di {total}",
+    "comparing": "Confronto in corso…",
+    "downloading": "Scaricamento",
+    "finishing": "Collegamenti e pulizia…",
+    "stopping": "Interruzione…",
+    "warning_failed": "1 file non scaricato | {count} file non scaricati",
+    "warning_duplicates": "1 nome con file diversi | {count} nomi con file diversi",
+    "warning_conflicts": "1 nome già usato da un altro file | {count} nomi già usati da altri file",
+    "warning_copies": "Copia invece di collegare",
+    "warning_cleanup": "{count} file da togliere: serve una conferma",
+    "warning_interrupted": "Sincronizzazione interrotta",
+    "error_token": "Token non valido",
+    "error_folder": "Cartella non raggiungibile",
+    "error_locked": "Cartella in uso da un altro computer",
+    "error_disk": "Disco pieno",
+    "error_listing": "Elenco dei file non letto",
+    "offline": "In attesa della rete",
+    "never": "Mai sincronizzato"
+  },
+  "menu": {
+    "sync_now": "Sincronizza ora",
+    "download": "Scarica",
+    "stop": "Interrompi",
+    "open": "Apri cartella",
+    "copy_path": "Copia percorso",
+    "edit": "Modifica…",
+    "delete": "Elimina…"
+  },
+  "tabs": {
+    "general": "Generale",
+    "activity": "Attività",
+    "failed": "Falliti",
+    "duplicates": "Duplicati",
+    "settings": "Impostazioni"
+  },
+  "general": {
+    "onpage": "Progetto On Page",
+    "remote": "{files} file · {size}",
+    "remote_unknown": "I file si contano alla prima sincronizzazione",
+    "to": "scarica in",
+    "free": "{free} liberi",
+    "hardlinks_yes": "collegamenti fisici: sì",
+    "hardlinks_no": "collegamenti fisici: no",
+    "hardlinks_unknown": "collegamenti fisici: da provare",
+    "double_space": "Ogni file occupa il doppio",
+    "downloaded": "Scaricati",
+    "present": "Già presenti",
+    "failed": "Falliti",
+    "total": "Totali",
+    "size": "Su On Page",
+    "speed": "Velocità",
+    "running": "Iniziata alle {time} · fase {step} di 4, {phase} · {eta} · {concurrency} file alla volta",
+    "running_short": "Iniziata alle {time} · fase {step} di 4, {phase}",
+    "last": "Ultima sincronizzazione: {when}, {result}",
+    "never": "Non è ancora stato sincronizzato",
+    "phase": {
+      "idle": "ferma",
+      "preparing": "preparazione",
+      "listing": "lettura da On Page",
+      "comparing": "confronto con la cartella",
+      "downloading": "scaricamento",
+      "finishing": "collegamenti e pulizia",
+      "stopping": "interruzione"
+    },
+    "outcome": {
+      "completed": "completata",
+      "stopped": "interrotta",
+      "failed": "non riuscita"
+    },
+    "stopping": "Iniziata alle {time} · interruzione in corso"
+  },
+  "issue": {
+    "token_invalid": {
+      "title": "Token non valido",
+      "text": "On Page non accetta il token: forse è stato revocato. Incollane uno nuovo nelle impostazioni del progetto."
+    },
+    "project_unavailable": {
+      "title": "Progetto non disponibile",
+      "text": "On Page non risponde per questo progetto. Riprova tra poco."
+    },
+    "listing_failed": {
+      "title": "Elenco dei file non letto",
+      "text": "La lettura da On Page si è interrotta: nessun file è stato tolto dalla cartella."
+    },
+    "rate_limited": {
+      "title": "On Page chiede di rallentare",
+      "text": "La sincronizzazione riprende da sola."
+    },
+    "folder_unreachable": {
+      "title": "Cartella non raggiungibile",
+      "text": "{folder} non risponde: controlla la rete o il disco."
+    },
+    "folder_not_writable": {
+      "title": "Cartella non scrivibile",
+      "text": "L’app non può creare file in {folder}."
+    },
+    "folder_protected": {
+      "title": "Cartella protetta",
+      "text": "Scegli una cartella dedicata: le radici dei dischi, la cartella utente e quelle di sistema non si usano."
+    },
+    "folder_locked": {
+      "title": "Cartella in uso",
+      "text": "Un altro computer sta sincronizzando questa cartella. {detail}"
+    },
+    "disk_full": {
+      "title": "Disco pieno",
+      "text": "Libera spazio e riprova: i file già scaricati restano."
+    },
+    "offline": {
+      "title": "Sei offline",
+      "text": "La sincronizzazione riparte quando torna la rete."
+    },
+    "duplicates": {
+      "title": "1 nome con file diversi | {count} nomi con file diversi",
+      "text": "Per ogni nome si scarica il primo file trovato."
+    },
+    "failed_files": {
+      "title": "1 file non scaricato | {count} file non scaricati",
+      "text": "Si possono riprovare: gli altri file sono a posto."
+    },
+    "copies_instead_of_links": {
+      "title": "La cartella copia invece di collegare",
+      "text": "Qui i collegamenti fisici non funzionano: ogni file occupa il doppio dello spazio."
+    },
+    "name_conflicts": {
+      "title": "1 nome già usato | {count} nomi già usati",
+      "text": "Nella cartella ci sono file con lo stesso nome che non vengono dall’app: restano dove sono e quei file non si scaricano."
+    },
+    "cleanup_needs_confirmation": {
+      "title": "{count} file da togliere",
+      "text": "Su On Page non ci sono più e sono tanti: l’app aspetta che confermi."
+    },
+    "interrupted": {
+      "title": "Sincronizzazione interrotta",
+      "text": "L’ultima sincronizzazione non è arrivata alla fine: va rifatta."
+    },
+    "action": {
+      "retry": "Riprova",
+      "sync": "Sincronizza",
+      "change_token": "Cambia token",
+      "change_folder": "Cambia cartella",
+      "retry_failed": "Riprova i falliti",
+      "see": "Vedi",
+      "see_duplicates": "Vedi i duplicati",
+      "confirm": "Conferma"
+    }
+  },
+  "activity": {
+    "time": "Ora",
+    "file": "File",
+    "size": "Dimensione",
+    "outcome": "Esito",
+    "same_as": "stesso file di {name}",
+    "empty": "Nessuna attività recente",
+    "result": {
+      "downloading": "In corso",
+      "downloaded": "Scaricato",
+      "linked": "Ricollegato",
+      "removed": "Rimosso",
+      "failed": "Fallito",
+      "conflict": "Conflitto"
+    },
+    "removed_why": "non è più su On Page"
+  },
+  "failed": {
+    "summary": "1 file non scaricato nell'ultima sincronizzazione | {count} file non scaricati nell'ultima sincronizzazione",
+    "retry_all": "Riprova tutti",
+    "attempts": "1 tentativo | {count} tentativi",
+    "empty": "Nessun file fallito",
+    "summary_running": "1 file non scaricato in questa sincronizzazione | {count} file non scaricati in questa sincronizzazione"
+  },
+  "reason": {
+    "not_found": "non è più su On Page (404)",
+    "http_error": "On Page ha risposto con un errore",
+    "rate_limited": "On Page ha chiesto di rallentare",
+    "network": "la connessione si è interrotta",
+    "timeout": "nessuna risposta in tempo",
+    "size_mismatch": "il file arrivato è incompleto",
+    "disk_full": "disco pieno",
+    "write_error": "la cartella non accetta il file",
+    "link_error": "collegamento non riuscito",
+    "invalid_name": "il nome non è valido su Windows",
+    "name_conflict": "un altro file ha già questo nome",
+    "aborted": "interrotto"
+  },
+  "duplicates": {
+    "rule": "Per ogni nome si scarica solo il primo file: rinomina gli altri su On Page per averli tutti.",
+    "variants": "{count} file diversi",
+    "chosen": "Scaricato",
+    "skipped": "Non scaricato",
+    "empty": "Nessun nome con file diversi",
+    "refresh": "Sincronizza di nuovo"
+  },
+  "project": {
+    "name": "Nome",
+    "token": "Token API",
+    "folder": "Cartella",
+    "keep": "Mantieni i vecchi file locali non più presenti su On Page",
+    "keep_note": "I file tolti da On Page restano nella cartella.",
+    "token_note": "Il token decide cosa si scarica: valgono anche i filtri della sua vista.",
+    "show": "Mostra",
+    "hide": "Nascondi",
+    "verify": "Verifica",
+    "change_folder": "Cambia…",
+    "copies_network": "Di rete: i file si copiano",
+    "copies": "I file si copiano"
+  },
+  "status_bar": {
+    "online": "Connesso",
+    "offline": "Offline",
+    "running": "{count} in corso",
+    "files": "{count} file",
+    "empty": "Nessun progetto",
+    "update": "Aggiornamento disponibile: {version}"
+  },
+  "empty": {
+    "title": "Aggiungi il primo progetto",
+    "text": "Trascina qui la cartella dove scaricare i file, oppure parti dal token API.",
+    "drop_title": "Rilascia la cartella per creare un progetto",
+    "drop_text": "La cartella diventa la destinazione; poi servono il token e il nome.",
+    "drop_on_table": "Rilascia per creare un progetto"
+  },
+  "wizard": {
+    "title": "Nuovo progetto",
+    "step": {
+      "token": "Token",
+      "folder": "Cartella",
+      "options": "Opzioni"
+    },
+    "token_placeholder": "Incolla il token del progetto",
+    "checking": "Verifica del token…",
+    "ok_title": "Progetto «{label}»",
+    "ok_text": "1 raccolta ha file | {count} raccolte hanno file",
+    "langs": "lingue: {langs}",
+    "error": {
+      "token_invalid": {
+        "title": "Token non valido",
+        "text": "Controllalo su On Page, nelle impostazioni delle API del progetto."
+      },
+      "offline": {
+        "title": "Sei offline",
+        "text": "Il token si verifica quando torna la rete."
+      },
+      "project_unavailable": {
+        "title": "Progetto non disponibile",
+        "text": "On Page non risponde per questo progetto: riprova tra poco."
+      }
+    },
+    "folder_placeholder": "Nessuna cartella scelta",
+    "pick": "Scegli cartella",
+    "inspecting": "Controllo della cartella…",
+    "name_note": "Dal progetto On Page: si può cambiare.",
+    "sync_now": "Sincronizza appena creato",
+    "back": "Indietro",
+    "next": "Avanti",
+    "create": "Crea progetto"
+  },
+  "check": {
+    "network": {
+      "title": "Cartella di rete",
+      "text": "Raggiungibile da questo computer; la sincronizzazione dipende dalla rete."
+    },
+    "removable": {
+      "title": "Disco esterno",
+      "text": "Il progetto si sincronizza quando il disco è collegato."
+    },
+    "local": {
+      "title": "Cartella locale",
+      "text": "Sul disco di questo computer."
+    },
+    "missing": {
+      "title": "La cartella non esiste ancora",
+      "text": "Si crea alla prima sincronizzazione."
+    },
+    "hardlinks_no": {
+      "title": "Collegamenti fisici non supportati",
+      "text": "Ogni file si copia e occupa il doppio dello spazio."
+    },
+    "hardlinks_yes": {
+      "title": "Collegamenti fisici supportati",
+      "text": "Un file usato con più nomi occupa spazio una volta sola."
+    },
+    "free": {
+      "title": "Spazio libero: {free}",
+      "text": "Ne servono circa {needed}.",
+      "text_unknown": "Lo spazio che serve si sa alla prima sincronizzazione."
+    },
+    "foreign": {
+      "title": "La cartella non è vuota",
+      "text": "C’è già 1 elemento: resta dove è, l’app toglie solo i file che scarica lei. | Ci sono già {count} elementi: restano dove sono, l’app toglie solo i file che scarica lei."
+    },
+    "unreachable": {
+      "title": "Cartella non raggiungibile",
+      "text": "Controlla la rete o il disco."
+    },
+    "not_writable": {
+      "title": "Cartella non scrivibile",
+      "text": "L’app non può creare file qui."
+    },
+    "protected": {
+      "title": "Cartella protetta",
+      "text": "Le radici dei dischi, la cartella utente e quelle di sistema non si possono usare."
+    },
+    "used_by_other_project": {
+      "title": "Cartella già usata",
+      "text": "Il progetto «{detail}» scarica già qui o in una cartella vicina."
+    },
+    "locked": {
+      "title": "Cartella in uso",
+      "text": "{detail} la sta sincronizzando."
+    },
+    "foreign_data": {
+      "title": "C’è già una cartella «data» non creata dall’app",
+      "text": "L’app non la usa, non la svuota e non la elimina mai: scegli un’altra cartella."
+    }
+  },
+  "delete": {
+    "title": "Eliminare il progetto?",
+    "text": "«{label}» esce dall’elenco.",
+    "files": "Elimina anche i file scaricati",
+    "removes": "1 file scaricato dall’app e la sua cartella «data» | {count} file scaricati dall’app e la sua cartella «data»",
+    "removes_unknown": "I file scaricati dall’app e la sua cartella «data»",
+    "keeps": "Resta 1 elemento che non viene da On Page; la cartella {folder} resta | Restano {count} elementi che non vengono da On Page; la cartella {folder} resta",
+    "keeps_none": "La cartella {folder} si toglie se resta vuota",
+    "keeps_all": "I file restano nella cartella.",
+    "removes_size": "1 file scaricato dall’app ({size}) e la sua cartella «data» | {count} file scaricati dall’app ({size}) e la sua cartella «data»"
+  },
+  "stop": {
+    "title": "Interrompere la sincronizzazione?",
+    "text": "I file già scaricati di «{label}» restano nella cartella.",
+    "title_download": "Interrompere il download?"
+  },
+  "cleanup": {
+    "title": "Togliere {count} file?",
+    "text": "Su On Page non ci sono più. L’app toglie solo i file che ha scaricato lei: gli altri restano.",
+    "confirm": "Togli i file"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "section": {
+      "general": "Generali",
+      "download": "Download",
+      "appearance": "Aspetto",
+      "language": "Lingua",
+      "updates": "Aggiornamenti"
+    },
+    "open_at_login": {
+      "title": "Avvia con il sistema",
+      "text": "L’app parte con il sistema, nell’area di notifica.",
+      "text_win32": "L’app parte con Windows, nell’area di notifica.",
+      "text_darwin": "L’app parte con macOS, nella barra dei menu."
+    },
+    "close_to_tray": {
+      "title": "Icona nell’area di notifica",
+      "text": "Chiudendo la finestra l’app resta lì e continua a sincronizzare.",
+      "title_darwin": "Icona nella barra dei menu"
+    },
+    "notifications": {
+      "title": "Notifiche",
+      "text": "Alla fine di una sincronizzazione, per i file falliti e gli errori."
+    },
+    "concurrency": {
+      "title": "Download contemporanei",
+      "text": "Quanti file scaricare insieme, da 1 a 10."
+    },
+    "auto_retry": {
+      "title": "Riprova i falliti da solo",
+      "text": "Una volta, dopo un minuto, i file non scaricati per la rete."
+    },
+    "theme": {
+      "title": "Tema",
+      "text": "«Sistema» segue il tema del sistema operativo.",
+      "system": "Sistema",
+      "light": "Chiaro",
+      "dark": "Scuro",
+      "text_win32": "«Sistema» segue il tema di Windows.",
+      "text_darwin": "«Sistema» segue l’aspetto di macOS."
+    },
+    "language": {
+      "title": "Lingua dell’applicazione",
+      "text": "Italiano o English.",
+      "it": "Italiano",
+      "en": "English"
+    },
+    "updates": {
+      "version": "Versione {version}",
+      "available": "È disponibile la {version}.",
+      "latest": "È l’ultima versione.",
+      "download": "Scarica {version}",
+      "check": "Controlla ora",
+      "check_updates": {
+        "title": "Controlla gli aggiornamenti",
+        "text": "All’avvio, su GitHub."
+      }
+    }
+  },
+  "tray": {
+    "running": "{count} in corso · {speed}",
+    "idle": "Tutto in ordine",
+    "empty": "Nessun progetto",
+    "open": "Apri",
+    "quit": "Esci",
+    "comparing": "Confronto con la cartella…"
+  },
+  "time": {
+    "now": "adesso",
+    "minutes_ago": "{n} min fa",
+    "today": "oggi, {time}",
+    "yesterday": "ieri, {time}",
+    "less_than_minute": "meno di un minuto",
+    "about_minutes": "circa un minuto | circa {n} minuti",
+    "about_hours": "circa {h} h {m} min"
+  }
+}

@@ -1,0 +1,192 @@
+/*
+ * The renderer's look: fonts, the roles of the default theme in light and dark
+ * (RGB triplets, so Tailwind can add an opacity), the desktop base styles.
+ * Dark follows the system (main sets nativeTheme.themeSource from the
+ * settings); `data-theme` on <html> forces one mode when the page runs alone.
+ */
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 400;
+  src: url('../../assets/fonts/Manrope-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 500;
+  src: url('../../assets/fonts/Manrope-Medium.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 600;
+  src: url('../../assets/fonts/Manrope-SemiBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 700;
+  src: url('../../assets/fonts/Manrope-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Rethink Sans';
+  font-weight: 600;
+  src: url('../../assets/fonts/RethinkSans-SemiBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Rethink Sans';
+  font-weight: 700;
+  src: url('../../assets/fonts/RethinkSans-Bold.ttf') format('truetype');
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@mixin light {
+  --c-text: 46 51 49;
+  --c-secondary: 111 115 112;
+  --c-disabled: 177 178 177;
+  --c-placeholder: 177 178 177;
+  --c-mica: 242 242 242;
+  --c-box: 255 255 255;
+  --c-box-soft: 247 247 247;
+  --c-line: 227 229 228;
+  --c-wallpaper: 250 250 250;
+  --c-accent: 1 102 61;
+  --c-accent-hover: 0 79 46;
+  --c-accent-fg: 0 79 46;
+  --c-accent-soft: 237 245 240;
+  --c-accent-inv: 255 255 255;
+  --c-accent-off: 134 181 155;
+  --c-success: 21 142 36;
+  --c-success-fg: 0 123 23;
+  --c-success-soft: 231 246 234;
+  --c-info: 5 124 179;
+  --c-info-fg: 0 107 186;
+  --c-info-soft: 224 241 254;
+  --c-warning: 247 156 9;
+  --c-warning-fg: 156 91 6;
+  --c-warning-soft: 247 242 192;
+  --c-warning-inv: 46 51 49;
+  --c-danger: 212 50 27;
+  --c-danger-fg: 212 50 27;
+  --c-danger-soft: 254 227 226;
+  --c-danger-inv: 255 255 255;
+  --c-neutral: 111 115 112;
+  --c-neutral-fg: 111 115 112;
+  --c-neutral-soft: 242 242 242;
+  --c-toggle-off: 202 204 202;
+  --c-toggle-on: 32 128 88;
+  --c-knob: 255 255 255;
+  --c-knob-on: 255 255 255;
+  --veil: rgb(0 0 0 / 0.25);
+  color-scheme: light;
+}
+
+/* The text on a fill (`-inv`) is the mode's text or its ink, whichever reads
+   better on it: in dark that is the ink on every light fill */
+@mixin dark {
+  --c-text: 250 250 250;
+  --c-secondary: 170 172 172;
+  --c-disabled: 104 108 106;
+  --c-placeholder: 104 108 106;
+  --c-mica: 22 27 25;
+  --c-box: 38 43 41;
+  --c-box-soft: 45 50 48;
+  --c-line: 63 68 66;
+  --c-wallpaper: 29 34 32;
+  --c-accent: 113 172 139;
+  --c-accent-hover: 128 188 154;
+  --c-accent-fg: 128 188 154;
+  --c-accent-soft: 41 57 48;
+  --c-accent-inv: 13 17 16;
+  --c-accent-off: 69 107 86;
+  --c-success: 72 180 76;
+  --c-success-fg: 73 182 77;
+  --c-success-soft: 32 61 32;
+  --c-info: 71 168 225;
+  --c-info-fg: 71 168 225;
+  --c-info-soft: 31 56 73;
+  --c-warning: 247 156 9;
+  --c-warning-fg: 247 156 9;
+  --c-warning-soft: 72 47 16;
+  --c-warning-inv: 13 17 16;
+  --c-danger: 253 116 93;
+  --c-danger-fg: 253 116 93;
+  --c-danger-soft: 79 40 33;
+  --c-danger-inv: 13 17 16;
+  --c-neutral: 170 172 172;
+  --c-neutral-fg: 170 172 172;
+  --c-neutral-soft: 45 50 48;
+  --c-toggle-off: 80 85 83;
+  --c-toggle-on: 94 153 120;
+  --c-knob: 215 216 216;
+  --c-knob-on: 13 17 16;
+  --veil: rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+
+:root {
+  @include light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark;
+  }
+}
+:root[data-theme='dark'] {
+  @include dark;
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+  body {
+    @apply bg-mica font-sans text-base text-text antialiased;
+    /* A desktop window: no text selection by accident, the arrow over text */
+    user-select: none;
+    cursor: default;
+  }
+  input,
+  textarea {
+    user-select: text;
+    cursor: text;
+  }
+  button {
+    cursor: default;
+  }
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    box-shadow:
+      0 0 0 1px rgb(var(--c-text)),
+      0 0 0 4px rgb(var(--c-accent-soft));
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background: rgb(var(--c-text) / 0.25) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--c-text) / 0.4);
+  }
+}
+
+@layer utilities {
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
