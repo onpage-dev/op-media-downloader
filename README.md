@@ -24,10 +24,10 @@ When two files on On Page share a name (case does not count), only the first one
 
 ## Development
 
-Prerequisites: Node.js 22 and Yarn 1, plus a Font Awesome Pro token for the design system icons:
+Prerequisites: Node.js 22 and Yarn 1, plus a Font Awesome Pro token for the design system icons, once in your user `.npmrc` (never in the repository):
 
 ```bash
-export FONTAWESOME_NPM_AUTH_TOKEN=<token>
+npm config set //npm.fontawesome.com/:_authToken <token>
 yarn
 yarn dev        # app with hot reload (its data folder is separate from the installed app)
 yarn test       # sync engine tests

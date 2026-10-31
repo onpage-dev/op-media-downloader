@@ -23,6 +23,10 @@ jobs:
           node-version: 22
           cache: 'yarn'
 
+      - name: Font Awesome registry token
+        shell: bash
+        run: echo "//npm.fontawesome.com/:_authToken=${FONTAWESOME_NPM_AUTH_TOKEN}" >> .npmrc
+
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 

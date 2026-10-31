@@ -34,4 +34,4 @@ A new app: a desktop sync manager for On Page media, rebuilt around a sync engin
 ### Development
 - Electron 45, electron-vite 6, Vite 8, Vue 3.5, TypeScript 5.9, Vitest.
 - CI on pull requests (typecheck, tests, build); the release workflow uses Node 22 and current actions.
-- Installing the dependencies needs a Font Awesome Pro token (`FONTAWESOME_NPM_AUTH_TOKEN`, also a repository secret for CI).
+- Installing the dependencies needs a Font Awesome Pro token in the user `.npmrc`; CI reads it from the `FONTAWESOME_NPM_AUTH_TOKEN` repository secret.
