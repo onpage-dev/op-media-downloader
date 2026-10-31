@@ -191,6 +191,8 @@ export type IssueCode =
   | 'name_conflicts'
   /** More removals than the safety threshold: waiting for the user */
   | 'cleanup_needs_confirmation'
+  /** The last job stopped unexpectedly (the engine restarted): run it again */
+  | 'interrupted'
 
 export interface Issue {
   code: IssueCode
@@ -307,9 +309,12 @@ export interface AppSettings {
   /** Retry network failures once, a minute after the end of a download */
   auto_retry_failed: boolean
   notifications: boolean
-  /** Keep running in the notification area when the window closes */
+  /** Icon in the notification area; closing the window keeps the app running there */
   close_to_tray: boolean
+  /** Start with the system, in the notification area */
   open_at_login: boolean
+  /** Look for a new version on GitHub at start-up */
+  check_updates: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -320,6 +325,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifications: true,
   close_to_tray: false,
   open_at_login: false,
+  check_updates: true,
 }
 
 /* ------------------------------------------------------------------ App info */

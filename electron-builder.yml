@@ -1,12 +1,11 @@
+appId: com.onpage.mediadownloader
 productName: On Page Media Downloader
 directories:
   buildResources: build
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - 'out/**'
+  - 'package.json'
+  - '!**/*.map'
 asarUnpack:
   - '**/*.{node,dll}'
 
@@ -19,11 +18,11 @@ nsis:
   createDesktopShortcut: always
 
 mac:
-  appId: com.onpage.mediadownloader
   target:
     - dmg
   identity: 'Dinside s.r.l.'
   hardenedRuntime: true
+  entitlementsInherit: build/entitlements.mac.plist
   artifactName: ${name}-${version}-${arch}.${ext}
 
 dmg:
@@ -33,9 +32,8 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: On Page
   category: Utility
   artifactName: ${name}-${version}-${arch}.${ext}
 

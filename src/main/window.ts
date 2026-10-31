@@ -1,0 +1,112 @@
+/**
+ * The main window: integrated title bar (native controls drawn by the OS on
+ * Windows and Linux, traffic lights on macOS), bounds remembered between
+ * launches, links opened in the browser, no navigation away from the app.
+ */
+import { app, BrowserWindow, nativeTheme, Rectangle, screen, shell } from 'electron'
+import path from 'path'
+import { TITLE_BAR_COLORS, TITLE_BAR_HEIGHT } from '../shared/window-chrome'
+import { AppStore, WindowState } from './store'
+
+const DEFAULT_SIZE = { width: 1100, height: 720 }
+export const MIN_SIZE = { width: 860, height: 560 }
+
+export function preloadPath(): string {
+  return path.join(__dirname, '../preload/index.js')
+}
+
+/** Loads the renderer, optionally at a route (`tray`) */
+export function loadRenderer(window: BrowserWindow, route?: string): void {
+  const hash = route ? `#/${route}` : ''
+  if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
+    void window.loadURL(`${process.env['ELECTRON_RENDERER_URL']}${hash}`)
+  } else {
+    void window.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: route ? `/${route}` : undefined })
+  }
+}
+
+export function secureContents(window: BrowserWindow): void {
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  window.webContents.on('will-navigate', (event, url) => {
+    const current = window.webContents.getURL()
+    if (url.split('#')[0] != current.split('#')[0]) event.preventDefault()
+  })
+}
+
+function chromeColors(): { background: string; symbol: string } {
+  return nativeTheme.shouldUseDarkColors ? TITLE_BAR_COLORS.dark : TITLE_BAR_COLORS.light
+}
+
+export function createMainWindow(store: AppStore): BrowserWindow {
+  const state = restoredState(store.windowState)
+  const is_mac = process.platform == 'darwin'
+  const colors = chromeColors()
+
+  const window = new BrowserWindow({
+    ...state.bounds,
+    minWidth: MIN_SIZE.width,
+    minHeight: MIN_SIZE.height,
+    show: false,
+    title: 'On Page Media Downloader',
+    backgroundColor: colors.background,
+    titleBarStyle: is_mac ? 'hiddenInset' : 'hidden',
+    ...(is_mac
+      ? { trafficLightPosition: { x: 12, y: (TITLE_BAR_HEIGHT - 14) / 2 } }
+      : { titleBarOverlay: { color: colors.background, symbolColor: colors.symbol, height: TITLE_BAR_HEIGHT } }),
+    ...(process.platform == 'linux' ? { icon: path.join(__dirname, '../../build/icon.png') } : {}),
+    webPreferences: {
+      preload: preloadPath(),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false,
+    },
+  })
+  if (state.maximized) window.maximize()
+
+  const onTheme = (): void => {
+    if (window.isDestroyed()) return
+    const next = chromeColors()
+    window.setBackgroundColor(next.background)
+    if (!is_mac) window.setTitleBarOverlay({ color: next.background, symbolColor: next.symbol, height: TITLE_BAR_HEIGHT })
+  }
+  nativeTheme.on('updated', onTheme)
+  window.on('closed', () => nativeTheme.off('updated', onTheme))
+
+  let save_timer: NodeJS.Timeout | undefined
+  const saveState = (): void => {
+    clearTimeout(save_timer)
+    save_timer = setTimeout(() => {
+      if (window.isDestroyed()) return
+      const bounds = window.getNormalBounds()
+      store.windowState = { ...bounds, maximized: window.isMaximized() }
+    }, 400)
+  }
+  for (const event of ['resize', 'move', 'maximize', 'unmaximize'] as const) {
+    window.on(event as 'resize', saveState)
+  }
+
+  secureContents(window)
+  loadRenderer(window)
+  return window
+}
+
+/** Saved bounds only when they are still on a connected display */
+function restoredState(saved: WindowState | undefined): { bounds: Partial<Rectangle> & { width: number; height: number }; maximized: boolean } {
+  const fallback = { bounds: { ...DEFAULT_SIZE }, maximized: false }
+  if (!saved) return fallback
+  const width = Math.max(MIN_SIZE.width, saved.width)
+  const height = Math.max(MIN_SIZE.height, saved.height)
+  if (saved.x === undefined || saved.y === undefined) return { bounds: { width, height }, maximized: saved.maximized }
+  const visible = screen.getAllDisplays().some(({ workArea }) => {
+    const overlap_x = Math.min(saved.x! + width, workArea.x + workArea.width) - Math.max(saved.x!, workArea.x)
+    const overlap_y = Math.min(saved.y! + height, workArea.y + workArea.height) - Math.max(saved.y!, workArea.y)
+    return overlap_x > 100 && overlap_y > 50
+  })
+  return visible
+    ? { bounds: { x: saved.x, y: saved.y, width, height }, maximized: saved.maximized }
+    : { bounds: { width, height }, maximized: saved.maximized }
+}

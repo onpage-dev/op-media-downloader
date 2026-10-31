@@ -7,21 +7,28 @@ on:
 permissions:
   contents: write
 
+env:
+  # Font Awesome Pro (icons of the On Page design system): the token lives in the repository secrets
+  FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
+
 jobs:
   build-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 22
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
+
+      - name: Test
+        run: yarn test
 
       - name: Build for Windows
         env:
@@ -29,7 +36,7 @@ jobs:
         run: yarn run build:win
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: op-media-downloader-windows
           path: dist/*.exe
@@ -43,16 +50,16 @@ jobs:
       CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 22
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Prepare signing certificate
         env:
@@ -96,7 +103,7 @@ jobs:
           spctl -a -vvv -t install "$dmg_file"
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: op-media-downloader-mac-${{ matrix.arch }}
           path: dist/*.dmg
@@ -108,42 +115,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: op-media-downloader-windows
-          path: release/windows
+          path: release
 
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: op-media-downloader-mac-x64
-          path: release/mac-x64
-
-      - name: Download macOS ARM artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: op-media-downloader-mac-arm64
-          path: release/mac-arm64
-
-      - name: Upload assets to the latest release
+      - name: Upload assets to the release that started the workflow
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
-          # Get the latest release tag
-          LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-          echo "Latest release tag: $LATEST_RELEASE"
-
-          if [ -z "$LATEST_RELEASE" ]; then
-            echo "Error: No release found."
-            exit 1
-          fi
-
-          # Upload assets
-          gh release upload "$LATEST_RELEASE" \
-            release/windows/*.exe \
-            release/mac-x64/*.dmg \
-            release/mac-arm64/*.dmg \
+          gh release upload "$TAG" \
+            release/op-media-downloader-windows/*.exe \
+            release/op-media-downloader-mac-x64/*.dmg \
+            release/op-media-downloader-mac-arm64/*.dmg \
             --clobber
