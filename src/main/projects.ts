@@ -4,6 +4,7 @@
  * renderer, the tray and the menus ask for.
  */
 import crypto from 'crypto'
+import { shell } from 'electron'
 import { EventEmitter } from 'events'
 import path from 'path'
 import { DeleteProjectOptions, NewProjectInput, ProjectPatch } from '../shared/desktop-api'
@@ -98,6 +99,17 @@ export class ProjectService {
   revealToken(id: ProjectId): string {
     const project = this.require(id)
     return this.store.token(project)
+  }
+
+  /** The folder of a project as recorded here: the page never names a path to open */
+  async openFolder(id: ProjectId): Promise<void> {
+    const error = await shell.openPath(this.require(id).folder)
+    if (error) throw new Error('open_failed')
+  }
+
+  /** The stored token of a project, verified without it reaching the page */
+  verifyProjectToken(id: ProjectId): Promise<TokenCheck> {
+    return this.verifyToken(this.store.token(this.require(id)))
   }
 
   /* ---------------------------------------------------------------- events */

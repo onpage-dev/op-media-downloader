@@ -16,63 +16,77 @@ function listen<T extends unknown[]>(
   return () => ipcRenderer.removeListener(channel, handler)
 }
 
+/**
+ * Calls to main: a rejection carries only the error code main threw
+ * (Electron prefixes "Error invoking remote method '…': Error: ").
+ */
+function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
+  return ipcRenderer.invoke(channel, ...args).catch((error: unknown) => {
+    const message = String((error as Error | undefined)?.message ?? error)
+    throw new Error(message.replace(/^Error invoking remote method '[^']*': (?:w*Error: )?/, ''))
+  })
+}
+
 const platform = process.platform as DesktopApi['platform']
 
 const desktop: DesktopApi = {
   platform,
 
   projects: {
-    list: () => ipcRenderer.invoke(INVOKE.projectsList),
-    create: input => ipcRenderer.invoke(INVOKE.projectsCreate, input),
-    update: (id, patch) => ipcRenderer.invoke(INVOKE.projectsUpdate, id, patch),
+    list: () => invoke(INVOKE.projectsList),
+    create: input => invoke(INVOKE.projectsCreate, input),
+    update: (id, patch) => invoke(INVOKE.projectsUpdate, id, patch),
     remove: (id, options) =>
-      ipcRenderer.invoke(INVOKE.projectsRemove, id, options),
-    revealToken: id => ipcRenderer.invoke(INVOKE.projectsRevealToken, id),
+      invoke(INVOKE.projectsRemove, id, options),
+    revealToken: id => invoke(INVOKE.projectsRevealToken, id),
     onChanged: listener => listen(EVENTS.projectsChanged, listener),
   },
 
   sync: {
-    sync: (id, options) => ipcRenderer.invoke(INVOKE.syncSync, id, options),
-    syncAll: () => ipcRenderer.invoke(INVOKE.syncSyncAll),
-    download: id => ipcRenderer.invoke(INVOKE.syncDownload, id),
-    retryFailed: id => ipcRenderer.invoke(INVOKE.syncRetryFailed, id),
-    confirmCleanup: id => ipcRenderer.invoke(INVOKE.syncConfirmCleanup, id),
-    stop: id => ipcRenderer.invoke(INVOKE.syncStop, id),
+    sync: (id, options) => invoke(INVOKE.syncSync, id, options),
+    syncAll: () => invoke(INVOKE.syncSyncAll),
+    download: id => invoke(INVOKE.syncDownload, id),
+    retryFailed: id => invoke(INVOKE.syncRetryFailed, id),
+    confirmCleanup: id => invoke(INVOKE.syncConfirmCleanup, id),
+    stop: id => invoke(INVOKE.syncStop, id),
     getActivity: (id, limit) =>
-      ipcRenderer.invoke(INVOKE.syncGetActivity, id, limit),
+      invoke(INVOKE.syncGetActivity, id, limit),
     onActivity: listener => listen(EVENTS.syncActivity, listener),
-    getFailed: (id, page) => ipcRenderer.invoke(INVOKE.syncGetFailed, id, page),
+    getFailed: (id, page) => invoke(INVOKE.syncGetFailed, id, page),
     getDuplicates: (id, page) =>
-      ipcRenderer.invoke(INVOKE.syncGetDuplicates, id, page),
+      invoke(INVOKE.syncGetDuplicates, id, page),
   },
 
   folders: {
-    pick: default_path => ipcRenderer.invoke(INVOKE.foldersPick, default_path),
+    pick: default_path => invoke(INVOKE.foldersPick, default_path),
     inspect: (path, project_id) =>
-      ipcRenderer.invoke(INVOKE.foldersInspect, path, project_id),
-    open: path => ipcRenderer.invoke(INVOKE.foldersOpen, path),
+      invoke(INVOKE.foldersInspect, path, project_id),
+    openProject: id => invoke(INVOKE.foldersOpenProject, id),
     pathForDroppedFile: file => webUtils.getPathForFile(file),
   },
 
   tokens: {
-    verify: token => ipcRenderer.invoke(INVOKE.tokensVerify, token),
+    verify: token => invoke(INVOKE.tokensVerify, token),
+    verifyProject: id => invoke(INVOKE.tokensVerifyProject, id),
   },
 
   settings: {
-    get: () => ipcRenderer.invoke(INVOKE.settingsGet),
-    set: patch => ipcRenderer.invoke(INVOKE.settingsSet, patch),
+    get: () => invoke(INVOKE.settingsGet),
+    set: patch => invoke(INVOKE.settingsSet, patch),
     onChanged: listener => listen(EVENTS.settingsChanged, listener),
   },
 
   app: {
-    version: () => ipcRenderer.invoke(INVOKE.appVersion),
-    checkForUpdates: () => ipcRenderer.invoke(INVOKE.appCheckForUpdates),
-    status: () => ipcRenderer.invoke(INVOKE.appStatus),
+    version: () => invoke(INVOKE.appVersion),
+    checkForUpdates: () => invoke(INVOKE.appCheckForUpdates),
+    status: () => invoke(INVOKE.appStatus),
     onStatus: listener => listen(EVENTS.appStatus, listener),
-    openExternal: url => ipcRenderer.invoke(INVOKE.appOpenExternal, url),
-    copyText: text => ipcRenderer.invoke(INVOKE.appCopyText, text),
+    onVersion: listener => listen(EVENTS.appVersion, listener),
+    openExternal: url => invoke(INVOKE.appOpenExternal, url),
+    copyText: text => invoke(INVOKE.appCopyText, text),
     onCommand: listener => listen(EVENTS.appCommand, listener),
-    setSelection: id => ipcRenderer.send(SEND.setSelection, id),
+    openLicenses: () => invoke(INVOKE.appOpenLicenses),
+    log: (level, message) => ipcRenderer.send(SEND.log, level, message),
     showMainWindow: command => ipcRenderer.send(SEND.showMainWindow, command),
     quit: () => ipcRenderer.send(SEND.quit),
     window: {

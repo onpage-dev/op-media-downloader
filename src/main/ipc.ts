@@ -2,7 +2,8 @@
  * IPC handlers behind `window.desktop`. Every argument coming from the
  * renderer is checked before use.
  */
-import { BrowserWindow, clipboard, dialog, ipcMain, IpcMainEvent, IpcMainInvokeEvent, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, IpcMainEvent, IpcMainInvokeEvent, shell } from 'electron'
+import path from 'path'
 import {
   AppCommand,
   DeleteProjectOptions,
@@ -11,9 +12,10 @@ import {
   ProjectPatch,
   SettingsSection,
 } from '../shared/desktop-api'
-import { INVOKE, SEND } from '../shared/ipc-channels'
-import { AppSettings, AppStatus, LANGUAGES, PageQuery, ProjectId, ThemeSetting } from '../shared/models'
+import { EVENTS, INVOKE, SEND } from '../shared/ipc-channels'
+import { AppSettings, AppStatus, LANGUAGES, PageQuery, ThemeSetting } from '../shared/models'
 import { ProjectService } from './projects'
+import { log } from './log'
 import { AppStore } from './store'
 import { checkForUpdates, versionInfo } from './updates'
 
@@ -22,9 +24,15 @@ export interface IpcDeps {
   store: AppStore
   status: () => AppStatus
   applySettings: (next: AppSettings, previous: AppSettings) => void
-  setSelection: (id: ProjectId | undefined) => void
   showMainWindow: (command?: AppCommand) => void
   quit: () => void
+}
+
+/** The third-party notices: shipped next to the app (extraResources), generated in the repository in development */
+function licensesFile(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'THIRD_PARTY_NOTICES.txt')
+    : path.resolve('THIRD_PARTY_NOTICES.txt')
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -67,12 +75,10 @@ export function registerIpc(deps: IpcDeps): void {
   handle(INVOKE.foldersInspect, (_e, path, project_id) =>
     projects.inspect(text(path), typeof project_id == 'string' ? project_id : undefined),
   )
-  handle(INVOKE.foldersOpen, async (_e, path) => {
-    const error = await shell.openPath(text(path))
-    if (error) throw new Error(`open_failed:${error}`)
-  })
+  handle(INVOKE.foldersOpenProject, (_e, id) => projects.openFolder(text(id)))
 
   handle(INVOKE.tokensVerify, (_e, token) => projects.verifyToken(text(token)))
+  handle(INVOKE.tokensVerifyProject, (_e, id) => projects.verifyProjectToken(text(id)))
 
   handle(INVOKE.settingsGet, () => store.settings)
   handle(INVOKE.settingsSet, (_e, patch) => {
@@ -83,7 +89,11 @@ export function registerIpc(deps: IpcDeps): void {
   })
 
   handle(INVOKE.appVersion, () => versionInfo())
-  handle(INVOKE.appCheckForUpdates, () => checkForUpdates())
+  handle(INVOKE.appCheckForUpdates, async () => {
+    const version = await checkForUpdates()
+    for (const window of BrowserWindow.getAllWindows()) window.webContents.send(EVENTS.appVersion, version)
+    return version
+  })
   handle(INVOKE.appStatus, () => deps.status())
   handle(INVOKE.appOpenExternal, async (_e, url) => {
     const value = text(url)
@@ -91,11 +101,17 @@ export function registerIpc(deps: IpcDeps): void {
     await shell.openExternal(value)
   })
   handle(INVOKE.appCopyText, (_e, value) => clipboard.writeText(text(value)))
+  handle(INVOKE.appOpenLicenses, async () => {
+    const error = await shell.openPath(licensesFile())
+    if (error) throw new Error('open_failed')
+  })
 
   const on = (channel: string, listener: (event: IpcMainEvent, ...args: any[]) => void): void => {
     ipcMain.on(channel, listener)
   }
-  on(SEND.setSelection, (_e, id) => deps.setSelection(typeof id == 'string' ? id : undefined))
+  on(SEND.log, (_e, level, message) =>
+    log(level == 'warn' ? 'warn' : 'error', `renderer: ${String(message).slice(0, 2000)}`),
+  )
   on(SEND.showMainWindow, (_e, command) => deps.showMainWindow(appCommand(command)))
   on(SEND.quit, () => deps.quit())
   on(SEND.windowMinimize, event => BrowserWindow.fromWebContents(event.sender)?.minimize())

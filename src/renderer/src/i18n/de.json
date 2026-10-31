@@ -86,7 +86,8 @@
     "error_listing": "Dateiliste nicht abgerufen",
     "error_unexpected": "Unerwarteter Fehler",
     "offline": "Warten auf Netzwerk",
-    "never": "Nie synchronisiert"
+    "never": "Nie synchronisiert",
+    "warning_incomplete": "Liste unvollständig"
   },
   "menu": {
     "sync_now": "Jetzt synchronisieren",
@@ -218,6 +219,10 @@
       "see": "Anzeigen",
       "see_duplicates": "Duplikate anzeigen",
       "confirm": "Bestätigen"
+    },
+    "listing_incomplete": {
+      "title": "Einige Sammlungen wurden nicht gelesen",
+      "text": "{detail}: Es wurde keine Datei entfernt; neue Dateien kommen mit der nächsten Synchronisierung."
     }
   },
   "activity": {
@@ -333,7 +338,8 @@
     "sync_now": "Direkt nach dem Erstellen synchronisieren",
     "back": "Zurück",
     "next": "Weiter",
-    "create": "Projekt erstellen"
+    "create": "Projekt erstellen",
+    "steps_label": "Schritte"
   },
   "check": {
     "network": {
@@ -469,7 +475,10 @@
       "check_updates": {
         "title": "Nach Aktualisierungen suchen",
         "text": "Beim Start, auf GitHub."
-      }
+      },
+      "never": "Noch nicht geprüft.",
+      "failed": "Die Prüfung ist fehlgeschlagen: Versuchen Sie es später erneut.",
+      "licenses": "Open-Source-Lizenzen"
     }
   },
   "tray": {
@@ -493,5 +502,11 @@
     "ctrl": "Strg",
     "shift": "Umschalt",
     "delete": "Entf"
+  },
+  "errors": {
+    "generic": "Vorgang fehlgeschlagen: {detail}",
+    "project_busy": "Das Projekt ist beschäftigt: Versuchen Sie es erneut, wenn es fertig ist.",
+    "engine_timeout": "Das Synchronisierungsmodul hat nicht rechtzeitig geantwortet.",
+    "open_failed": "Der Ordner konnte nicht geöffnet werden."
   }
 }

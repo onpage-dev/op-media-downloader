@@ -86,7 +86,8 @@
     "error_listing": "Fillistan kunde inte läsas",
     "error_unexpected": "Oväntat fel",
     "offline": "Väntar på nätverket",
-    "never": "Aldrig synkroniserad"
+    "never": "Aldrig synkroniserad",
+    "warning_incomplete": "Ofullständig lista"
   },
   "menu": {
     "sync_now": "Synkronisera nu",
@@ -218,6 +219,10 @@
       "see": "Visa",
       "see_duplicates": "Visa dubbletter",
       "confirm": "Bekräfta"
+    },
+    "listing_incomplete": {
+      "title": "Vissa samlingar lästes inte",
+      "text": "{detail}: inga filer togs bort; nya filer kommer med nästa synkronisering."
     }
   },
   "activity": {
@@ -333,7 +338,8 @@
     "sync_now": "Synkronisera direkt när det har skapats",
     "back": "Tillbaka",
     "next": "Nästa",
-    "create": "Skapa projekt"
+    "create": "Skapa projekt",
+    "steps_label": "Steg"
   },
   "check": {
     "network": {
@@ -469,7 +475,10 @@
       "check_updates": {
         "title": "Sök efter uppdateringar",
         "text": "Vid start, på GitHub."
-      }
+      },
+      "never": "Inte kontrollerat än.",
+      "failed": "Kontrollen misslyckades: försök igen senare.",
+      "licenses": "Licenser för öppen källkod"
     }
   },
   "tray": {
@@ -493,5 +502,11 @@
     "ctrl": "Ctrl",
     "shift": "Skift",
     "delete": "Delete"
+  },
+  "errors": {
+    "generic": "Åtgärden misslyckades: {detail}",
+    "project_busy": "Projektet arbetar: försök igen när det är klart.",
+    "engine_timeout": "Synkroniseringsmotorn svarade inte i tid.",
+    "open_failed": "Det gick inte att öppna mappen."
   }
 }

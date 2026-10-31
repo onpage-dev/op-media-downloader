@@ -35,6 +35,8 @@ export type StatusKey =
   | 'warning_cleanup'
   /** Attenzione: l'ultima sincronizzazione si è interrotta, va rifatta */
   | 'warning_interrupted'
+  /** Attenzione: alcune raccolte non sono state lette */
+  | 'warning_incomplete'
   /** Errore: token non valido o progetto non disponibile */
   | 'error_token'
   /** Errore: cartella non raggiungibile, non scrivibile o protetta */
@@ -72,6 +74,7 @@ const ERROR_KEYS: [IssueCode[], StatusKey][] = [
 
 const WARNING_KEYS: [IssueCode, StatusKey][] = [
   ['interrupted', 'warning_interrupted'],
+  ['listing_incomplete', 'warning_incomplete'],
   ['failed_files', 'warning_failed'],
   ['duplicates', 'warning_duplicates'],
   ['name_conflicts', 'warning_conflicts'],

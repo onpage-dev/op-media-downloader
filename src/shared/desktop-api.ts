@@ -1,7 +1,10 @@
 /**
  * The API the preload exposes to the renderer as `window.desktop`.
  * The renderer never sees Node, `ipcRenderer` or API tokens in clear (except
- * when the user asks to show the token in the project settings).
+ * when the user asks to show the token in the project settings). Main never
+ * trusts what comes from here: a folder is opened by project id, a stored
+ * token is verified in main. Calls reject with an `Error` whose message is a
+ * code (`project_busy`, `engine_timeout`, `open_failed`, …) or `code:detail`.
  */
 import {
   ActivityEntry,
@@ -89,13 +92,17 @@ export interface DesktopApi {
     /** Native folder picker; undefined when cancelled */
     pick(default_path?: string): Promise<string | undefined>
     inspect(path: string, project_id?: ProjectId): Promise<FolderInfo>
-    open(path: string): Promise<void>
+    /** The folder of a project, as main has it recorded */
+    openProject(id: ProjectId): Promise<void>
     /** Path of a folder dropped on the window (File from a drop event) */
     pathForDroppedFile(file: File): string
   }
 
   tokens: {
+    /** A token typed in a form */
     verify(token: string): Promise<TokenCheck>
+    /** The stored token of a project, verified in main: it never reaches the page */
+    verifyProject(id: ProjectId): Promise<TokenCheck>
   }
 
   settings: {
@@ -107,13 +114,17 @@ export interface DesktopApi {
   app: {
     version(): Promise<VersionInfo>
     checkForUpdates(): Promise<VersionInfo>
+    /** Pushed after every check for updates (also the one at start-up) */
+    onVersion(listener: (version: VersionInfo) => void): Unsubscribe
     status(): Promise<AppStatus>
     onStatus(listener: (status: AppStatus) => void): Unsubscribe
     openExternal(url: string): Promise<void>
     copyText(text: string): Promise<void>
     onCommand(listener: (command: AppCommand) => void): Unsubscribe
-    /** The renderer tells main which project is selected (tray, menu, shortcuts act on it) */
-    setSelection(id: ProjectId | undefined): void
+    /** The third-party notices shipped with the app */
+    openLicenses(): Promise<void>
+    /** Errors of the page, written to main's log */
+    log(level: 'warn' | 'error', message: string): void
     /**
      * From the tray panel: show the main window and pass it a command (select a
      * project, open the settings)

@@ -28,7 +28,7 @@ export async function checkForUpdates(): Promise<VersionInfo> {
     }
   } catch (error) {
     log('warn', 'Update check failed', error)
-    info = { ...info, checked_at: new Date().toISOString() }
+    info = { ...info, checked_at: new Date().toISOString(), check_failed: true }
   }
   return info
 }

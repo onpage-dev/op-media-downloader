@@ -204,7 +204,6 @@ function addActivity(id: ProjectId, entries: ActivityEntry[]): void {
 export function select(id: ProjectId | undefined): void {
   if (app.selectedId == id) return
   app.selectedId = id
-  desktop().app.setSelection(id)
 }
 
 /** Moves the selection up or down the visible rows */
@@ -298,7 +297,7 @@ export function retryFailed(id?: ProjectId): void {
 }
 export function openFolder(id?: ProjectId): void {
   const project = target(id)
-  if (project) run('open folder', () => desktop().folders.open(project.folder))
+  if (project) run('open folder', () => desktop().folders.openProject(project.id))
 }
 export function copyPath(id?: ProjectId): void {
   const project = target(id)

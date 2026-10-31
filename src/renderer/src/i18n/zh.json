@@ -86,7 +86,8 @@
     "error_listing": "未能读取文件列表",
     "error_unexpected": "意外错误",
     "offline": "正在等待网络",
-    "never": "从未同步"
+    "never": "从未同步",
+    "warning_incomplete": "列表不完整"
   },
   "menu": {
     "sync_now": "立即同步",
@@ -218,6 +219,10 @@
       "see": "查看",
       "see_duplicates": "查看重名文件",
       "confirm": "确认"
+    },
+    "listing_incomplete": {
+      "title": "部分集合未能读取",
+      "text": "{detail}：未删除任何文件；新文件将在下次同步时下载。"
     }
   },
   "activity": {
@@ -333,7 +338,8 @@
     "sync_now": "创建后立即同步",
     "back": "上一步",
     "next": "下一步",
-    "create": "创建项目"
+    "create": "创建项目",
+    "steps_label": "步骤"
   },
   "check": {
     "network": {
@@ -469,7 +475,10 @@
       "check_updates": {
         "title": "检查更新",
         "text": "启动时在 GitHub 上检查。"
-      }
+      },
+      "never": "尚未检查。",
+      "failed": "无法检查：请稍后重试。",
+      "licenses": "开源许可"
     }
   },
   "tray": {
@@ -493,5 +502,11 @@
     "ctrl": "Ctrl",
     "shift": "Shift",
     "delete": "Del"
+  },
+  "errors": {
+    "generic": "操作失败：{detail}",
+    "project_busy": "项目正在运行：请在完成后重试。",
+    "engine_timeout": "同步引擎未及时响应。",
+    "open_failed": "无法打开文件夹。"
   }
 }

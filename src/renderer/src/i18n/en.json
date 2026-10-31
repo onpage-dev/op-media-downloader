@@ -86,7 +86,8 @@
     "error_listing": "File list not read",
     "error_unexpected": "Unexpected error",
     "offline": "Waiting for the network",
-    "never": "Never synced"
+    "never": "Never synced",
+    "warning_incomplete": "Incomplete list"
   },
   "menu": {
     "sync_now": "Sync now",
@@ -218,6 +219,10 @@
       "see": "See",
       "see_duplicates": "See duplicates",
       "confirm": "Confirm"
+    },
+    "listing_incomplete": {
+      "title": "Some collections were not read",
+      "text": "{detail}: no file was removed; their new files come with the next sync."
     }
   },
   "activity": {
@@ -333,7 +338,8 @@
     "sync_now": "Sync right after creating it",
     "back": "Back",
     "next": "Next",
-    "create": "Create project"
+    "create": "Create project",
+    "steps_label": "Steps"
   },
   "check": {
     "network": {
@@ -469,7 +475,10 @@
       "check_updates": {
         "title": "Check for updates",
         "text": "At start-up, on GitHub."
-      }
+      },
+      "never": "Not checked yet.",
+      "failed": "The check did not work: try again later.",
+      "licenses": "Open source licenses"
     }
   },
   "tray": {
@@ -493,5 +502,11 @@
     "ctrl": "Ctrl",
     "shift": "Shift",
     "delete": "Del"
+  },
+  "errors": {
+    "generic": "The operation failed: {detail}",
+    "project_busy": "The project is busy: try again when it is done.",
+    "engine_timeout": "The sync engine did not answer in time.",
+    "open_failed": "The folder could not be opened."
   }
 }

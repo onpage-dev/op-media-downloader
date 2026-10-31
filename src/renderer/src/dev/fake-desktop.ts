@@ -400,13 +400,17 @@ const desktop: DesktopApi = {
       await later(400)
       return inspect(path, projectId)
     },
-    open: async () => undefined,
+    openProject: async () => undefined,
     pathForDroppedFile: file => `D:\\Media\\${file.name}`,
   },
   tokens: {
     async verify(token) {
       await later(700)
       if (token.length < 8 || token.includes('errato')) return { ok: false, error: 'token_invalid' }
+      return { ok: true, project_label: 'Vasi e accessori', collections_with_files: 3, langs: ['it', 'en'] }
+    },
+    async verifyProject() {
+      await later(700)
       return { ok: true, project_label: 'Vasi e accessori', collections_with_files: 3, langs: ['it', 'en'] }
     },
   },
@@ -424,10 +428,12 @@ const desktop: DesktopApi = {
     checkForUpdates: async () => clone(version),
     status: async () => status(),
     onStatus: listener => statusChanged.add(listener),
+    onVersion: () => () => undefined,
     openExternal: async url => void window.open(url, '_blank'),
     copyText: async text => navigator.clipboard?.writeText(text),
     onCommand: listener => commands.add(listener),
-    setSelection: () => undefined,
+    openLicenses: async () => undefined,
+    log: (level, message) => console[level](message),
     // In a browser the panel and the window are one page: the command runs here
     showMainWindow: command => command && commands.emit(command),
     quit: () => undefined,

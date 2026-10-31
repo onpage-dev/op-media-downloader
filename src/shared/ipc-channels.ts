@@ -16,8 +16,9 @@ export const INVOKE = {
   syncGetDuplicates: 'sync:get-duplicates',
   foldersPick: 'folders:pick',
   foldersInspect: 'folders:inspect',
-  foldersOpen: 'folders:open',
+  foldersOpenProject: 'folders:open-project',
   tokensVerify: 'tokens:verify',
+  tokensVerifyProject: 'tokens:verify-project',
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   appVersion: 'app:version',
@@ -25,10 +26,11 @@ export const INVOKE = {
   appStatus: 'app:status',
   appOpenExternal: 'app:open-external',
   appCopyText: 'app:copy-text',
+  appOpenLicenses: 'app:open-licenses',
 } as const
 
 export const SEND = {
-  setSelection: 'app:set-selection',
+  log: 'app:log',
   showMainWindow: 'app:show-main-window',
   quit: 'app:quit',
   windowMinimize: 'window:minimize',
@@ -41,6 +43,7 @@ export const EVENTS = {
   syncActivity: 'sync:activity',
   settingsChanged: 'settings:changed',
   appStatus: 'app:status',
+  appVersion: 'app:version',
   appCommand: 'app:command',
   windowFocus: 'window:focus',
 } as const

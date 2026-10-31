@@ -86,7 +86,8 @@
     "error_listing": "Elenco dei file non letto",
     "error_unexpected": "Errore imprevisto",
     "offline": "In attesa della rete",
-    "never": "Mai sincronizzato"
+    "never": "Mai sincronizzato",
+    "warning_incomplete": "Elenco incompleto"
   },
   "menu": {
     "sync_now": "Sincronizza ora",
@@ -218,6 +219,10 @@
       "see": "Vedi",
       "see_duplicates": "Vedi i duplicati",
       "confirm": "Conferma"
+    },
+    "listing_incomplete": {
+      "title": "Alcune raccolte non sono state lette",
+      "text": "{detail}: nessun file è stato tolto; i nuovi arrivano alla prossima sincronizzazione."
     }
   },
   "activity": {
@@ -333,7 +338,8 @@
     "sync_now": "Sincronizza appena creato",
     "back": "Indietro",
     "next": "Avanti",
-    "create": "Crea progetto"
+    "create": "Crea progetto",
+    "steps_label": "Passaggi"
   },
   "check": {
     "network": {
@@ -469,7 +475,10 @@
       "check_updates": {
         "title": "Controlla gli aggiornamenti",
         "text": "All’avvio, su GitHub."
-      }
+      },
+      "never": "Non ancora controllato.",
+      "failed": "Non è stato possibile controllare: riprova più tardi.",
+      "licenses": "Licenze open source"
     }
   },
   "tray": {
@@ -493,5 +502,11 @@
     "ctrl": "Ctrl",
     "shift": "Maiusc",
     "delete": "Canc"
+  },
+  "errors": {
+    "generic": "Operazione non riuscita: {detail}",
+    "project_busy": "Il progetto sta lavorando: riprova quando ha finito.",
+    "engine_timeout": "Il motore di sincronizzazione non ha risposto in tempo.",
+    "open_failed": "Non è stato possibile aprire la cartella."
   }
 }

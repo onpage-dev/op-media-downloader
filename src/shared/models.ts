@@ -197,6 +197,8 @@ export type IssueCode =
   | 'interrupted'
   /** An error the engine does not know: the detail says which */
   | 'unexpected'
+  /** Some collections could not be read: nothing was removed (the detail names them) */
+  | 'listing_incomplete'
 
 export interface Issue {
   code: IssueCode
@@ -366,6 +368,8 @@ export interface VersionInfo {
   latest?: string
   release_url?: string
   checked_at?: IsoDate
+  /** The last check could not reach GitHub */
+  check_failed?: boolean
 }
 
 export interface AppStatus {

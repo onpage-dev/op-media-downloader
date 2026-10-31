@@ -275,8 +275,6 @@ function start(): void {
     store,
     status,
     applySettings,
-    /** Menus, tray and shortcuts send commands the renderer applies to its selection */
-    setSelection: () => undefined,
     showMainWindow: command => {
       if (command) sendCommand(command)
       else {
@@ -311,7 +309,7 @@ function start(): void {
 
   if (store.settings.check_updates) {
     setTimeout(() => {
-      void checkForUpdates().then(() => broadcastStatus())
+      void checkForUpdates().then(version => broadcast(EVENTS.appVersion, version))
     }, 5_000)
   }
 

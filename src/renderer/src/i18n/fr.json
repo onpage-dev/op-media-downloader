@@ -86,7 +86,8 @@
     "error_listing": "Liste des fichiers non lue",
     "error_unexpected": "Erreur inattendue",
     "offline": "En attente du réseau",
-    "never": "Non synchronisé"
+    "never": "Non synchronisé",
+    "warning_incomplete": "Liste incomplète"
   },
   "menu": {
     "sync_now": "Synchroniser",
@@ -218,6 +219,10 @@
       "see": "Voir",
       "see_duplicates": "Voir les doublons",
       "confirm": "Confirmer"
+    },
+    "listing_incomplete": {
+      "title": "Certaines collections n’ont pas été lues",
+      "text": "{detail} : aucun fichier n’a été supprimé ; les nouveaux arriveront à la prochaine synchronisation."
     }
   },
   "activity": {
@@ -333,7 +338,8 @@
     "sync_now": "Synchroniser dès la création",
     "back": "Retour",
     "next": "Suivant",
-    "create": "Créer le projet"
+    "create": "Créer le projet",
+    "steps_label": "Étapes"
   },
   "check": {
     "network": {
@@ -469,7 +475,10 @@
       "check_updates": {
         "title": "Vérifier les mises à jour",
         "text": "Au démarrage, sur GitHub."
-      }
+      },
+      "never": "Pas encore vérifié.",
+      "failed": "La vérification a échoué : réessayez plus tard.",
+      "licenses": "Licences open source"
     }
   },
   "tray": {
@@ -493,5 +502,11 @@
     "ctrl": "Ctrl",
     "shift": "Maj",
     "delete": "Suppr"
+  },
+  "errors": {
+    "generic": "L’opération a échoué : {detail}",
+    "project_busy": "Le projet est occupé : réessayez quand il aura terminé.",
+    "engine_timeout": "Le moteur de synchronisation n’a pas répondu à temps.",
+    "open_failed": "Impossible d’ouvrir le dossier."
   }
 }
