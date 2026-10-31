@@ -1,6 +1,7 @@
 /**
  * Icon in the notification area (menu bar on macOS) with a dot for the state,
- * a native menu on right click and the panel (`#/tray`) on left click.
+ * a native menu on right click and the panel (`#/tray`) on left click. On
+ * Linux the menu is the icon's context menu: most desktops report no clicks.
  */
 import { BrowserWindow, Menu, nativeImage, NativeImage, screen, Tray } from 'electron'
 import icon_path from '../../build/icon.png?asset'
@@ -47,6 +48,12 @@ export class TrayController {
     this.tray.setToolTip(this.tooltip)
     this.tray.on('click', () => this.togglePanel())
     this.tray.on('right-click', () => this.tray?.popUpContextMenu(this.menu()))
+    this.refreshMenu()
+  }
+
+  /** The labels changed (another language) */
+  refreshMenu(): void {
+    if (process.platform == 'linux') this.tray?.setContextMenu(this.menu())
   }
 
   disable(): void {

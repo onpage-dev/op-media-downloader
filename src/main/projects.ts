@@ -1,11 +1,14 @@
 /**
  * Projects as main sees them: configuration from the store, live runtime from
  * the engine, persistence of results and plans, and the operations the
- * renderer, the tray and the menus ask for.
+ * renderer, the tray and the menus ask for. Creating, editing and removing
+ * projects run one at a time; a removed project leaves the list at once, its
+ * job and the deletion of its files end in the background.
  */
 import crypto from 'crypto'
 import { shell } from 'electron'
 import { EventEmitter } from 'events'
+import fs from 'fs'
 import path from 'path'
 import { DeleteProjectOptions, NewProjectInput, ProjectPatch } from '../shared/desktop-api'
 import { DeleteFilesResult, EngineProject, EngineToMain } from '../shared/engine-protocol'
@@ -18,6 +21,7 @@ import {
   FolderProblem,
   Issue,
   IssueCode,
+  JobKind,
   PageQuery,
   ProjectId,
   ProjectRuntime,
@@ -25,9 +29,22 @@ import {
   SyncResult,
   TokenCheck,
 } from '../shared/models'
-import { EngineHost } from './engine-host'
+import { EngineHost, NO_TIMEOUT } from './engine-host'
 import { log } from './log'
 import { AppStore, StoredProject } from './store'
+
+/** What projects use of the engine host (the tests give a fake one) */
+export type Engine = Pick<
+  EngineHost,
+  'available' | 'revive' | 'command' | 'request' | 'onMessage' | 'onCrash' | 'onUnavailable'
+>
+
+/** A removed project whose files could not be deleted */
+export interface RemovedProject {
+  id: ProjectId
+  label: string
+  folder: string
+}
 
 /** Issues that still make sense after a restart */
 const PERSISTED_ISSUES: IssueCode[] = [
@@ -50,7 +67,20 @@ const PERSISTED_ISSUES: IssueCode[] = [
 /** Folder problems that make a project impossible to save */
 const BLOCKING_PROBLEMS: FolderProblem[] = ['protected', 'used_by_other_project', 'foreign_data']
 
+/** The engine command of each job but «Sincronizza» */
+const JOB_COMMANDS = { download: 'download', retry_failed: 'retry_failed', cleanup: 'confirm_cleanup' } as const
+
 const AUTO_RETRY_DELAY_MS = 60_000
+/** How long the job of a removed project gets to stop (the engine host restarts a hung engine after a minute) */
+const STOP_WAIT_MS = 90_000
+/** The engine answers these while it restarts or the job still stops: the deletion is tried again */
+const DELETE_RETRY_ERRORS = ['project_busy', 'engine_crashed']
+const DELETE_ATTEMPTS = 3
+/** A share that does not answer counts as missing after this */
+const FOLDER_CHECK_MS = 10_000
+
+/** The detail of the `unexpected` issue of every project while the engine is down */
+export const ENGINE_DOWN = 'The sync engine keeps stopping: it is started again with the next job'
 
 export class ProjectService {
   private runtimes = new Map<ProjectId, ProjectRuntime>()
@@ -58,13 +88,18 @@ export class ProjectService {
   private change_timer?: NodeJS.Timeout
   /** Jobs already retried automatically, so a retry never loops */
   private auto_retried = new Set<string>()
+  /** Removed projects whose files are being deleted: their folders stay taken meanwhile */
+  private deleting = new Map<ProjectId, EngineProject>()
+  /** Creating, editing and removing run one at a time: two creates could take the same folder */
+  private edits: Promise<unknown> = Promise.resolve()
 
   constructor(
     private store: AppStore,
-    private engine: EngineHost,
+    private engine: Engine,
   ) {
     engine.onMessage(message => this.onEngine(message))
     engine.onCrash(() => this.onEngineCrash())
+    engine.onUnavailable(() => this.onEngineUnavailable())
   }
 
   /* ---------------------------------------------------------------- reading */
@@ -73,13 +108,14 @@ export class ProjectService {
     return this.store.projects.map(project => this.toView(project))
   }
 
-  view(id: ProjectId): ProjectView | undefined {
-    const project = this.store.project(id)
-    return project && this.toView(project)
-  }
-
+  /** A job runs (also the one of a removed project, while it stops) */
   isRunning(): boolean {
     return [...this.runtimes.values()].some(runtime => runtime.phase != 'idle')
+  }
+
+  /** The files of a removed project are being deleted */
+  isDeleting(): boolean {
+    return this.deleting.size > 0
   }
 
   status(online: boolean): AppStatus {
@@ -101,9 +137,11 @@ export class ProjectService {
     return this.store.token(project)
   }
 
-  /** The folder of a project as recorded here: the page never names a path to open */
+  /** The folder of a project as recorded here, when it is there: the page never names a path to open */
   async openFolder(id: ProjectId): Promise<void> {
-    const error = await shell.openPath(this.require(id).folder)
+    const folder = this.require(id).folder
+    if (!(await isDirectory(folder))) throw new Error('open_failed')
+    const error = await shell.openPath(folder)
     if (error) throw new Error('open_failed')
   }
 
@@ -126,140 +164,131 @@ export class ProjectService {
     return this.on('result', listener)
   }
 
+  onDeleteFailed(listener: (project: RemovedProject, error: unknown) => void): () => void {
+    return this.on('delete_failed', listener)
+  }
+
   /* ---------------------------------------------------------------- editing */
 
-  async create(input: NewProjectInput): Promise<ProjectView> {
-    const label = input.label?.trim()
-    const token = input.token?.trim()
-    const folder = normalizeFolder(input.folder)
-    if (!label || !token || !folder) throw new Error('invalid_input')
+  create(input: NewProjectInput): Promise<ProjectView> {
+    return this.serialized(async () => {
+      const label = input.label.trim()
+      const token = input.token.trim()
+      if (!label || !token) throw new Error('invalid_input')
+      const { folder, info } = await this.checkedFolder(input.folder)
 
-    const info = await this.inspect(folder)
-    assertUsable(info)
-
-    const project: StoredProject = {
-      id: crypto.randomUUID(),
-      label,
-      folder,
-      keep_old_files: !!input.keep_old_files,
-      created_at: new Date().toISOString(),
-      ...this.store.encryptToken(token),
-      folder_info: info,
-    }
-    this.store.saveProject(project)
-    this.configureEngine()
-    this.changed()
-    log('info', `Project ${project.id} created`)
-    if (input.sync_now) this.sync(project.id)
-    return this.toView(project)
+      const project: StoredProject = {
+        id: crypto.randomUUID(),
+        label,
+        folder,
+        keep_old_files: !!input.keep_old_files,
+        created_at: new Date().toISOString(),
+        ...this.store.encryptToken(token),
+        folder_info: info,
+      }
+      this.store.saveProject(project)
+      this.configureEngine()
+      this.changed()
+      log('info', `Project ${project.id} created`)
+      if (input.sync_now) this.startJob(project.id, 'sync')
+      return this.toView(project)
+    })
   }
 
-  async update(id: ProjectId, patch: ProjectPatch): Promise<ProjectView> {
-    const current = this.require(id)
-    if (this.runtime(current).phase != 'idle') throw new Error('project_busy')
+  update(id: ProjectId, patch: ProjectPatch): Promise<ProjectView> {
+    return this.serialized(async () => {
+      const current = this.require(id)
+      this.requireIdle(current)
 
-    const next: StoredProject = { ...current }
-    let reset = false
-    if (patch.label !== undefined) {
-      const label = patch.label.trim()
-      if (!label) throw new Error('invalid_input')
-      next.label = label
-    }
-    if (patch.token !== undefined) {
-      const token = patch.token.trim()
-      if (!token) throw new Error('invalid_input')
-      if (token != this.store.token(current)) {
-        Object.assign(next, this.store.encryptToken(token))
-        reset = true
+      const changes: Partial<StoredProject> = {}
+      let reset = false
+      if (patch.label !== undefined) {
+        const label = patch.label.trim()
+        if (!label) throw new Error('invalid_input')
+        changes.label = label
       }
-    }
-    if (patch.folder !== undefined) {
-      const folder = normalizeFolder(patch.folder)
-      if (!folder) throw new Error('invalid_input')
-      if (folder != current.folder) {
-        const info = await this.inspect(folder, id)
-        assertUsable(info)
-        next.folder = folder
-        next.folder_info = info
-        reset = true
+      if (patch.token !== undefined) {
+        const token = patch.token.trim()
+        if (!token) throw new Error('invalid_input')
+        if (token != this.store.token(current)) {
+          Object.assign(changes, this.store.encryptToken(token))
+          reset = true
+        }
       }
-    }
-    if (patch.keep_old_files !== undefined && patch.keep_old_files != current.keep_old_files) {
-      next.keep_old_files = patch.keep_old_files
-      /** The plan was computed with the other rule */
-      next.plan = undefined
-      this.runtimes.delete(id)
-    }
-    if (reset) {
-      /** Another project or another folder: what we knew does not apply */
-      next.plan = undefined
-      next.issues = []
-      next.last_result = undefined
-      this.runtimes.delete(id)
-      this.engine.command({ type: 'forget', project_id: id })
-    }
-    this.store.saveProject(next)
-    this.configureEngine()
-    this.changed()
-    return this.toView(next)
+      if (patch.folder !== undefined) {
+        const folder = normalizeFolder(patch.folder)
+        if (folder != current.folder) {
+          const checked = await this.checkedFolder(folder, id)
+          changes.folder = checked.folder
+          changes.folder_info = checked.info
+          reset = true
+        }
+      }
+
+      /** The folder inspection takes a while: the project as it is now, and still idle */
+      const latest = this.require(id)
+      this.requireIdle(latest)
+      const next: StoredProject = { ...latest, ...changes }
+      if (patch.keep_old_files !== undefined && patch.keep_old_files != latest.keep_old_files) {
+        next.keep_old_files = patch.keep_old_files
+        /** The plan was computed with the other rule */
+        next.plan = undefined
+        this.runtimes.delete(id)
+      }
+      if (reset) {
+        /** Another project or another folder: what we knew does not apply */
+        next.plan = undefined
+        next.issues = []
+        next.last_result = undefined
+        this.runtimes.delete(id)
+        this.engine.command({ type: 'forget', project_id: id })
+      }
+      this.store.saveProject(next)
+      this.configureEngine()
+      this.changed()
+      return this.toView(next)
+    })
   }
 
-  async remove(id: ProjectId, options: DeleteProjectOptions): Promise<void> {
-    const project = this.require(id)
-    if (this.runtime(project).phase != 'idle') {
-      this.stop(id)
-      await this.waitIdle([id], 30_000)
-    }
-    if (options.delete_files) {
-      const result = await this.engine.request<DeleteFilesResult>({
-        type: 'delete_project_files',
-        project: this.engineProject(project),
-      })
-      log(
-        'info',
-        `Project ${id} files removed: ${result.removed_files} files, folder ${result.removed_folder ? 'removed' : `kept (${result.kept_entries} other entries)`}`,
-      )
-    }
-    this.engine.command({ type: 'forget', project_id: id })
-    this.runtimes.delete(id)
-    this.store.removeProject(id)
-    this.configureEngine()
-    this.changed()
-    log('info', `Project ${id} removed`)
+  /**
+   * Removes the project from the list at once. Its job is stopped and, when
+   * asked, its files are deleted in the background, with no time limit: on a
+   * slow share with 100k names it takes long, and the project is already
+   * gone, so it cannot be removed twice.
+   */
+  remove(id: ProjectId, options: DeleteProjectOptions): Promise<void> {
+    return this.serialized(async () => {
+      const project = this.require(id)
+      const target = this.engineProject(project)
+      if (options.delete_files) this.deleting.set(id, target)
+      /** The runtime of a running job stays until the engine says it ended */
+      if (this.runtime(project).phase == 'idle') this.runtimes.delete(id)
+      this.store.removeProject(id)
+      this.configureEngine()
+      this.changed()
+      log('info', `Project ${id} removed${options.delete_files ? ': deleting its files' : ''}`)
+      void (options.delete_files ? this.deleteFiles(target) : this.forget(id))
+    })
   }
 
   /* ---------------------------------------------------------------- jobs */
 
-  sync(id: ProjectId, full_listing?: boolean): void {
+  /** Starts a job unless one runs; an engine that was given up is started again */
+  startJob(id: ProjectId, job: JobKind, options: { full_listing?: boolean } = {}): void {
     const project = this.require(id)
     if (this.runtime(project).phase != 'idle') return
-    this.markStarting(project, 'sync')
-    this.engine.command({ type: 'sync', project: this.engineProject(project), full_listing })
+    this.engineUp()
+    this.markStarting(project, job)
+    const target = this.engineProject(project)
+    this.engine.command(
+      job == 'sync'
+        ? { type: 'sync', project: target, full_listing: options.full_listing }
+        : { type: JOB_COMMANDS[job], project: target },
+    )
   }
 
   syncAll(): void {
-    for (const project of this.store.projects) this.sync(project.id)
-  }
-
-  download(id: ProjectId): void {
-    const project = this.require(id)
-    if (this.runtime(project).phase != 'idle') return
-    this.markStarting(project, 'download')
-    this.engine.command({ type: 'download', project: this.engineProject(project) })
-  }
-
-  retryFailed(id: ProjectId): void {
-    const project = this.require(id)
-    if (this.runtime(project).phase != 'idle') return
-    this.markStarting(project, 'retry_failed')
-    this.engine.command({ type: 'retry_failed', project: this.engineProject(project) })
-  }
-
-  confirmCleanup(id: ProjectId): void {
-    const project = this.require(id)
-    if (this.runtime(project).phase != 'idle') return
-    this.markStarting(project, 'cleanup')
-    this.engine.command({ type: 'confirm_cleanup', project: this.engineProject(project) })
+    for (const project of this.store.projects) this.startJob(project.id, 'sync')
   }
 
   stop(id: ProjectId): void {
@@ -296,18 +325,24 @@ export class ProjectService {
   verifyToken(token: string): Promise<TokenCheck> {
     const value = token.trim()
     if (!value) return Promise.resolve({ ok: false, error: 'token_invalid' })
+    this.engineUp()
     return this.engine.request<TokenCheck>({ type: 'verify_token', token: value }, 60_000)
   }
 
-  async inspect(folder: string, project_id?: ProjectId): Promise<FolderInfo> {
+  /** A folder the user picked */
+  inspect(folder: string, project_id?: ProjectId): Promise<FolderInfo> {
+    this.engineUp()
+    return this.inspectFolder(folder, project_id)
+  }
+
+  private async inspectFolder(folder: string, project_id?: ProjectId): Promise<FolderInfo> {
     const info = await this.engine.request<FolderInfo>(
       { type: 'inspect_folder', path: normalizeFolder(folder), project_id },
       60_000,
     )
     /** The engine names the other project by id: the user knows it by its label */
-    if (info.problems.includes('used_by_other_project') && info.problem_detail) {
-      info.problem_detail = this.store.project(info.problem_detail)?.label ?? info.problem_detail
-    }
+    const other = info.problems.includes('used_by_other_project') ? info.problem_detail : undefined
+    if (other) info.problem_detail = this.store.project(other)?.label ?? this.deleting.get(other)?.label ?? other
     return info
   }
 
@@ -320,7 +355,7 @@ export class ProjectService {
     const project = this.store.project(id)
     if (!project) return
     try {
-      const info = await this.inspect(project.folder, id)
+      const info = await this.inspectFolder(project.folder, id)
       this.store.patchProject(id, { folder_info: info })
       this.changed()
     } catch (error) {
@@ -332,8 +367,64 @@ export class ProjectService {
     this.engine.command({ type: 'configure', concurrency, project_folders: this.projectFolders() })
   }
 
+  /** The folders of the projects, and of the removed ones whose files are being deleted */
   projectFolders(): { id: ProjectId; folder: string }[] {
-    return this.store.projects.map(project => ({ id: project.id, folder: project.folder }))
+    return [
+      ...this.store.projects.map(project => ({ id: project.id, folder: project.folder })),
+      ...[...this.deleting.values()].map(project => ({ id: project.id, folder: project.folder })),
+    ]
+  }
+
+  /* ---------------------------------------------------------------- removed projects */
+
+  /** The job of a removed project ends, then the engine drops what it kept of it */
+  private async forget(id: ProjectId): Promise<void> {
+    await this.stopRemoved(id)
+    this.runtimes.delete(id)
+    this.engine.command({ type: 'forget', project_id: id })
+  }
+
+  /** The engine answers `project_busy` while a job of the project runs: it is stopped first */
+  private async deleteFiles(project: EngineProject): Promise<void> {
+    const id = project.id
+    try {
+      for (let attempt = 1; ; attempt++) {
+        await this.stopRemoved(id)
+        this.engineUp()
+        try {
+          const result = await this.engine.request<DeleteFilesResult>(
+            { type: 'delete_project_files', project },
+            NO_TIMEOUT,
+          )
+          log(
+            'info',
+            `Project ${id} files removed: ${result.removed_files} files, folder ${result.removed_folder ? 'removed' : `kept (${result.kept_entries} other entries)`}`,
+          )
+          return
+        } catch (error) {
+          /** `code` or `code: detail` */
+          const code = String((error as Error | undefined)?.message ?? error).split(':')[0]
+          if (attempt >= DELETE_ATTEMPTS || !DELETE_RETRY_ERRORS.includes(code)) throw error
+          log('warn', `Deleting the files of project ${id}: ${code}, trying again`)
+        }
+      }
+    } catch (error) {
+      log('error', `The files of project ${id} could not be deleted from ${project.folder}`, error)
+      this.engine.command({ type: 'forget', project_id: id })
+      this.emitter.emit('delete_failed', { id, label: project.label, folder: project.folder } satisfies RemovedProject, error)
+    } finally {
+      this.runtimes.delete(id)
+      this.deleting.delete(id)
+      this.configureEngine()
+      this.changed()
+    }
+  }
+
+  private async stopRemoved(id: ProjectId): Promise<void> {
+    const runtime = this.runtimes.get(id)
+    if (!runtime || runtime.phase == 'idle') return
+    this.stop(id)
+    await this.waitIdle([id], STOP_WAIT_MS)
   }
 
   /* ---------------------------------------------------------------- engine */
@@ -342,7 +433,7 @@ export class ProjectService {
     switch (message.kind) {
       case 'state': {
         const project = this.store.project(message.project_id)
-        if (!project) return
+        if (!project) return this.removedState(message.project_id, message.runtime)
         const runtime: ProjectRuntime = {
           ...message.runtime,
           /** Main decides what counts as the last completed run (see handleResult) */
@@ -357,9 +448,18 @@ export class ProjectService {
         this.emitter.emit('activity', message.project_id, message.entries)
         return
       case 'result':
+        if (!this.store.project(message.project_id)) return this.removedState(message.project_id)
         this.handleResult(message.project_id, message.result)
         return
     }
+  }
+
+  /** A removed project whose job is still ending: only whether it runs matters (quitting, deleting its files) */
+  private removedState(id: ProjectId, runtime?: ProjectRuntime): void {
+    if (!this.runtimes.has(id)) return
+    if (runtime && runtime.phase != 'idle') this.runtimes.set(id, runtime)
+    else this.runtimes.delete(id)
+    this.changed()
   }
 
   private handleResult(id: ProjectId, result: SyncResult): void {
@@ -395,12 +495,44 @@ export class ProjectService {
     const at = new Date().toISOString()
     for (const [id, runtime] of this.runtimes) {
       if (runtime.phase == 'idle') continue
+      const project = this.store.project(id)
+      if (!project) {
+        this.runtimes.delete(id)
+        continue
+      }
       const issues: Issue[] = [{ code: 'interrupted', severity: 'warning', at }, ...runtime.issues]
       const next = { ...runtime, phase: 'idle' as const, progress: undefined, job: undefined, issues }
       this.runtimes.set(id, next)
-      const project = this.store.project(id)
-      if (project) this.persist(project, next)
+      this.persist(project, next)
     }
+    this.changed()
+  }
+
+  /** The engine keeps stopping and is not restarted: every project says so until the user asks for work */
+  private onEngineUnavailable(): void {
+    const at = new Date().toISOString()
+    for (const project of this.store.projects) {
+      const runtime = this.runtime(project)
+      const issues = runtime.issues.filter(issue => issue.detail != ENGINE_DOWN)
+      this.runtimes.set(project.id, {
+        ...runtime,
+        phase: 'idle',
+        progress: undefined,
+        job: undefined,
+        issues: [{ code: 'unexpected', severity: 'error', detail: ENGINE_DOWN, at }, ...issues],
+      })
+    }
+    this.changed()
+  }
+
+  /** The user asks for work: an engine that was given up gets another chance */
+  private engineUp(): void {
+    if (this.engine.available) return
+    for (const [id, runtime] of this.runtimes) {
+      const issues = runtime.issues.filter(issue => issue.detail != ENGINE_DOWN)
+      if (issues.length != runtime.issues.length) this.runtimes.set(id, { ...runtime, issues })
+    }
+    this.engine.revive()
     this.changed()
   }
 
@@ -412,7 +544,7 @@ export class ProjectService {
     this.auto_retried.add(key)
     setTimeout(() => {
       const project = this.store.project(id)
-      if (project && this.runtime(project).phase == 'idle') this.retryFailed(id)
+      if (project && this.runtime(project).phase == 'idle') this.startJob(id, 'retry_failed')
     }, AUTO_RETRY_DELAY_MS)
   }
 
@@ -425,7 +557,8 @@ export class ProjectService {
       folder: project.folder,
       keep_old_files: project.keep_old_files,
       created_at: project.created_at,
-      has_token: !!(project.token_enc || project.token_plain),
+      /** A token that cannot be decrypted here does not count: the page asks for one */
+      has_token: this.store.hasToken(project),
       runtime: this.runtime(project),
       folder_info: project.folder_info,
     }
@@ -447,13 +580,13 @@ export class ProjectService {
       this.store.patchProject(project.id, {
         plan: runtime.plan,
         last_result: runtime.last_result,
-        issues: runtime.issues.filter(issue => PERSISTED_ISSUES.includes(issue.code)),
+        issues: runtime.issues.filter(issue => PERSISTED_ISSUES.includes(issue.code) && issue.detail != ENGINE_DOWN),
       }) ?? project
     )
   }
 
   /** Shows the job as started at once, before the engine's first state */
-  private markStarting(project: StoredProject, job: ProjectRuntime['job']): void {
+  private markStarting(project: StoredProject, job: JobKind): void {
     const runtime = this.runtime(project)
     this.runtimes.set(project.id, {
       ...runtime,
@@ -474,10 +607,30 @@ export class ProjectService {
     }
   }
 
+  /** A folder a project can use: normalized, inspected by the engine, not protected nor taken */
+  private async checkedFolder(raw: string, project_id?: ProjectId): Promise<{ folder: string; info: FolderInfo }> {
+    const folder = normalizeFolder(raw)
+    if (!folder) throw new Error('invalid_input')
+    const info = await this.inspect(folder, project_id)
+    const blocking = info.problems.find(problem => BLOCKING_PROBLEMS.includes(problem))
+    if (blocking) throw new Error(`folder_${blocking}`)
+    return { folder, info }
+  }
+
   private require(id: ProjectId): StoredProject {
     const project = this.store.project(id)
     if (!project) throw new Error('project_not_found')
     return project
+  }
+
+  private requireIdle(project: StoredProject): void {
+    if (this.runtime(project).phase != 'idle') throw new Error('project_busy')
+  }
+
+  private serialized<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.edits.then(task)
+    this.edits = run.catch(() => undefined)
+    return run
   }
 
   private waitIdle(ids: ProjectId[], timeout_ms: number): Promise<void> {
@@ -520,7 +673,13 @@ function normalizeFolder(folder: string): string {
     : normalized
 }
 
-function assertUsable(info: FolderInfo): void {
-  const blocking = info.problems.find(problem => BLOCKING_PROBLEMS.includes(problem))
-  if (blocking) throw new Error(`folder_${blocking}`)
+/** The folder is there and is a folder (a share that does not answer is not) */
+function isDirectory(folder: string): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined
+  const timeout = new Promise<boolean>(resolve => (timer = setTimeout(() => resolve(false), FOLDER_CHECK_MS)))
+  const check = fs.promises.stat(folder).then(
+    stat => stat.isDirectory(),
+    () => false,
+  )
+  return Promise.race([check, timeout]).finally(() => clearTimeout(timer))
 }

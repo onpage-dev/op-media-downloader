@@ -2,9 +2,18 @@
  * App store: settings, projects (tokens encrypted with safeStorage), the last
  * known state of each project and the window bounds. Same file as 1.x
  * (`op-media-downloader-config.json`), migrated on first start.
+ *
+ * Main is the only writer, so reads come from electron-store's cache, which
+ * is frozen: never change a value a read returned, write a new one. Every
+ * value read back is checked (a hand-edited or half-written file must not
+ * break the app), and a file that cannot be parsed is set aside: the app
+ * starts without projects and tells the user where the old file is.
  */
-import { safeStorage } from 'electron'
+import crypto from 'crypto'
+import { app, safeStorage } from 'electron'
 import Store from 'electron-store'
+import fs from 'fs'
+import path from 'path'
 import {
   AppLanguage,
   AppSettings,
@@ -17,6 +26,7 @@ import {
   SyncResult,
 } from '../shared/models'
 import { log } from './log'
+import { cleanSettings, concurrency, isLanguage, isProjectId, isRecord } from './validate'
 
 export interface StoredProject extends ProjectConfig {
   /** safeStorage.encryptString, base64 */
@@ -41,54 +51,51 @@ export interface WindowState {
 interface StoreSchema {
   version: number
   settings: AppSettings
-  projects: Record<ProjectId, StoredProject>
+  /** StoredProject by id, as far as the file can be trusted: each one is checked when read */
+  projects: Record<ProjectId, unknown>
   window_state?: WindowState
 }
 
-/** 1.x shapes, read once by the migration */
-interface V1Project {
-  id: string
-  label: string
-  api_token: string
-  folder_path: string
-  keep_old_files: boolean
-  last_sync?: {
-    start_time: string
-    end_time: string
-    downloaded: number
-    failed: number
-    already_exists: number
-    total: number
-  }
-}
-interface V1UserProperties {
-  dark_mode?: boolean
-  simultaneous_downloads?: number
-  language?: 'it' | 'en'
+export interface AppStoreOptions {
+  /** The language of a new install: the system's one */
+  default_language?: AppLanguage
+  /** The folder of the file, userData when missing (tests use a temporary one) */
+  cwd?: string
 }
 
+const STORE_NAME = 'op-media-downloader-config'
 const STORE_VERSION = 2
+/** The 1.x keys: `storage_data` held the projects with their tokens in clear, `user_properties` the settings */
+const V1_KEYS = ['storage_data', 'user_properties'] as const
+/** created_at of a project saved without one */
+const EPOCH = new Date(0).toISOString()
 
 export class AppStore {
-  private store = new Store<StoreSchema>({
-    name: 'op-media-downloader-config',
-    clearInvalidConfig: false,
-  })
+  private store: Store<StoreSchema>
+  private readonly default_language: AppLanguage
+  /** Whether each encrypted token decrypts here to a token (another user's or computer's does not) */
+  private token_ok = new Map<string, boolean>()
+  /** Where a config file that could not be parsed was set aside, to tell the user */
+  readonly set_aside?: string
 
-  /** default_language: the language of a new install, the system's one */
-  constructor(private readonly default_language: AppLanguage = DEFAULT_SETTINGS.language) {
+  constructor(options: AppStoreOptions = {}) {
+    this.default_language = options.default_language ?? DEFAULT_SETTINGS.language
+    const opened = openStore(options.cwd)
+    this.store = opened.store
+    this.set_aside = opened.set_aside
     this.migrate()
+    this.encryptPlainTokens()
   }
 
   /* ---------------------------------------------------------------- settings */
 
   get settings(): AppSettings {
-    return { ...DEFAULT_SETTINGS, ...(this.store.get('settings') ?? {}) }
+    return cleanSettings(this.store.get('settings'), { ...DEFAULT_SETTINGS, language: this.default_language })
   }
 
   setSettings(patch: Partial<AppSettings>): AppSettings {
-    const next = { ...this.settings, ...patch }
-    next.concurrency = Math.min(10, Math.max(1, Math.round(next.concurrency)))
+    const current = this.settings
+    const next = cleanSettings({ ...current, ...patch }, current)
     this.store.set('settings', next)
     return next
   }
@@ -96,29 +103,41 @@ export class AppStore {
   /* ---------------------------------------------------------------- projects */
 
   get projects(): StoredProject[] {
-    return Object.values(this.store.get('projects') ?? {}).sort((a, b) =>
-      a.created_at.localeCompare(b.created_at),
-    )
+    return Object.entries(this.projectMap())
+      .map(([id, value]) => readProject(id, value))
+      .filter((project): project is StoredProject => !!project)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
   }
 
+  /** Only a project of the file: `constructor` or `__proto__` are not projects */
   project(id: ProjectId): StoredProject | undefined {
-    return this.store.get('projects')?.[id]
+    const projects = this.projectMap()
+    return Object.hasOwn(projects, id) ? readProject(id, projects[id]) : undefined
   }
 
   saveProject(project: StoredProject): void {
-    this.store.set(`projects.${project.id}`, project)
+    if (!isProjectId(project.id)) throw new Error('invalid_input')
+    this.store.set('projects', { ...this.projectMap(), [project.id]: project })
   }
 
   patchProject(id: ProjectId, patch: Partial<StoredProject>): StoredProject | undefined {
     const current = this.project(id)
     if (!current) return undefined
-    const next = { ...current, ...patch }
+    const next = { ...current, ...patch, id }
     this.saveProject(next)
     return next
   }
 
   removeProject(id: ProjectId): void {
-    this.store.delete(`projects.${id}` as keyof StoreSchema)
+    const projects = this.projectMap()
+    if (!Object.hasOwn(projects, id)) return
+    this.store.set('projects', Object.fromEntries(Object.entries(projects).filter(([key]) => key != id)))
+  }
+
+  /** The projects as the file has them (whole objects only: one entry per id) */
+  private projectMap(): Record<string, unknown> {
+    const projects: unknown = this.store.get('projects')
+    return isRecord(projects) ? projects : {}
   }
 
   /* ---------------------------------------------------------------- tokens */
@@ -130,22 +149,62 @@ export class AppStore {
     return { token_enc: undefined, token_plain: token }
   }
 
+  /** The token in clear; empty when there is none or it cannot be decrypted here */
   token(project: StoredProject): string {
-    if (project.token_enc) {
-      try {
-        return safeStorage.decryptString(Buffer.from(project.token_enc, 'base64'))
-      } catch (error) {
-        log('error', `Cannot decrypt the token of project ${project.id}`, error)
-        return ''
-      }
-    }
+    if (project.token_enc) return this.decrypt(project.token_enc, project.id)
     return project.token_plain ?? ''
+  }
+
+  /**
+   * A token that cannot be decrypted (the file comes from another user or
+   * computer) does not count: the page asks for a new one
+   */
+  hasToken(project: StoredProject): boolean {
+    if (!project.token_enc) return !!project.token_plain
+    return this.token_ok.get(project.token_enc) ?? !!this.decrypt(project.token_enc, project.id)
+  }
+
+  private decrypt(token_enc: string, id: ProjectId): string {
+    try {
+      const token = safeStorage.decryptString(Buffer.from(token_enc, 'base64'))
+      this.token_ok.set(token_enc, !!token)
+      return token
+    } catch (error) {
+      if (!this.token_ok.has(token_enc)) log('error', `Cannot decrypt the token of project ${id}`, error)
+      this.token_ok.set(token_enc, false)
+      return ''
+    }
+  }
+
+  /** Tokens saved in clear because the OS had no encryption are encrypted once it has (one write) */
+  private encryptPlainTokens(): void {
+    if (!safeStorage.isEncryptionAvailable()) return
+    const projects = this.projectMap()
+    const next: Record<string, unknown> = { ...projects }
+    let count = 0
+    for (const [id, value] of Object.entries(projects)) {
+      const project = readProject(id, value)
+      if (!project?.token_plain || project.token_enc) continue
+      next[id] = { ...project, ...this.encryptToken(project.token_plain) }
+      count++
+    }
+    if (!count) return
+    this.store.set('projects', next)
+    log('info', `Tokens of ${count} projects encrypted`)
   }
 
   /* ---------------------------------------------------------------- window */
 
   get windowState(): WindowState | undefined {
-    return this.store.get('window_state')
+    const state: unknown = this.store.get('window_state')
+    if (!isRecord(state) || !isFiniteNumber(state.width) || !isFiniteNumber(state.height)) return undefined
+    return {
+      x: isFiniteNumber(state.x) ? state.x : undefined,
+      y: isFiniteNumber(state.y) ? state.y : undefined,
+      width: state.width,
+      height: state.height,
+      maximized: state.maximized === true,
+    }
   }
 
   set windowState(state: WindowState) {
@@ -154,68 +213,171 @@ export class AppStore {
 
   /* ---------------------------------------------------------------- migration */
 
+  /**
+   * 1.x → 2.0 in one write: settings, projects (tokens encrypted), version.
+   * The 1.x keys go whenever they are there (1.x run again after the
+   * migration writes them anew): projects 1.x added meanwhile are kept.
+   */
   private migrate(): void {
-    const version = this.store.get('version') ?? 0
-    if (version >= STORE_VERSION) return
+    const raw: Record<string, unknown> = { ...this.store.store }
+    const version = typeof raw.version == 'number' ? raw.version : 0
+    const has_v1 = V1_KEYS.some(key => Object.hasOwn(raw, key))
+    if (version >= STORE_VERSION && !has_v1) return
 
-    const raw = this.store.store as unknown as Record<string, unknown>
-    const v1_projects = (raw['storage_data'] ?? {}) as Record<string, V1Project>
-    const v1_user = (raw['user_properties'] ?? {}) as V1UserProperties
-
-    const settings: AppSettings = {
-      ...DEFAULT_SETTINGS,
-      theme: v1_user.dark_mode ? 'dark' : 'system',
-      /** 1.x showed Italian unless told otherwise */
-      language: v1_user.language ?? ('storage_data' in raw || 'user_properties' in raw ? 'it' : this.default_language),
-      /** 1 was the 1.x default, not a choice: start from the 2.0 default */
-      concurrency:
-        v1_user.simultaneous_downloads && v1_user.simultaneous_downloads > 1
-          ? v1_user.simultaneous_downloads
-          : DEFAULT_SETTINGS.concurrency,
+    const projects: Record<string, unknown> = isRecord(raw.projects) ? { ...raw.projects } : {}
+    const folders = new Set(
+      Object.entries(projects).flatMap(([id, value]) => readProject(id, value)?.folder ?? []).map(folderKey),
+    )
+    let imported = 0
+    for (const project of v1Projects(raw.storage_data, token => this.encryptToken(token))) {
+      /** Already migrated (by id or by folder: two projects never share a folder) */
+      if (Object.hasOwn(projects, project.id) || folders.has(folderKey(project.folder))) continue
+      projects[project.id] = project
+      folders.add(folderKey(project.folder))
+      imported++
     }
 
-    const projects: Record<ProjectId, StoredProject> = {}
-    for (const v1 of Object.values(v1_projects)) {
-      if (!v1?.id) continue
-      projects[v1.id] = {
-        id: v1.id,
-        label: v1.label,
-        folder: v1.folder_path,
-        keep_old_files: !!v1.keep_old_files,
-        created_at: new Date().toISOString(),
-        ...this.encryptToken(v1.api_token ?? ''),
-        last_result: v1.last_sync ? fromV1Sync(v1.last_sync) : undefined,
-      }
+    const next: Record<string, unknown> = { ...raw, projects }
+    for (const key of V1_KEYS) delete next[key]
+    if (version < STORE_VERSION) {
+      next.settings = v1Settings(raw.user_properties, has_v1, this.default_language)
+      next.version = STORE_VERSION
     }
-
-    this.store.set('settings', settings)
-    this.store.set('projects', projects)
-    this.store.set('version', STORE_VERSION)
-    /** The 1.x keys held the tokens in clear: they go */
-    this.store.delete('storage_data' as keyof StoreSchema)
-    this.store.delete('user_properties' as keyof StoreSchema)
-    log('info', `Store migrated to v${STORE_VERSION}: ${Object.keys(projects).length} projects`)
+    this.store.store = next as unknown as StoreSchema
+    log(
+      'info',
+      version < STORE_VERSION
+        ? `Store migrated to v${STORE_VERSION}: ${imported} projects`
+        : `1.x keys removed from the store: ${imported} projects imported`,
+    )
   }
 }
 
-function fromV1Sync(sync: NonNullable<V1Project['last_sync']>): SyncResult {
+/**
+ * The store, or a new one when the file cannot be parsed: the damaged file is
+ * kept beside it as `op-media-downloader-config.corrupt-<time>.json`
+ */
+function openStore(cwd: string | undefined): { store: Store<StoreSchema>; set_aside?: string } {
+  const options = { name: STORE_NAME, cwd, clearInvalidConfig: false, cache: true }
+  try {
+    return { store: new Store<StoreSchema>(options) }
+  } catch (error) {
+    if ((error as Error | undefined)?.name != 'SyntaxError') throw error
+    const file = path.join(cwd ?? app.getPath('userData'), `${STORE_NAME}.json`)
+    const set_aside = path.join(path.dirname(file), `${STORE_NAME}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
+    log('error', `The config file cannot be parsed: set aside as ${set_aside}`, error)
+    try {
+      fs.renameSync(file, set_aside)
+      return { store: new Store<StoreSchema>(options), set_aside }
+    } catch (rename_error) {
+      /** A file another program holds cannot be moved: it is copied, and the store starts over it */
+      log('warn', 'The damaged config file cannot be moved: copied instead', rename_error)
+      fs.copyFileSync(file, set_aside)
+      return { store: new Store<StoreSchema>({ ...options, clearInvalidConfig: true }), set_aside }
+    }
+  }
+}
+
+/** A project read back from the file; anything that is not one is left out */
+function readProject(id: string, value: unknown): StoredProject | undefined {
+  if (!isProjectId(id) || !isRecord(value) || value.id !== id) return undefined
+  if (typeof value.label != 'string' || typeof value.folder != 'string') return undefined
+  return {
+    id,
+    label: value.label,
+    folder: value.folder,
+    keep_old_files: value.keep_old_files === true,
+    created_at: typeof value.created_at == 'string' ? value.created_at : EPOCH,
+    token_enc: typeof value.token_enc == 'string' && value.token_enc ? value.token_enc : undefined,
+    token_plain: typeof value.token_plain == 'string' && value.token_plain ? value.token_plain : undefined,
+    last_result:
+      isRecord(value.last_result) && typeof value.last_result.ended_at == 'string'
+        ? (value.last_result as unknown as SyncResult)
+        : undefined,
+    plan: isRecord(value.plan) ? (value.plan as unknown as PlanSummary) : undefined,
+    issues: Array.isArray(value.issues) ? (value.issues.filter(isIssue) as Issue[]) : undefined,
+    folder_info:
+      isRecord(value.folder_info) && Array.isArray(value.folder_info.problems)
+        ? (value.folder_info as unknown as FolderInfo)
+        : undefined,
+  }
+}
+
+function isIssue(value: unknown): boolean {
+  return isRecord(value) && typeof value.code == 'string' && typeof value.at == 'string'
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value == 'number' && Number.isFinite(value)
+}
+
+/** Folders compared the way the file systems of the platform compare them */
+function folderKey(folder: string): string {
+  const normalized = path.normalize(folder.trim()).replace(/[\\/]+$/, '')
+  return process.platform == 'linux' ? normalized : normalized.toLowerCase()
+}
+
+/* -------------------------------------------------------------------- 1.x */
+
+/** 1.x settings (`user_properties`: dark_mode, simultaneous_downloads, language) as 2.0 settings */
+function v1Settings(value: unknown, has_v1: boolean, default_language: AppLanguage): AppSettings {
+  const v1 = isRecord(value) ? value : {}
+  const simultaneous = concurrency(v1.simultaneous_downloads)
+  return {
+    ...DEFAULT_SETTINGS,
+    theme: v1.dark_mode === true ? 'dark' : 'system',
+    /** 1.x showed Italian unless told otherwise; a new install speaks the system's language */
+    language: isLanguage(v1.language) ? v1.language : has_v1 ? 'it' : default_language,
+    /** 1 was the 1.x default, not a choice: start from the 2.0 default */
+    concurrency: simultaneous && simultaneous > 1 ? simultaneous : DEFAULT_SETTINGS.concurrency,
+  }
+}
+
+/** 1.x projects (`storage_data`: id, label, api_token, folder_path, keep_old_files, last_sync) in their order */
+function v1Projects(
+  value: unknown,
+  encrypt: (token: string) => Pick<StoredProject, 'token_enc' | 'token_plain'>,
+): StoredProject[] {
+  if (!isRecord(value)) return []
+  const now = Date.now()
+  const projects: StoredProject[] = []
+  for (const v1 of Object.values(value)) {
+    if (!isRecord(v1) || typeof v1.folder_path != 'string' || !v1.folder_path.trim()) continue
+    const token = typeof v1.api_token == 'string' ? v1.api_token.trim() : ''
+    const label = typeof v1.label == 'string' && v1.label.trim() ? v1.label.trim() : path.basename(v1.folder_path)
+    projects.push({
+      id: isProjectId(v1.id) ? v1.id : crypto.randomUUID(),
+      label,
+      folder: v1.folder_path,
+      keep_old_files: v1.keep_old_files === true,
+      /** One millisecond apart: the list keeps the order of 1.x */
+      created_at: new Date(now + projects.length).toISOString(),
+      ...(token ? encrypt(token) : {}),
+      last_result: isRecord(v1.last_sync) ? fromV1Sync(v1.last_sync) : undefined,
+    })
+  }
+  return projects
+}
+
+function fromV1Sync(sync: Record<string, unknown>): SyncResult {
+  const count = (value: unknown): number => (isFiniteNumber(value) && value >= 0 ? Math.floor(value) : 0)
   return {
     job: 'download',
     started_at: v1Date(sync.start_time),
     ended_at: v1Date(sync.end_time),
     outcome: 'completed',
-    total: sync.total ?? 0,
-    downloaded: sync.downloaded ?? 0,
+    total: count(sync.total),
+    downloaded: count(sync.downloaded),
     linked: 0,
     removed: 0,
-    already_present: sync.already_exists ?? 0,
-    failed: sync.failed ?? 0,
+    already_present: count(sync.already_exists),
+    failed: count(sync.failed),
     bytes: 0,
   }
 }
 
 /** 1.x saved local times as `YYYY-MM-DD HH:mm:ss` */
-function v1Date(value: string): string {
-  const date = new Date(value?.replace(' ', 'T'))
+function v1Date(value: unknown): string {
+  const date = new Date(typeof value == 'string' ? value.replace(' ', 'T') : NaN)
   return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
 }

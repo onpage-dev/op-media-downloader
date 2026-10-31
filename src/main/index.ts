@@ -1,26 +1,30 @@
 /**
  * Main process: one instance, the window, the tray, notifications, taskbar
- * progress and the sync engine, wired together.
+ * progress and the sync engine, wired together. Anything that fails while the
+ * app starts is shown in an error dialog and the app quits: a process without
+ * a window must not keep the single-instance lock.
  */
-import { app, BrowserWindow, dialog, nativeTheme, net, powerSaveBlocker } from 'electron'
+import { app, dialog, nativeTheme, session } from 'electron'
 import crypto from 'crypto'
 import path from 'path'
-import { AppCommand, InspectorTab } from '../shared/desktop-api'
+import { AppCommand } from '../shared/desktop-api'
 import { EVENTS } from '../shared/ipc-channels'
-import { AppSettings, AppStatus, ProjectId, ProjectView } from '../shared/models'
-import { aggregateTone, projectStatus } from '../shared/status'
+import { AppLanguage, AppSettings } from '../shared/models'
+import { StatusController } from './app-status'
 import { EngineHost } from './engine-host'
 import { systemLanguage, texts } from './i18n'
 import { registerIpc } from './ipc'
-import { log } from './log'
+import { AppLifecycle, watchSecondInstance } from './lifecycle'
+import { flushLog, log, logFile } from './log'
+import { MainWindow } from './main-window'
 import { commandFromArgv, setupJumpList, setupMenu } from './menu'
-import { notifyResult } from './notifications'
+import { notifyDeleteFailed, notifyResult } from './notifications'
 import { ProjectService } from './projects'
+import { debuggingRequested, denyPermissions, secureContents } from './security'
 import { AppStore } from './store'
-import { updateTaskbar } from './taskbar'
 import { TrayController } from './tray'
 import { checkForUpdates } from './updates'
-import { createMainWindow, loadRenderer, preloadPath, secureContents } from './window'
+import { loadRenderer, preloadPath, reloadOnCrash } from './window'
 
 const APP_ID = 'com.onpage.mediadownloader'
 
@@ -33,30 +37,55 @@ if (!app.isPackaged) {
   app.setPath('userData', process.env['OPMD_USER_DATA'] || path.join(app.getPath('appData'), 'op-media-downloader-dev'))
 }
 
-process.on('uncaughtException', error => log('error', 'Uncaught exception', error))
-process.on('unhandledRejection', error => log('error', 'Unhandled rejection', error))
+/**
+ * Errors nobody caught are logged and still reported the way Electron does:
+ * the monitor leaves its dialog for exceptions in place; a rejection (only a
+ * console warning in Electron, silenced by any listener) is printed by log()
+ */
+process.on('uncaughtExceptionMonitor', error => log('error', 'Uncaught exception', error))
+process.on('unhandledRejection', reason => log('error', 'Unhandled rejection', reason))
 
-if (!app.requestSingleInstanceLock()) {
+const debugging = app.isPackaged ? debuggingRequested() : undefined
+if (debugging) {
+  log('error', `Not started: ${debugging} is not allowed`)
+  flushLog()
+  app.exit(1)
+} else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
+  const onSecondInstance = watchSecondInstance()
   if (process.platform == 'win32') app.setAppUserModelId(APP_ID)
-  app.whenReady().then(start)
+  app
+    .whenReady()
+    .then(() => start(onSecondInstance))
+    .catch(startFailed)
 }
 
-function start(): void {
-  const store = new AppStore(systemLanguage([...app.getPreferredSystemLanguages(), app.getLocale()]))
-  const instance_id = crypto.randomUUID()
-  let window: BrowserWindow | undefined
-  let quitting = false
-  let blocker: number | undefined
-  /** Red taskbar after an error, until the user looks at the window */
-  let show_errors = false
-  let online = net.isOnline()
-  const pending_commands: AppCommand[] = []
+function language(): AppLanguage {
+  return systemLanguage([...app.getPreferredSystemLanguages(), app.getLocale()])
+}
 
+/** Says why the app cannot start and quits, which releases the single-instance lock */
+function startFailed(error: unknown): void {
+  log('error', 'Start-up failed', error)
+  flushLog()
+  try {
+    const t = texts(language())
+    dialog.showErrorBox(t.start_failed_title, `${error instanceof Error ? error.message : String(error)}\n\n${t.start_failed_log(logFile())}`)
+  } catch {
+    dialog.showErrorBox('On Page Media Downloader', String(error))
+  } finally {
+    app.exit(1)
+  }
+}
+
+function start(onSecondInstance: (handler: (argv: string[]) => void) => void): void {
+  denyPermissions(session.defaultSession)
+  const store = new AppStore({ default_language: language() })
   nativeTheme.themeSource = store.settings.theme
+  const instance_id = crypto.randomUUID()
 
-  const engine = new EngineHost(() => ({
+  const engine: EngineHost = new EngineHost(() => ({
     cache_dir: path.join(app.getPath('userData'), 'cache'),
     project_folders: projects.projectFolders(),
     concurrency: store.settings.concurrency,
@@ -65,15 +94,16 @@ function start(): void {
     /** Development only: point the engine at a fake On Page server */
     api_domain: app.isPackaged ? undefined : process.env['OPMD_API_DOMAIN'] || undefined,
   }))
-  const projects = new ProjectService(store, engine)
+  const projects: ProjectService = new ProjectService(store, engine)
 
-  const tray = new TrayController({
+  const tray: TrayController = new TrayController({
     preload: preloadPath(),
     loadPanel: panel => {
       secureContents(panel)
+      reloadOnCrash(panel, 'tray')
       loadRenderer(panel, 'tray')
     },
-    open: () => showWindow(),
+    open: () => main_window.show(),
     syncAll: () => projects.syncAll(),
     quit: () => app.quit(),
     labels: () => {
@@ -82,207 +112,75 @@ function start(): void {
     },
   })
 
-  /* ------------------------------------------------------------------ windows */
+  const main_window: MainWindow = new MainWindow({
+    store,
+    hidePanel: () => tray.hidePanel(),
+    onFocus: window => status.windowFocused(window),
+    onClose: (event, window) => lifecycle.onWindowClose(event, window),
+  })
+  const sendCommand = (command: AppCommand): void => main_window.sendCommand(command)
 
-  function windows(): BrowserWindow[] {
-    return [window, tray.panelWindow].filter((w): w is BrowserWindow => !!w && !w.isDestroyed())
-  }
-
+  /** The main window and the tray panel show the same projects */
   function broadcast(channel: string, ...args: unknown[]): void {
-    for (const target of windows()) target.webContents.send(channel, ...args)
-  }
-
-  function ensureWindow(): BrowserWindow {
-    if (window && !window.isDestroyed()) return window
-    window = createMainWindow(store)
-    const created = window
-    created.once('ready-to-show', () => {
-      created.show()
-      for (const command of pending_commands.splice(0)) created.webContents.send(EVENTS.appCommand, command)
-    })
-    created.on('focus', () => {
-      show_errors = false
-      updateTaskbar(created, projects.views(), show_errors)
-      created.webContents.send(EVENTS.windowFocus, true)
-    })
-    created.on('blur', () => created.webContents.send(EVENTS.windowFocus, false))
-    created.on('close', event => onClose(event, created))
-    created.on('closed', () => {
-      if (window == created) window = undefined
-    })
-    created.webContents.on('render-process-gone', (_event, details) =>
-      log('error', `Renderer gone: ${details.reason}`),
-    )
-    return created
-  }
-
-  function showWindow(): BrowserWindow {
-    const target = ensureWindow()
-    if (target.isMinimized()) target.restore()
-    if (target.webContents.isLoading()) return target
-    target.show()
-    target.focus()
-    return target
-  }
-
-  function sendCommand(command: AppCommand): void {
-    tray.hidePanel()
-    const target = showWindow()
-    if (target.webContents.isLoading()) pending_commands.push(command)
-    else target.webContents.send(EVENTS.appCommand, command)
-  }
-
-  function focusProject(id: ProjectId, tab?: InspectorTab): void {
-    sendCommand({ type: 'select_project', project_id: id, tab })
-  }
-
-  /* ------------------------------------------------------------------ closing */
-
-  function onClose(event: Electron.Event, target: BrowserWindow): void {
-    if (quitting) return
-    if (store.settings.close_to_tray && tray.enabled) {
-      event.preventDefault()
-      target.hide()
-      return
-    }
-    /** On macOS the app stays in the Dock and the engine keeps working */
-    if (process.platform == 'darwin') return
-    if (projects.isRunning()) {
-      event.preventDefault()
-      void confirmQuit()
+    for (const window of [main_window.current, tray.panelWindow]) {
+      if (window) window.webContents.send(channel, ...args)
     }
   }
 
-  async function confirmQuit(): Promise<void> {
-    const t = texts(store.settings.language)
-    const options: Electron.MessageBoxOptions = {
-      type: 'warning',
-      buttons: [t.quit_confirm, t.cancel],
-      defaultId: 1,
-      cancelId: 1,
-      title: t.quit_title,
-      message: t.quit_title,
-      detail: t.quit_message,
-    }
-    const parent = window && !window.isDestroyed() ? window : undefined
-    const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options)
-    if (response != 0) return
-    quitting = true
-    await projects.stopAll()
-    app.quit()
-  }
-
-  app.on('before-quit', event => {
-    if (quitting) return
-    if (projects.isRunning()) {
-      event.preventDefault()
-      void confirmQuit()
-      return
-    }
-    quitting = true
+  const status: StatusController = new StatusController({
+    store,
+    projects,
+    tray,
+    window: () => main_window.current,
+    broadcast,
   })
-
-  app.on('will-quit', () => {
-    engine.dispose()
-    tray.disable()
-  })
-
-  app.on('window-all-closed', () => {
-    if (process.platform != 'darwin' && !(store.settings.close_to_tray && tray.enabled)) app.quit()
-  })
-
-  app.on('activate', () => showWindow())
-
-  app.on('second-instance', (_event, argv) => {
-    const command = commandFromArgv(argv)
-    if (command) sendCommand(command)
-    else showWindow()
-  })
-
-  /* ------------------------------------------------------------------ state */
-
-  function status(): AppStatus {
-    return projects.status(online)
-  }
-
-  let status_timer: NodeJS.Timeout | undefined
-  function broadcastStatus(): void {
-    if (status_timer) return
-    status_timer = setTimeout(() => {
-      status_timer = undefined
-      broadcast(EVENTS.appStatus, status())
-    }, 250)
-  }
-
-  function onProjects(views: ProjectView[]): void {
-    broadcast(EVENTS.projectsChanged, views)
-    updateTaskbar(window, views, show_errors)
-    updateTray(views)
-    updatePowerBlocker()
-    broadcastStatus()
-  }
-
-  function updateTray(views: ProjectView[]): void {
-    const t = texts(store.settings.language)
-    const running = views.filter(view => view.runtime.phase != 'idle').length
-    const attention = views.filter(view => ['danger', 'warning'].includes(projectStatus(view).tone)).length
-    const tooltip = [t.app_name, running ? t.tray_running(running) : attention ? t.tray_attention(attention) : t.tray_idle].join('\n')
-    const tone = aggregateTone(views)
-    tray.update(tone == 'success' ? undefined : tone, tooltip)
-  }
-
-  function updatePowerBlocker(): void {
-    const running = projects.isRunning()
-    if (running && blocker === undefined) blocker = powerSaveBlocker.start('prevent-app-suspension')
-    if (!running && blocker !== undefined) {
-      powerSaveBlocker.stop(blocker)
-      blocker = undefined
-    }
-  }
+  const lifecycle: AppLifecycle = new AppLifecycle({ store, projects, engine, tray, window: main_window })
 
   function applySettings(next: AppSettings, previous: AppSettings): void {
     if (next.theme != previous.theme) nativeTheme.themeSource = next.theme
     if (next.language != previous.language) {
       setupMenu(next.language, sendCommand)
       setupJumpList(next.language)
-      updateTray(projects.views())
+      tray.refreshMenu()
     }
     if (next.concurrency != previous.concurrency) projects.configureEngine(next.concurrency)
     if (next.close_to_tray) tray.enable()
     else tray.disable()
     if (next.open_at_login != previous.open_at_login) applyLoginItem(next)
-    updateTray(projects.views())
+    status.updateTray()
     broadcast(EVENTS.settingsChanged, next)
-  }
-
-  function applyLoginItem(settings: AppSettings): void {
-    /** In development this would register the bare Electron binary */
-    if (!app.isPackaged) return
-    app.setLoginItemSettings({ openAtLogin: settings.open_at_login, args: ['--hidden'] })
   }
 
   /* ------------------------------------------------------------------ wiring */
 
-  projects.onChanged(onProjects)
   projects.onActivity((id, entries) => broadcast(EVENTS.syncActivity, id, entries))
   projects.onResult((view, result) => {
-    if (result.outcome == 'failed' && !(window?.isFocused() ?? false)) show_errors = true
-    notifyResult(store, view, result, focusProject)
+    status.jobEnded(result, main_window.focused)
+    notifyResult(store, view, result, (id, tab) => main_window.focusProject(id, tab))
   })
+  projects.onDeleteFailed(project => notifyDeleteFailed(store, project.label, () => main_window.show()))
 
   registerIpc({
     projects,
     store,
-    status,
+    status: () => status.status(),
     applySettings,
+    broadcast,
     showMainWindow: command => {
       if (command) sendCommand(command)
       else {
         tray.hidePanel()
-        showWindow()
+        main_window.show()
       }
     },
     quit: () => app.quit(),
+  })
+
+  lifecycle.register()
+  onSecondInstance(argv => {
+    const command = commandFromArgv(argv)
+    if (command) sendCommand(command)
+    else main_window.show()
   })
 
   setupMenu(store.settings.language, sendCommand)
@@ -290,22 +188,17 @@ function start(): void {
   if (store.settings.close_to_tray) tray.enable()
   applyLoginItem(store.settings)
 
+  status.start()
   engine.start()
   void projects.refreshFolders()
 
-  setInterval(() => {
-    const now = net.isOnline()
-    if (now != online) {
-      online = now
-      broadcastStatus()
-    }
-  }, 10_000)
-
   const start_hidden = process.argv.includes('--hidden') && store.settings.close_to_tray
-  if (!start_hidden) showWindow()
+  if (!start_hidden) main_window.show()
 
   const command = commandFromArgv(process.argv)
   if (command) sendCommand(command)
+
+  if (store.set_aside) showConfigSetAside(store, store.set_aside)
 
   if (store.settings.check_updates) {
     setTimeout(() => {
@@ -314,4 +207,22 @@ function start(): void {
   }
 
   log('info', `Started ${app.getVersion()} (${process.platform}, Electron ${process.versions.electron})`)
+}
+
+function applyLoginItem(settings: AppSettings): void {
+  /** In development this would register the bare Electron binary */
+  if (!app.isPackaged) return
+  app.setLoginItemSettings({ openAtLogin: settings.open_at_login, args: ['--hidden'] })
+}
+
+/** The config file could not be parsed: the app started without projects, and says where the old file is */
+function showConfigSetAside(store: AppStore, file: string): void {
+  const t = texts(store.settings.language)
+  void dialog.showMessageBox({
+    type: 'warning',
+    buttons: [t.ok],
+    title: t.config_damaged_title,
+    message: t.config_damaged_message,
+    detail: t.config_damaged_detail(file),
+  })
 }

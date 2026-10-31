@@ -1,6 +1,7 @@
 /**
  * System notifications at the end of a job: done (with new files), failed
- * files, or an error. A click opens the window on the project.
+ * files, or an error; and when the files of a removed project could not be
+ * deleted. A click opens the window (on the project).
  */
 import { Notification } from 'electron'
 import { InspectorTab } from '../shared/desktop-api'
@@ -9,6 +10,29 @@ import { AppStore } from './store'
 import { duration, texts } from './i18n'
 
 type ErrorKey = keyof ReturnType<typeof texts>['error_body']
+
+/**
+ * Notifications on screen or in the notification centre, until clicked or
+ * closed: one that is garbage collected no longer answers its click. At most
+ * MAX_KEPT, where `close` never comes.
+ */
+const shown = new Set<Notification>()
+const MAX_KEPT = 50
+
+function show(notification: Notification, onClick: () => void): void {
+  shown.add(notification)
+  if (shown.size > MAX_KEPT) shown.delete(shown.values().next().value!)
+  const release = (): void => {
+    shown.delete(notification)
+  }
+  notification.on('click', () => {
+    release()
+    onClick()
+  })
+  notification.on('close', release)
+  notification.on('failed', release)
+  notification.show()
+}
 
 export function notifyResult(
   store: AppStore,
@@ -41,7 +65,17 @@ export function notifyResult(
     return
   }
 
-  const notification = new Notification({ title, body, silent: result.failed == 0 && result.outcome != 'failed' })
-  notification.on('click', () => focusProject(view.id, tab))
-  notification.show()
+  show(new Notification({ title, body, silent: result.failed == 0 && result.outcome != 'failed' }), () =>
+    focusProject(view.id, tab),
+  )
+}
+
+/**
+ * The files of a removed project are still in its folder. Shown even with
+ * notifications off: the project has left the list, nothing else would say it
+ */
+export function notifyDeleteFailed(store: AppStore, label: string, open: () => void): void {
+  if (!Notification.isSupported()) return
+  const t = texts(store.settings.language)
+  show(new Notification({ title: t.delete_failed_title(label), body: t.delete_failed_body }), open)
 }

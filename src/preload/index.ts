@@ -23,8 +23,27 @@ function listen<T extends unknown[]>(
 function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return ipcRenderer.invoke(channel, ...args).catch((error: unknown) => {
     const message = String((error as Error | undefined)?.message ?? error)
-    throw new Error(message.replace(/^Error invoking remote method '[^']*': (?:w*Error: )?/, ''))
+    throw new Error(message.replace(/^Error invoking remote method '[^']*': (?:\w*Error: )?/, ''))
   })
+}
+
+/**
+ * Commands from main (menu, tray, jump list, a second launch) can arrive
+ * before the page subscribes: they wait here and reach the first listener.
+ */
+const early_commands: unknown[] = []
+let command_listeners = 0
+ipcRenderer.on(EVENTS.appCommand, (_event, command) => {
+  if (!command_listeners) early_commands.push(command)
+})
+function listenCommands(listener: Parameters<DesktopApi['app']['onCommand']>[0]): Unsubscribe {
+  command_listeners++
+  const stop = listen(EVENTS.appCommand, listener)
+  for (const command of early_commands.splice(0)) listener(command as Parameters<typeof listener>[0])
+  return () => {
+    command_listeners--
+    stop()
+  }
 }
 
 const platform = process.platform as DesktopApi['platform']
@@ -84,7 +103,7 @@ const desktop: DesktopApi = {
     onVersion: listener => listen(EVENTS.appVersion, listener),
     openExternal: url => invoke(INVOKE.appOpenExternal, url),
     copyText: text => invoke(INVOKE.appCopyText, text),
-    onCommand: listener => listen(EVENTS.appCommand, listener),
+    onCommand: listener => listenCommands(listener),
     openLicenses: () => invoke(INVOKE.appOpenLicenses),
     log: (level, message) => ipcRenderer.send(SEND.log, level, message),
     showMainWindow: command => ipcRenderer.send(SEND.showMainWindow, command),

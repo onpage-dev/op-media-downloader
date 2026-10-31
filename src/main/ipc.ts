@@ -1,32 +1,87 @@
 /**
- * IPC handlers behind `window.desktop`. Every argument coming from the
- * renderer is checked before use.
+ * IPC handlers behind `window.desktop`: one per channel (a missing one does
+ * not compile), each answering with the type the preload promises. Only the
+ * app's own windows are answered, and every argument coming from the
+ * renderer is checked before use (`validate.ts`).
  */
 import { app, BrowserWindow, clipboard, dialog, ipcMain, IpcMainEvent, IpcMainInvokeEvent, shell } from 'electron'
 import path from 'path'
-import {
-  AppCommand,
-  DeleteProjectOptions,
-  InspectorTab,
-  NewProjectInput,
-  ProjectPatch,
-  SettingsSection,
-} from '../shared/desktop-api'
+import { AppCommand, DesktopApi } from '../shared/desktop-api'
 import { EVENTS, INVOKE, SEND } from '../shared/ipc-channels'
-import { AppSettings, AppStatus, LANGUAGES, PageQuery, ThemeSetting } from '../shared/models'
-import { ProjectService } from './projects'
+import { AppSettings, AppStatus } from '../shared/models'
 import { log } from './log'
+import { ProjectService } from './projects'
+import { isTrustedSender, openExternal } from './security'
 import { AppStore } from './store'
 import { checkForUpdates, versionInfo } from './updates'
+import {
+  activityLimit,
+  appCommand,
+  folderPath,
+  isRecord,
+  LIMITS,
+  newProjectInput,
+  optionalFolder,
+  optionalProjectId,
+  pageQuery,
+  projectId,
+  projectPatch,
+  settingsPatch,
+  text,
+} from './validate'
 
 export interface IpcDeps {
   projects: ProjectService
   store: AppStore
   status: () => AppStatus
   applySettings: (next: AppSettings, previous: AppSettings) => void
+  /** To every window of the app */
+  broadcast: (channel: string, ...args: unknown[]) => void
   showMainWindow: (command?: AppCommand) => void
   quit: () => void
 }
+
+type Api = DesktopApi
+/** What a call of `window.desktop` resolves to */
+type Answer<F> = F extends (...args: never[]) => Promise<infer R> ? R : never
+
+interface Answers {
+  [INVOKE.projectsList]: Answer<Api['projects']['list']>
+  [INVOKE.projectsCreate]: Answer<Api['projects']['create']>
+  [INVOKE.projectsUpdate]: Answer<Api['projects']['update']>
+  [INVOKE.projectsRemove]: Answer<Api['projects']['remove']>
+  [INVOKE.projectsRevealToken]: Answer<Api['projects']['revealToken']>
+  [INVOKE.syncSync]: Answer<Api['sync']['sync']>
+  [INVOKE.syncSyncAll]: Answer<Api['sync']['syncAll']>
+  [INVOKE.syncDownload]: Answer<Api['sync']['download']>
+  [INVOKE.syncRetryFailed]: Answer<Api['sync']['retryFailed']>
+  [INVOKE.syncConfirmCleanup]: Answer<Api['sync']['confirmCleanup']>
+  [INVOKE.syncStop]: Answer<Api['sync']['stop']>
+  [INVOKE.syncGetActivity]: Answer<Api['sync']['getActivity']>
+  [INVOKE.syncGetFailed]: Answer<Api['sync']['getFailed']>
+  [INVOKE.syncGetDuplicates]: Answer<Api['sync']['getDuplicates']>
+  [INVOKE.foldersPick]: Answer<Api['folders']['pick']>
+  [INVOKE.foldersInspect]: Answer<Api['folders']['inspect']>
+  [INVOKE.foldersOpenProject]: Answer<Api['folders']['openProject']>
+  [INVOKE.tokensVerify]: Answer<Api['tokens']['verify']>
+  [INVOKE.tokensVerifyProject]: Answer<Api['tokens']['verifyProject']>
+  [INVOKE.settingsGet]: Answer<Api['settings']['get']>
+  [INVOKE.settingsSet]: Answer<Api['settings']['set']>
+  [INVOKE.appVersion]: Answer<Api['app']['version']>
+  [INVOKE.appCheckForUpdates]: Answer<Api['app']['checkForUpdates']>
+  [INVOKE.appStatus]: Answer<Api['app']['status']>
+  [INVOKE.appOpenExternal]: Answer<Api['app']['openExternal']>
+  [INVOKE.appCopyText]: Answer<Api['app']['copyText']>
+  [INVOKE.appOpenLicenses]: Answer<Api['app']['openLicenses']>
+}
+
+type InvokeChannel = (typeof INVOKE)[keyof typeof INVOKE]
+type SendChannel = (typeof SEND)[keyof typeof SEND]
+/** Arguments are whatever the page sent: unknown until checked */
+type Handlers = {
+  [K in InvokeChannel]: (event: IpcMainInvokeEvent, ...args: unknown[]) => Answers[K] | Promise<Answers[K]>
+}
+type Listeners = { [K in SendChannel]: (event: IpcMainEvent, ...args: unknown[]) => void }
 
 /** The third-party notices: shipped next to the app (extraResources), generated in the repository in development */
 function licensesFile(): string {
@@ -37,185 +92,94 @@ function licensesFile(): string {
 
 export function registerIpc(deps: IpcDeps): void {
   const { projects, store } = deps
-  const handle = (channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => unknown): void => {
-    ipcMain.handle(channel, handler)
-  }
 
-  handle(INVOKE.projectsList, () => projects.views())
-  handle(INVOKE.projectsCreate, (_e, input: NewProjectInput) => projects.create(newProjectInput(input)))
-  handle(INVOKE.projectsUpdate, (_e, id, patch: ProjectPatch) => projects.update(text(id), projectPatch(patch)))
-  handle(INVOKE.projectsRemove, (_e, id, options: DeleteProjectOptions) =>
-    projects.remove(text(id), { delete_files: options?.delete_files === true }),
-  )
-  handle(INVOKE.projectsRevealToken, (_e, id) => projects.revealToken(text(id)))
+  const handlers: Handlers = {
+    [INVOKE.projectsList]: () => projects.views(),
+    [INVOKE.projectsCreate]: (_e, input) => projects.create(newProjectInput(input)),
+    [INVOKE.projectsUpdate]: (_e, id, patch) => projects.update(projectId(id), projectPatch(patch)),
+    [INVOKE.projectsRemove]: (_e, id, options) =>
+      projects.remove(projectId(id), { delete_files: isRecord(options) && options.delete_files === true }),
+    [INVOKE.projectsRevealToken]: (_e, id) => projects.revealToken(projectId(id)),
 
-  handle(INVOKE.syncSync, (_e, id, options?: { full_listing?: boolean }) =>
-    projects.sync(text(id), options?.full_listing === true),
-  )
-  handle(INVOKE.syncSyncAll, () => projects.syncAll())
-  handle(INVOKE.syncDownload, (_e, id) => projects.download(text(id)))
-  handle(INVOKE.syncRetryFailed, (_e, id) => projects.retryFailed(text(id)))
-  handle(INVOKE.syncConfirmCleanup, (_e, id) => projects.confirmCleanup(text(id)))
-  handle(INVOKE.syncStop, (_e, id) => projects.stop(text(id)))
-  handle(INVOKE.syncGetActivity, (_e, id, limit) =>
-    projects.getActivity(text(id), typeof limit == 'number' ? limit : undefined),
-  )
-  handle(INVOKE.syncGetFailed, (_e, id, page) => projects.getFailed(text(id), pageQuery(page)))
-  handle(INVOKE.syncGetDuplicates, (_e, id, page) => projects.getDuplicates(text(id), pageQuery(page)))
+    [INVOKE.syncSync]: (_e, id, options) =>
+      projects.startJob(projectId(id), 'sync', { full_listing: isRecord(options) && options.full_listing === true }),
+    [INVOKE.syncSyncAll]: () => projects.syncAll(),
+    [INVOKE.syncDownload]: (_e, id) => projects.startJob(projectId(id), 'download'),
+    [INVOKE.syncRetryFailed]: (_e, id) => projects.startJob(projectId(id), 'retry_failed'),
+    [INVOKE.syncConfirmCleanup]: (_e, id) => projects.startJob(projectId(id), 'cleanup'),
+    [INVOKE.syncStop]: (_e, id) => projects.stop(projectId(id)),
+    [INVOKE.syncGetActivity]: (_e, id, limit) => projects.getActivity(projectId(id), activityLimit(limit)),
+    [INVOKE.syncGetFailed]: (_e, id, page) => projects.getFailed(projectId(id), pageQuery(page)),
+    [INVOKE.syncGetDuplicates]: (_e, id, page) => projects.getDuplicates(projectId(id), pageQuery(page)),
 
-  handle(INVOKE.foldersPick, async (event, default_path) => {
-    const window = BrowserWindow.fromWebContents(event.sender) ?? undefined
-    const options: Electron.OpenDialogOptions = {
-      properties: ['openDirectory', 'createDirectory'],
-      defaultPath: typeof default_path == 'string' && default_path ? default_path : undefined,
-    }
-    const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
-    return result.canceled ? undefined : result.filePaths[0]
-  })
-  handle(INVOKE.foldersInspect, (_e, path, project_id) =>
-    projects.inspect(text(path), typeof project_id == 'string' ? project_id : undefined),
-  )
-  handle(INVOKE.foldersOpenProject, (_e, id) => projects.openFolder(text(id)))
-
-  handle(INVOKE.tokensVerify, (_e, token) => projects.verifyToken(text(token)))
-  handle(INVOKE.tokensVerifyProject, (_e, id) => projects.verifyProjectToken(text(id)))
-
-  handle(INVOKE.settingsGet, () => store.settings)
-  handle(INVOKE.settingsSet, (_e, patch) => {
-    const previous = store.settings
-    const next = store.setSettings(settingsPatch(patch))
-    deps.applySettings(next, previous)
-    return next
-  })
-
-  handle(INVOKE.appVersion, () => versionInfo())
-  handle(INVOKE.appCheckForUpdates, async () => {
-    const version = await checkForUpdates()
-    for (const window of BrowserWindow.getAllWindows()) window.webContents.send(EVENTS.appVersion, version)
-    return version
-  })
-  handle(INVOKE.appStatus, () => deps.status())
-  handle(INVOKE.appOpenExternal, async (_e, url) => {
-    const value = text(url)
-    if (!/^https?:\/\//i.test(value)) throw new Error('invalid_url')
-    await shell.openExternal(value)
-  })
-  handle(INVOKE.appCopyText, (_e, value) => clipboard.writeText(text(value)))
-  handle(INVOKE.appOpenLicenses, async () => {
-    const error = await shell.openPath(licensesFile())
-    if (error) throw new Error('open_failed')
-  })
-
-  const on = (channel: string, listener: (event: IpcMainEvent, ...args: any[]) => void): void => {
-    ipcMain.on(channel, listener)
-  }
-  on(SEND.log, (_e, level, message) =>
-    log(level == 'warn' ? 'warn' : 'error', `renderer: ${String(message).slice(0, 2000)}`),
-  )
-  on(SEND.showMainWindow, (_e, command) => deps.showMainWindow(appCommand(command)))
-  on(SEND.quit, () => deps.quit())
-  on(SEND.windowMinimize, event => BrowserWindow.fromWebContents(event.sender)?.minimize())
-  on(SEND.windowToggleMaximize, event => {
-    const window = BrowserWindow.fromWebContents(event.sender)
-    if (!window) return
-    if (window.isMaximized()) window.unmaximize()
-    else window.maximize()
-  })
-  on(SEND.windowClose, event => BrowserWindow.fromWebContents(event.sender)?.close())
-}
-
-/* -------------------------------------------------------------------- input checks */
-
-function text(value: unknown): string {
-  if (typeof value != 'string') throw new Error('invalid_input')
-  return value
-}
-
-/** A page of a long list: at most 200 entries, a query of at most 200 characters */
-function pageQuery(value: unknown): PageQuery {
-  const page = (value ?? {}) as Partial<PageQuery>
-  const whole = (n: unknown, fallback: number): number => (typeof n == 'number' && Number.isFinite(n) ? Math.floor(n) : fallback)
-  return {
-    offset: Math.max(0, whole(page.offset, 0)),
-    limit: Math.min(200, Math.max(1, whole(page.limit, 50))),
-    query: typeof page.query == 'string' ? page.query.slice(0, 200) : undefined,
-  }
-}
-
-function optionalText(value: unknown): string | undefined {
-  return value === undefined ? undefined : text(value)
-}
-
-function newProjectInput(input: NewProjectInput): NewProjectInput {
-  if (!input || typeof input != 'object') throw new Error('invalid_input')
-  return {
-    label: text(input.label),
-    token: text(input.token),
-    folder: text(input.folder),
-    keep_old_files: input.keep_old_files === true,
-    sync_now: input.sync_now === true,
-  }
-}
-
-function projectPatch(patch: ProjectPatch): ProjectPatch {
-  if (!patch || typeof patch != 'object') throw new Error('invalid_input')
-  return {
-    label: optionalText(patch.label),
-    token: optionalText(patch.token),
-    folder: optionalText(patch.folder),
-    keep_old_files: typeof patch.keep_old_files == 'boolean' ? patch.keep_old_files : undefined,
-  }
-}
-
-const SIMPLE_COMMANDS: AppCommand['type'][] = [
-  'sync_selected',
-  'sync_all',
-  'download_selected',
-  'stop_selected',
-  'open_folder_selected',
-  'edit_selected',
-  'delete_selected',
-  'focus_search',
-]
-const TABS: InspectorTab[] = ['general', 'activity', 'failed', 'duplicates', 'settings']
-const SECTIONS: SettingsSection[] = ['general', 'download', 'appearance', 'language', 'updates']
-
-/** Only well-formed commands reach the main window */
-function appCommand(value: unknown): AppCommand | undefined {
-  if (!value || typeof value != 'object') return undefined
-  const command = value as Record<string, unknown>
-  switch (command.type) {
-    case 'new_project':
-      return { type: 'new_project', folder: typeof command.folder == 'string' ? command.folder : undefined }
-    case 'select_project':
-      if (typeof command.project_id != 'string') return undefined
-      return {
-        type: 'select_project',
-        project_id: command.project_id,
-        tab: TABS.includes(command.tab as InspectorTab) ? (command.tab as InspectorTab) : undefined,
+    [INVOKE.foldersPick]: async (event, default_path) => {
+      const window = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      const options: Electron.OpenDialogOptions = {
+        properties: ['openDirectory', 'createDirectory'],
+        defaultPath: optionalFolder(default_path),
       }
-    case 'open_settings':
-      return {
-        type: 'open_settings',
-        section: SECTIONS.includes(command.section as SettingsSection) ? (command.section as SettingsSection) : undefined,
+      const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+      return result.canceled ? undefined : result.filePaths[0]
+    },
+    [INVOKE.foldersInspect]: (_e, folder, id) => projects.inspect(folderPath(folder), optionalProjectId(id)),
+    [INVOKE.foldersOpenProject]: (_e, id) => projects.openFolder(projectId(id)),
+
+    [INVOKE.tokensVerify]: (_e, token) => projects.verifyToken(text(token, LIMITS.token)),
+    [INVOKE.tokensVerifyProject]: (_e, id) => projects.verifyProjectToken(projectId(id)),
+
+    [INVOKE.settingsGet]: () => store.settings,
+    [INVOKE.settingsSet]: (_e, patch) => {
+      const previous = store.settings
+      const next = store.setSettings(settingsPatch(patch))
+      deps.applySettings(next, previous)
+      return next
+    },
+
+    [INVOKE.appVersion]: () => versionInfo(),
+    [INVOKE.appCheckForUpdates]: async () => {
+      const version = await checkForUpdates()
+      deps.broadcast(EVENTS.appVersion, version)
+      return version
+    },
+    [INVOKE.appStatus]: () => deps.status(),
+    [INVOKE.appOpenExternal]: (_e, url) => openExternal(url),
+    [INVOKE.appCopyText]: (_e, value) => clipboard.writeText(text(value, LIMITS.text)),
+    [INVOKE.appOpenLicenses]: async () => {
+      const error = await shell.openPath(licensesFile())
+      if (error) throw new Error('open_failed')
+    },
+  }
+
+  const listeners: Listeners = {
+    [SEND.log]: (_e, level, message) =>
+      log(level == 'warn' ? 'warn' : 'error', `renderer: ${String(message).slice(0, LIMITS.log)}`),
+    [SEND.showMainWindow]: (_e, command) => deps.showMainWindow(appCommand(command)),
+    [SEND.quit]: () => deps.quit(),
+    [SEND.windowMinimize]: event => BrowserWindow.fromWebContents(event.sender)?.minimize(),
+    [SEND.windowToggleMaximize]: event => {
+      const window = BrowserWindow.fromWebContents(event.sender)
+      if (!window) return
+      if (window.isMaximized()) window.unmaximize()
+      else window.maximize()
+    },
+    [SEND.windowClose]: event => BrowserWindow.fromWebContents(event.sender)?.close(),
+  }
+
+  for (const channel of Object.keys(handlers) as InvokeChannel[]) {
+    const handler = handlers[channel] as (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown
+    ipcMain.handle(channel, (event, ...args: unknown[]) => {
+      if (!isTrustedSender(event)) {
+        log('warn', `IPC ${channel} refused: not from a window of the app`)
+        throw new Error('forbidden')
       }
+      return handler(event, ...args)
+    })
   }
-  return SIMPLE_COMMANDS.includes(command.type as AppCommand['type'])
-    ? ({ type: command.type } as AppCommand)
-    : undefined
-}
-
-const THEMES: ThemeSetting[] = ['system', 'light', 'dark']
-const FLAGS = ['auto_retry_failed', 'notifications', 'close_to_tray', 'open_at_login', 'check_updates'] as const
-
-function settingsPatch(patch: Partial<AppSettings>): Partial<AppSettings> {
-  if (!patch || typeof patch != 'object') throw new Error('invalid_input')
-  const clean: Partial<AppSettings> = {}
-  if (patch.theme !== undefined && THEMES.includes(patch.theme)) clean.theme = patch.theme
-  if (patch.language !== undefined && (LANGUAGES as readonly string[]).includes(patch.language)) clean.language = patch.language
-  if (typeof patch.concurrency == 'number' && Number.isFinite(patch.concurrency)) clean.concurrency = patch.concurrency
-  for (const flag of FLAGS) {
-    if (typeof patch[flag] == 'boolean') clean[flag] = patch[flag]
+  for (const channel of Object.keys(listeners) as SendChannel[]) {
+    const listener = listeners[channel]
+    ipcMain.on(channel, (event, ...args: unknown[]) => {
+      if (isTrustedSender(event)) listener(event, ...args)
+      else log('warn', `IPC ${channel} ignored: not from a window of the app`)
+    })
   }
-  return clean
 }

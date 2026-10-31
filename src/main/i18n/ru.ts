@@ -50,11 +50,21 @@ export const ru: Texts = {
     listing_failed: 'Не удалось получить список файлов с On Page.',
     other: 'Откройте, чтобы узнать, что произошло.',
   },
+  delete_failed_title: label => `${label}: файлы не удалены`,
+  delete_failed_body: 'Не удалось удалить скачанные файлы: они остались в папке.',
   quit_title: 'Идёт скачивание',
   quit_message:
     'Файлы ещё скачиваются. Если выйти, скачивание остановится: уже скачанные файлы сохранятся.',
+  deleting_title: 'Идёт удаление',
+  deleting_message: 'Файлы проекта удаляются. Если выйти, удаление прервётся: часть файлов останется в папке.',
   quit_confirm: 'Остановить и выйти',
   cancel: 'Отмена',
+  ok: 'ОК',
+  config_damaged_title: 'Настройки повреждены',
+  config_damaged_message: 'Файл настроек был повреждён',
+  config_damaged_detail: file => `Он сохранён отдельно: ${file}. Приложение запускается без проектов.`,
+  start_failed_title: 'Не удалось запустить On Page Media Downloader',
+  start_failed_log: file => `Подробности в журнале: ${file}`,
   /** The duration of done_body, after «за»: the accusative (за 1 минуту, за 2 минуты, за 5 минут) */
   minutes: m =>
     plural('ru', m, {

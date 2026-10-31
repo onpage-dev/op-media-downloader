@@ -35,11 +35,22 @@ export const fr: Texts = {
     listing_failed: 'Impossible de lire la liste des fichiers sur On Page.',
     other: 'Ouvrez l’app pour voir ce qui s’est passé.',
   },
+  delete_failed_title: label => `${label}\u00a0: fichiers non supprimés`,
+  delete_failed_body: 'Impossible de supprimer les fichiers téléchargés\u00a0: ils sont toujours dans le dossier.',
   quit_title: 'Téléchargements en cours',
   quit_message:
     'Des téléchargements sont en cours. Si vous quittez, ils seront arrêtés\u00a0: les fichiers déjà téléchargés sont conservés.',
+  deleting_title: 'Suppression en cours',
+  deleting_message:
+    'Les fichiers d’un projet sont en cours de suppression. Si vous quittez, la suppression s’arrête\u00a0: certains fichiers restent dans le dossier.',
   quit_confirm: 'Arrêter et quitter',
   cancel: 'Annuler',
+  ok: 'OK',
+  config_damaged_title: 'Paramètres endommagés',
+  config_damaged_message: 'Le fichier des paramètres était endommagé',
+  config_damaged_detail: file => `Il a été mis de côté dans ${file}. L’app démarre sans projets.`,
+  start_failed_title: 'On Page Media Downloader n’a pas pu démarrer',
+  start_failed_log: file => `Détails dans le journal\u00a0: ${file}`,
   minutes: m => plural('fr', m, { one: `${m} minute`, other: `${m} minutes` }),
   seconds: s => plural('fr', s, { one: `${s} seconde`, other: `${s} secondes` }),
   menu: {

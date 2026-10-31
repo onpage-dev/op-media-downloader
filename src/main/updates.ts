@@ -18,7 +18,8 @@ export async function checkForUpdates(): Promise<VersionInfo> {
       signal: AbortSignal.timeout(15_000),
     })
     if (!response.ok) throw new Error(`GitHub answered ${response.status}`)
-    const release = (await response.json()) as { tag_name?: string; html_url?: string; draft?: boolean; prerelease?: boolean }
+    /** `releases/latest` is never a draft nor a prerelease */
+    const release = (await response.json()) as { tag_name?: string; html_url?: string }
     const latest = release.tag_name?.replace(/^v/i, '')
     info = {
       current: app.getVersion(),

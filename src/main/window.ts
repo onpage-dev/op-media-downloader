@@ -1,15 +1,23 @@
 /**
  * The main window: integrated title bar (native controls drawn by the OS on
  * Windows and Linux, traffic lights on macOS), bounds remembered between
- * launches, links opened in the browser, no navigation away from the app.
+ * launches, links opened in the browser, no navigation away from the app, a
+ * page that crashed loaded again.
  */
-import { app, BrowserWindow, nativeTheme, Rectangle, screen, shell } from 'electron'
+import { app, BrowserWindow, nativeTheme, Rectangle, screen } from 'electron'
 import path from 'path'
+import icon_path from '../../build/icon.png?asset'
 import { TITLE_BAR_COLORS, TITLE_BAR_HEIGHT } from '../shared/window-chrome'
+import { log } from './log'
+import { secureContents } from './security'
 import { AppStore, WindowState } from './store'
 
 const DEFAULT_SIZE = { width: 1100, height: 720 }
 export const MIN_SIZE = { width: 860, height: 560 }
+
+/** A page that crashed is loaded again, at most MAX_RELOADS times in RELOAD_WINDOW_MS */
+const MAX_RELOADS = 3
+const RELOAD_WINDOW_MS = 2 * 60_000
 
 export function preloadPath(): string {
   return path.join(__dirname, '../preload/index.js')
@@ -25,14 +33,24 @@ export function loadRenderer(window: BrowserWindow, route?: string): void {
   }
 }
 
-export function secureContents(window: BrowserWindow): void {
-  window.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
-    return { action: 'deny' }
-  })
-  window.webContents.on('will-navigate', (event, url) => {
-    const current = window.webContents.getURL()
-    if (url.split('#')[0] != current.split('#')[0]) event.preventDefault()
+/**
+ * The page of the window crashed or was killed: it is loaded again, unless it
+ * keeps crashing (then it stays as it is, and the log says so)
+ */
+export function reloadOnCrash(window: BrowserWindow, route?: string): void {
+  const name = route ?? 'main window'
+  let reloads: number[] = []
+  window.webContents.on('render-process-gone', (_event, details) => {
+    log('error', `Renderer of the ${name} gone: ${details.reason} (exit code ${details.exitCode})`)
+    if (details.reason == 'clean-exit' || window.isDestroyed()) return
+    const now = Date.now()
+    reloads = reloads.filter(at => now - at < RELOAD_WINDOW_MS)
+    if (reloads.length >= MAX_RELOADS) {
+      log('error', `Renderer of the ${name} crashed ${reloads.length + 1} times in ${RELOAD_WINDOW_MS / 60_000} minutes: not loaded again`)
+      return
+    }
+    reloads.push(now)
+    loadRenderer(window, route)
   })
 }
 
@@ -56,7 +74,7 @@ export function createMainWindow(store: AppStore): BrowserWindow {
     ...(is_mac
       ? { trafficLightPosition: { x: 12, y: (TITLE_BAR_HEIGHT - 14) / 2 } }
       : { titleBarOverlay: { color: colors.background, symbolColor: colors.symbol, height: TITLE_BAR_HEIGHT } }),
-    ...(process.platform == 'linux' ? { icon: path.join(__dirname, '../../build/icon.png') } : {}),
+    ...(process.platform == 'linux' ? { icon: icon_path } : {}),
     webPreferences: {
       preload: preloadPath(),
       sandbox: true,
@@ -90,6 +108,7 @@ export function createMainWindow(store: AppStore): BrowserWindow {
   }
 
   secureContents(window)
+  reloadOnCrash(window)
   if (!app.isPackaged) {
     /** Development: F12 opens the developer tools (there is no menu on Windows) */
     window.webContents.on('before-input-event', (_event, input) => {
