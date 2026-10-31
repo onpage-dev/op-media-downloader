@@ -1,0 +1,9 @@
+# One line ending in the repository and in every checkout: LF
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.woff binary
+*.woff2 binary

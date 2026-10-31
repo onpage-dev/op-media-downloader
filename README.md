@@ -24,13 +24,15 @@ When two files on On Page share a name (case does not count), only the first one
 
 ## Development
 
-Prerequisites: Node.js 22 and Yarn 1. No token is needed.
+Prerequisites: Node.js 24 (`.node-version`) and Yarn 1. No token is needed.
 
 ```bash
 yarn
 yarn dev        # app with hot reload (its data folder is separate from the installed app)
-yarn test       # sync engine tests
+yarn test       # engine, main and renderer tests
 yarn typecheck
+yarn lint
+yarn format     # Prettier; CI runs `yarn format:check`
 yarn build:<win | mac | linux>
 ```
 
@@ -39,36 +41,21 @@ yarn build:<win | mac | linux>
 
 **Icons.** Without a token the app uses the closest Font Awesome Free icons. With an On Page Font Awesome Pro token (`FONTAWESOME_NPM_AUTH_TOKEN`, or `//npm.fontawesome.com/:_authToken` in your user `.npmrc`), `yarn` (or `yarn icons`) generates the Pro light icons of the On Page design system in `src/renderer/src/lib/icons/pro.generated.ts`. That file is never committed: Font Awesome Pro icons may be embedded in the app, not published in an open-source repository.
 
-Architecture, safety rules and the sync flows: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Changes: [CHANGELOG.md](CHANGELOG.md).
+Architecture, safety rules and the sync flows: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Changes: [CHANGELOG.md](CHANGELOG.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security: [SECURITY.md](SECURITY.md).
 
-## Notarization (macOS)
+## Releases
 
-Local notarization (store credentials):
+Bump `version` in `package.json`, then push a tag `vX.Y.Z`. The release workflow builds Windows, macOS (x64 and arm64) and Linux, signs and notarizes the macOS DMGs, attaches the installers with their SHA-256 checksums and build provenance to a draft release and publishes it last, so the app's update check never points at a release without installers. The Windows installer is not code-signed yet: Windows shows "unknown publisher".
 
-```bash
-xcrun notarytool store-credentials "AC_PASSWORD" \
-  --apple-id "<YOUR_APPLE_ID>" \
-  --team-id "<YOUR_TEAM_ID>" \
-  --password "<APP_SPECIFIC_PASSWORD>"
-```
+Repository secrets:
 
-Build + notarize:
+- `FONTAWESOME_NPM_AUTH_TOKEN`: Font Awesome Pro token, for the design system icons (required by releases)
+- `MAC_CERTIFICATE`: the .p12 Developer ID certificate, base64
+- `APPLE_CERTIFICATE_PASSWORD`: the password of the .p12
+- `APPLE_ID`, `APPLE_ID_PASSWORD` (an app-specific password), `APPLE_TEAM_ID`: for notarization
 
-```bash
-yarn build:mac-with-notarize
-```
+To notarize a DMG built locally: `xcrun notarytool submit <file>.dmg --apple-id <id> --password <app-specific password> --team-id <team> --wait`, then `xcrun stapler staple <file>.dmg`.
 
-GitHub Actions:
+## License and trademarks
 
-- The release workflow builds, signs and notarizes the app and uploads the artifacts to the release that started it.
-- Required secrets:
-  - FONTAWESOME_NPM_AUTH_TOKEN: Font Awesome Pro token, for the design system icons (required by releases)
-  - MAC_CERTIFICATE: .p12 certificate obtained from Apple
-  - APPLE_CERTIFICATE_PASSWORD: password applied to the certificate.p12
-  - APPLE_ID: User developer id eg. user@test.com
-  - APPLE_ID_PASSWORD: App specific password set inside your user account
-  - APPLE_TEAM_ID: Team ID found inside your company page
-
-## Contributing
-
-Fork, branch, implement, and open a pull request. Keep commits small.
+The code is released under the [MIT License](LICENSE). On Page® and its logo are trademarks of their owner and are not covered by the license. The licenses of the third-party software in the app are listed in `THIRD_PARTY_NOTICES.txt` (generated at build time, also opened from Settings › Updates).

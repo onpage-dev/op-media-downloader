@@ -36,5 +36,8 @@ A new app: a desktop sync manager for On Page media, rebuilt around a sync engin
 
 ### Development
 - Electron 45, electron-vite 6, Vite 8, Vue 3.5, Tailwind CSS 4, TypeScript 6, ESLint 10, Vitest 5, electron-store 12.
-- CI on pull requests (typecheck, lint, tests, build); the release workflow uses Node 22 and current actions.
+- CI on Windows, macOS and Linux: dependency audit, typecheck, lint, formatting, tests, build and an unsigned package. Node 24, the Node of Electron 45; actions pinned by commit, Dependabot for dependencies and actions.
+- Releases from a tag `vX.Y.Z`: Windows, macOS (signed and notarized) and Linux installers with SHA-256 checksums and build provenance, published only once every installer is attached; secrets reach only the steps that need them.
+- The Windows installer keeps the installer id of 1.x, so 2.0 replaces 1.x instead of installing beside it. Electron fuses: no Node mode, no `NODE_OPTIONS` or `--inspect`, the app loads only from its archive, whose integrity is checked.
+- Third-party notices (`THIRD_PARTY_NOTICES.txt`, with the fonts' OFL) are generated at build time and shipped with the app.
 - Building needs no token: without one the app uses Font Awesome Free icons. With the `FONTAWESOME_NPM_AUTH_TOKEN` secret (CI, releases) the Pro light icons of the design system are generated at build time, never committed.
