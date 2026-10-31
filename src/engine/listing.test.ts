@@ -2,10 +2,10 @@ import path from 'path'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { JobError } from './errors'
 import { RetryPolicy } from './http'
-import { listRemote } from './listing'
+import { failedLabels, listRemote } from './listing'
 import { resolveNames } from './names'
 import { OnPageContext, verifyToken } from './onpage'
-import { countFiles, readIndexCache, writeIndexCache } from './remote-index'
+import { readIndexCache, RemoteIndex, writeIndexCache } from './remote-index'
 import {
   FakeFile,
   FakeOnPage,
@@ -23,6 +23,13 @@ const FAST: RetryPolicy = {
 }
 
 let fake: FakeOnPage
+
+function countFiles(index: RemoteIndex): number {
+  let n = 0
+  for (const r of index.resources)
+    for (const files of r.things.values()) n += files.length
+  return n
+}
 
 function ctx(onRetry?: OnPageContext['onRetry']): OnPageContext {
   return {
@@ -147,6 +154,14 @@ describe('listing', () => {
     expect(result.complete).toBe(false)
     expect(result.failed_resources.map(r => r.id)).toEqual([2])
     expect(result.index.resources.find(r => r.id == 1)!.things.size).toBe(30)
+  })
+
+  it('names the collections not read: three, then how many more', () => {
+    const failed = (...labels: string[]): { id: number; label: string; error: string }[] =>
+      labels.map((label, id) => ({ id, label, error: 'HTTP 500' }))
+    expect(failedLabels(failed('Schede tecniche'))).toBe('Schede tecniche')
+    expect(failedLabels(failed('A', 'B', 'C'))).toBe('A, B, C')
+    expect(failedLabels(failed('A', 'B', 'C', 'D', 'E'))).toBe('A, B, C +2')
   })
 
   it('a refused token ends the listing as token_invalid', async () => {

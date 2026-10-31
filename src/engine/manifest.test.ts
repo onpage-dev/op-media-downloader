@@ -49,7 +49,6 @@ describe('manifest', () => {
       ['a.jpg', 'tok-a', 'unknown'],
       ['e.jpg', 'tok-e', 'unknown'],
     ])
-    expect(manifest.dirty).toBe(true)
     await manifest.flush()
     // link.json is left alone, the manifest takes over
     expect(
@@ -73,6 +72,17 @@ describe('manifest', () => {
     load = await Manifest.load(dir, 'p1')
     expect(load).toMatchObject({ source: 'link.json', recovered: true })
     expect(load.manifest.size).toBe(1)
+  })
+
+  it('a manifest of a newer version of the app is refused and left as it is', async () => {
+    const dir = await tempDir()
+    const newer = '{"version":3,"project_id":"p1","files":{}}'
+    await fs.writeFile(path.join(dir, MANIFEST_FILE), newer)
+    await expect(Manifest.load(dir, 'p1')).rejects.toMatchObject({
+      issue: 'folder_protected',
+      detail: expect.stringMatching(/newer version of the app/),
+    })
+    expect(await fs.readFile(path.join(dir, MANIFEST_FILE), 'utf8')).toBe(newer)
   })
 
   it('a name that changes case replaces its entry', async () => {

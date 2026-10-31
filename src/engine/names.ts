@@ -48,6 +48,11 @@ export function nameKey(name: string): string {
   return name.normalize('NFC').toLowerCase()
 }
 
+/** The same name as on disk: macOS disks in HFS+ give names back decomposed (NFD) */
+export function sameName(on_disk: string, name: string): boolean {
+  return on_disk == name || on_disk.normalize('NFC') == name.normalize('NFC')
+}
+
 /** Tokens become file names in data/: they must be plain */
 export function isSafeToken(token: string): boolean {
   return (
@@ -105,8 +110,18 @@ export interface ResolvedNames {
   duplicates: DuplicateRaw[]
   /** Files whose token cannot be stored safely */
   invalid: InvalidFile[]
-  /** Names that had to be changed to be valid */
-  renamed: number
+}
+
+/** A duplicate group while names are resolved: its variants by token, the chosen file's uses */
+interface GroupWork {
+  group: DuplicateRaw
+  variants: Map<string, DuplicateVariantRaw>
+  /** `resource:thing:field:lang` of the uses of the chosen variant */
+  chosen_uses: Set<string>
+}
+
+function useKey(use: FileUse): string {
+  return `${use.resource_id}:${use.thing_id}:${use.field_id}:${use.lang}`
 }
 
 /**
@@ -116,10 +131,9 @@ export interface ResolvedNames {
  */
 export function resolveNames(index: RemoteIndex): ResolvedNames {
   const by_key = new Map<string, DesiredFile>()
-  const groups = new Map<string, DuplicateRaw>()
+  const groups = new Map<string, GroupWork>()
   const desired: DesiredFile[] = []
   const invalid: InvalidFile[] = []
-  let renamed = 0
 
   for (const resource of index.resources) {
     const thing_ids = Array.from(resource.things.keys()).sort((a, b) => a - b)
@@ -147,7 +161,6 @@ export function resolveNames(index: RemoteIndex): ResolvedNames {
         const key = nameKey(local_name)
         const winner = by_key.get(key)
         if (!winner) {
-          if (local_name != remote_name.normalize('NFC')) renamed++
           const file: DesiredFile = {
             key,
             local_name,
@@ -161,24 +174,23 @@ export function resolveNames(index: RemoteIndex): ResolvedNames {
           continue
         }
         if (winner.token == token) continue
-        let group = groups.get(key)
-        if (!group) {
-          group = {
-            key,
-            name: winner.local_name,
-            variants: [
-              {
-                token: winner.token,
-                remote_name: winner.remote_name,
-                size: winner.size,
-                chosen: true,
-                uses: [winner.use],
-              },
-            ],
+        let work = groups.get(key)
+        if (!work) {
+          const chosen: DuplicateVariantRaw = {
+            token: winner.token,
+            remote_name: winner.remote_name,
+            size: winner.size,
+            chosen: true,
+            uses: [winner.use],
           }
-          groups.set(key, group)
+          work = {
+            group: { key, name: winner.local_name, variants: [chosen] },
+            variants: new Map([[winner.token, chosen]]),
+            chosen_uses: new Set([useKey(winner.use)]),
+          }
+          groups.set(key, work)
         }
-        let variant = group.variants.find(v => v.token == token)
+        let variant = work.variants.get(token)
         if (!variant) {
           variant = {
             token,
@@ -189,7 +201,8 @@ export function resolveNames(index: RemoteIndex): ResolvedNames {
             chosen: false,
             uses: [],
           }
-          group.variants.push(variant)
+          work.group.variants.push(variant)
+          work.variants.set(token, variant)
         }
         variant.uses.push(use)
       }
@@ -198,6 +211,9 @@ export function resolveNames(index: RemoteIndex): ResolvedNames {
 
   // Every use of the winning token, for the duplicates view
   if (groups.size) {
+    const chosen_tokens = new Set(
+      Array.from(groups.values(), work => work.group.variants[0].token),
+    )
     for (const resource of index.resources) {
       for (const [thing_id, tuples] of resource.things) {
         for (const [
@@ -209,27 +225,26 @@ export function resolveNames(index: RemoteIndex): ResolvedNames {
           width,
           height,
         ] of tuples) {
-          const group = groups.get(nameKey(sanitizeName(remote_name)))
-          if (!group) continue
-          const chosen = group.variants[0]
+          if (!chosen_tokens.has(token)) continue
+          const work = groups.get(nameKey(sanitizeName(remote_name)))
+          if (!work) continue
+          const chosen = work.group.variants[0]
           if (token != chosen.token) continue
           if (width !== null) chosen.width = width
           if (height !== null) chosen.height = height
           const use = { resource_id: resource.id, thing_id, field_id, lang }
-          if (!chosen.uses.some(u => sameUse(u, use))) chosen.uses.push(use)
+          const key = useKey(use)
+          if (work.chosen_uses.has(key)) continue
+          work.chosen_uses.add(key)
+          chosen.uses.push(use)
         }
       }
     }
   }
 
-  return { desired, duplicates: Array.from(groups.values()), invalid, renamed }
-}
-
-function sameUse(a: FileUse, b: FileUse): boolean {
-  return (
-    a.resource_id == b.resource_id &&
-    a.thing_id == b.thing_id &&
-    a.field_id == b.field_id &&
-    a.lang == b.lang
-  )
+  return {
+    desired,
+    duplicates: Array.from(groups.values(), work => work.group),
+    invalid,
+  }
 }

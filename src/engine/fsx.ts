@@ -6,7 +6,7 @@ import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
 import type { FileHandle } from 'fs/promises'
 import path from 'path'
-import { errorCode, isNotFound } from './errors'
+import { AbortedError, errorCode, isNotFound } from './errors'
 import { sleep } from './http'
 
 /**
@@ -109,11 +109,6 @@ export async function unlinkQuiet(file: string): Promise<boolean> {
   }
 }
 
-/** Removes a file, retrying transient locks (an antivirus scanning it): 4 tries over ~0.7 s */
-export async function unlinkWithRetry(file: string): Promise<boolean> {
-  return withLockRetry(() => unlinkQuiet(file), 4)
-}
-
 export async function pathExists(file: string): Promise<boolean> {
   try {
     await fs.access(file)
@@ -126,31 +121,28 @@ export async function pathExists(file: string): Promise<boolean> {
 /**
  * Does the path answer within `ms`? A share whose server is gone can keep a
  * stat waiting ~20 s (TCP connect timeout on Windows): we stop waiting
- * earlier (the call itself finishes in the background).
+ * earlier (the call itself finishes in the background), and at once when
+ * the signal fires (AbortedError).
  */
-export async function reachable(file: string, ms: number): Promise<boolean> {
-  let timer: NodeJS.Timeout | undefined
-  const timeout = new Promise<boolean>(resolve => {
-    timer = setTimeout(() => resolve(false), ms)
-  })
+export async function reachable(
+  file: string,
+  ms: number,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (signal?.aborted) throw new AbortedError()
+  const { promise, resolve, reject } = Promise.withResolvers<boolean>()
+  const timer = setTimeout(() => resolve(false), ms)
+  const onAbort = (): void => reject(new AbortedError())
+  signal?.addEventListener('abort', onAbort, { once: true })
+  fs.stat(file).then(
+    () => resolve(true),
+    () => resolve(false),
+  )
   try {
-    return await Promise.race([
-      fs.stat(file).then(
-        () => true,
-        () => false,
-      ),
-      timeout,
-    ])
+    return await promise
   } finally {
-    if (timer) clearTimeout(timer)
-  }
-}
-
-export async function isDirectory(file: string): Promise<boolean> {
-  try {
-    return (await fs.stat(file)).isDirectory()
-  } catch {
-    return false
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', onAbort)
   }
 }
 

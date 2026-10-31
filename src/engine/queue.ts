@@ -2,8 +2,9 @@
  * Runs `worker` over `items`, `concurrency` at a time. Items are taken with
  * an index (never `shift()`: that is O(n) per call on large arrays). When the
  * signal fires no new item starts; the ones running finish or abort on
- * their own. The first error of a worker is not caught here: workers report
- * their own failures, an exception ends the whole queue.
+ * their own. Workers report their own failures: the first error a worker
+ * throws stops the queue (no new item starts), and once the running ones
+ * have finished it is thrown to the caller.
  */
 export async function runQueue<T>(
   items: readonly T[],

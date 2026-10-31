@@ -8,12 +8,13 @@
  * 2. a name on disk that the manifest does not know is never overwritten:
  *    it is adopted only when it is the same file as data/<token> or has the
  *    expected size, otherwise it is a conflict;
- * 3. removals above the threshold wait for a confirmation;
+ * 3. removals above the threshold wait for a confirmation, which covers
+ *    the names it was given and nothing else;
  * 4. no removal after an incomplete listing.
  */
 import { PlanSummary } from '../shared/models'
 import { ManifestEntry } from './manifest'
-import { DesiredFile, nameKey } from './names'
+import { DesiredFile, nameKey, sameName } from './names'
 import { FolderScan } from './scan'
 
 export const CLEANUP_MIN_NAMES = 50
@@ -85,10 +86,12 @@ export interface Plan {
   drop_entries: string[]
   conflicts: Conflict[]
   up_to_date: number
-  /** Removals held back by the threshold */
-  withheld_removals: number
+  /** Removals held back by the threshold: what a confirmation of the user covers */
+  withheld: string[]
   summary: Omit<PlanSummary, 'created_at'>
 }
+
+export type Summary = Omit<PlanSummary, 'created_at'>
 
 export interface PlanInput {
   desired: DesiredFile[]
@@ -97,7 +100,8 @@ export interface PlanInput {
   keep_old_files: boolean
   listing_complete: boolean
   listing: 'full' | 'incremental'
-  cleanup_confirmed?: boolean
+  /** Names the user confirmed for removal: they go whatever the threshold */
+  confirmed?: ReadonlySet<string>
   duplicates?: number
   /** For the keys returned by adoptionCandidates */
   adoption?: Map<string, AdoptionStat>
@@ -117,11 +121,6 @@ export function adoptionCandidates(
       out.push({ key: file.key, name: entry.name, token: file.token })
   }
   return out
-}
-
-/** The same name as on disk: macOS disks in HFS+ give names back decomposed (NFD) */
-function sameName(on_disk: string, name: string): boolean {
-  return on_disk == name || on_disk.normalize('NFC') == name.normalize('NFC')
 }
 
 export function buildPlan(input: PlanInput): Plan {
@@ -258,14 +257,20 @@ export function buildPlan(input: PlanInput): Plan {
     else drop_entries.push(name)
   }
 
-  let withheld_removals = 0
+  // Rule 3: the names confirmed go; above the threshold the others wait
+  const confirmed = input.confirmed
+  const unconfirmed = confirmed
+    ? remove_names.filter(name => !confirmed.has(name))
+    : remove_names
+  let withheld: string[] = []
   if (
-    !input.cleanup_confirmed &&
-    remove_names.length > CLEANUP_MIN_NAMES &&
-    remove_names.length > CLEANUP_MIN_RATIO * manifest.size
+    unconfirmed.length > CLEANUP_MIN_NAMES &&
+    unconfirmed.length > CLEANUP_MIN_RATIO * manifest.size
   ) {
-    withheld_removals = remove_names.length
-    remove_names = []
+    withheld = unconfirmed
+    remove_names = confirmed
+      ? remove_names.filter(name => confirmed.has(name))
+      : []
   }
 
   // Contents nobody needs any more
@@ -284,7 +289,7 @@ export function buildPlan(input: PlanInput): Plan {
   }
 
   const download_list = Array.from(downloads.values())
-  const summary: Omit<PlanSummary, 'created_at'> = {
+  const summary: Summary = {
     remote_names: desired.length,
     remote_bytes: desired.reduce((sum, f) => sum + (f.size ?? 0), 0),
     to_download: download_list.length,
@@ -294,11 +299,12 @@ export function buildPlan(input: PlanInput): Plan {
     ),
     to_download_bytes: download_list.reduce((sum, t) => sum + (t.size ?? 0), 0),
     to_link: links.length + renames.length,
-    to_remove: remove_names.length || withheld_removals,
+    // What waits for the user, when something does
+    to_remove: withheld.length || remove_names.length,
     up_to_date,
     duplicates: input.duplicates ?? 0,
     conflicts: conflicts.length,
-    cleanup_needs_confirmation: withheld_removals > 0,
+    cleanup_needs_confirmation: withheld.length > 0,
     listing: input.listing,
   }
 
@@ -312,18 +318,106 @@ export function buildPlan(input: PlanInput): Plan {
     drop_entries,
     conflicts,
     up_to_date,
-    withheld_removals,
+    withheld,
     summary,
   }
 }
 
-/** True when executing the plan would change nothing on disk */
-export function planIsEmpty(plan: Plan): boolean {
-  return (
-    !plan.downloads.length &&
-    !plan.links.length &&
-    !plan.renames.length &&
-    !plan.remove_names.length &&
-    !plan.remove_tokens.length
-  )
+/** Only what changes the manifest alone: adoptions, forgotten names; conflicts are recorded */
+export function bookkeeping(plan: Plan): Plan {
+  return {
+    ...plan,
+    downloads: [],
+    links: [],
+    renames: [],
+    remove_names: [],
+    remove_tokens: [],
+  }
+}
+
+/** The removals and the bookkeeping: downloads and links wait */
+export function removalsOnly(plan: Plan): Plan {
+  return { ...plan, downloads: [], links: [], renames: [] }
+}
+
+/** Downloads and links of these names only, and the bookkeeping */
+export function onlyNames(plan: Plan, names: ReadonlySet<string>): Plan {
+  return {
+    ...bookkeeping(plan),
+    downloads: plan.downloads
+      .map(t => ({ ...t, names: t.names.filter(n => names.has(n.name)) }))
+      .filter(t => t.names.length),
+    links: plan.links.filter(l => names.has(l.name)),
+  }
+}
+
+/**
+ * After the whole plan ran: nothing is left but the removals held back
+ * (what failed is in the failed list, «Riprova i falliti» takes it again)
+ */
+export function summaryAfter(
+  plan: Plan,
+  done: { linked: number; downloaded: number; conflicts: number },
+): Summary {
+  return {
+    ...plan.summary,
+    to_download: 0,
+    to_download_names: 0,
+    to_download_bytes: 0,
+    to_link: 0,
+    to_remove: plan.withheld.length,
+    up_to_date: plan.summary.up_to_date + done.linked + done.downloaded,
+    conflicts: done.conflicts,
+    cleanup_needs_confirmation: plan.withheld.length > 0,
+  }
+}
+
+/**
+ * What is left of a plan after part of it ran (a stop, the failed names
+ * only, the removals only), from the manifest the run kept up to date: the
+ * folder is not scanned again (a share of 200k files takes minutes)
+ */
+export function summaryLeft(
+  plan: Plan,
+  manifest: { get(name: string): ManifestEntry | undefined },
+  conflicts: number,
+): Summary {
+  const placed = (name: string, token: string): boolean =>
+    manifest.get(name)?.token == token
+  let up_to_date = plan.summary.up_to_date
+  let to_download = 0
+  let to_download_names = 0
+  let to_download_bytes = 0
+  let to_link = 0
+  for (const task of plan.downloads) {
+    const left = task.names.filter(n => !placed(n.name, task.token)).length
+    up_to_date += task.names.length - left
+    if (left == task.names.length) {
+      to_download++
+      to_download_names += left
+      to_download_bytes += task.size ?? 0
+    } else {
+      // The content arrived: the names left are links to it
+      to_link += left
+    }
+  }
+  for (const { name, token } of [
+    ...plan.links,
+    ...plan.renames.map(r => ({ name: r.to, token: r.token })),
+  ]) {
+    if (placed(name, token)) up_to_date++
+    else to_link++
+  }
+  const removals_left = plan.remove_names.filter(name => manifest.get(name))
+  return {
+    ...plan.summary,
+    to_download,
+    to_download_names,
+    to_download_bytes,
+    to_link,
+    to_remove: plan.withheld.length || removals_left.length,
+    up_to_date,
+    conflicts,
+    cleanup_needs_confirmation: plan.withheld.length > 0,
+  }
 }

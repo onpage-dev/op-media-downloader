@@ -91,10 +91,3 @@ export async function writeIndexCache(
   }
   await atomicWrite(file, await gzipAsync(Buffer.from(JSON.stringify(json))))
 }
-
-export function countFiles(index: RemoteIndex): number {
-  let n = 0
-  for (const r of index.resources)
-    for (const files of r.things.values()) n += files.length
-  return n
-}

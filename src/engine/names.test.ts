@@ -171,7 +171,6 @@ describe('resolveNames', () => {
     )
     expect(resolved.desired).toHaveLength(1)
     expect(resolved.desired[0].local_name).toBe('a_b.jpg')
-    expect(resolved.renamed).toBe(1)
     expect(resolved.duplicates).toHaveLength(1)
   })
 
@@ -195,5 +194,21 @@ describe('resolveNames', () => {
 
   it('normalises to NFC for the key', () => {
     expect(nameKey('caffè.jpg')).toBe(nameKey('caffè.jpg'))
+  })
+
+  it('100,000 uses of the chosen file of a duplicated name resolve in under a second', () => {
+    const things: [number, RemoteFileTuple[]][] = []
+    for (let id = 1; id <= 100_000; id++)
+      things.push([id, [[12, null, 'logo.png', 'tok-a', 10, null, null]]])
+    things.push([100_001, [[12, null, 'LOGO.png', 'tok-b', 20, null, null]]])
+    const started = performance.now()
+    const resolved = resolveNames(index([[1, things]]))
+    expect(performance.now() - started).toBeLessThan(1000)
+    expect(resolved.duplicates).toHaveLength(1)
+    const [chosen, other] = resolved.duplicates[0].variants
+    expect(chosen.uses).toHaveLength(100_000)
+    expect(other.uses).toEqual([
+      { resource_id: 1, thing_id: 100_001, field_id: 12, lang: null },
+    ])
   })
 })

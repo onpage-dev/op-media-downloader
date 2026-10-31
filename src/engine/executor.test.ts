@@ -104,7 +104,6 @@ async function run(
     activity,
     failed,
     capability: options.capability ?? {},
-    allow_removals: true,
     policy: FAST,
     headers_timeout_ms: 1000,
     idle_timeout_ms: options.idle_ms ?? 300,
@@ -162,7 +161,7 @@ describe('downloads', () => {
     fake.storage.set(reset.token, { reset_times: 1 })
     const { result, failed } = await run([want(flaky), want(reset)])
     expect(result.downloaded).toBe(2)
-    expect(failed.size).toBe(0)
+    expect(failed.list()).toEqual([])
     expect(fake.hits.storage.get(flaky.token)).toBe(3)
   })
 
@@ -232,7 +231,7 @@ describe('downloads', () => {
       { abortAfterMs: 150 },
     )
     expect(Date.now() - started).toBeLessThan(1500)
-    expect(failed.size).toBe(0)
+    expect(failed.list()).toEqual([])
     expect(activity.recent().every(e => e.outcome != 'downloaded')).toBe(true)
     expect(
       (await listDir(path.join(folder, 'data'))).filter(n =>

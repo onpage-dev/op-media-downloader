@@ -11,7 +11,10 @@ import { TEMP_PREFIX } from './manifest'
 
 export type PlaceMode = 'link' | 'copy'
 
-/** Learned once per job: after the first refusal every name is copied */
+/**
+ * Decided once per job by a probe (probeHardLinks): every name is a link, or
+ * every name a copy; undefined when the probe could not run
+ */
 export interface LinkCapability {
   hardlinks?: boolean
 }
@@ -19,12 +22,34 @@ export interface LinkCapability {
 /**
  * What a file system that cannot link answers: ENOTSUP (SMB without links),
  * EISDIR (Windows on FAT/exFAT: ERROR_INVALID_FUNCTION), EPERM (Linux vfat).
- * EPERM and EACCES count only before the first link of the job worked: then
- * they are about permissions, and the copy that follows tells.
+ * On the probe's own new file EPERM and EACCES can only mean that too.
  */
-function linksUnsupported(code: string, capability: LinkCapability): boolean {
-  if (['ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV', 'EISDIR', 'EINVAL'].includes(code)) return true
-  return capability.hardlinks === undefined && (code == 'EPERM' || code == 'EACCES')
+const LINKS_UNSUPPORTED = new Set(['ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV', 'EISDIR', 'EINVAL', 'EPERM', 'EACCES'])
+
+/**
+ * Can the folder hold hard links? A temporary file in data/ is linked, then
+ * both go (a leftover is cleared by the next run). A name that later fails
+ * to link fails alone: one bad name never turns a whole job into copies.
+ * Undefined when the probe file cannot even be written: the work tells.
+ */
+export async function probeHardLinks(data_dir: string): Promise<boolean | undefined> {
+  const base = path.join(data_dir, `${TEMP_PREFIX}probe-${randomBytes(4).toString('hex')}`)
+  const file = `${base}.tmp`
+  const link = `${base}.lnk`
+  try {
+    await fs.writeFile(file, '')
+  } catch {
+    return undefined
+  }
+  try {
+    await fs.link(file, link)
+    return true
+  } catch (error) {
+    return LINKS_UNSUPPORTED.has(errorCode(error) ?? '') ? false : undefined
+  } finally {
+    await unlinkQuiet(link).catch(() => undefined)
+    await unlinkQuiet(file).catch(() => undefined)
+  }
 }
 
 /**
@@ -50,15 +75,13 @@ async function linkOrCopy(blob: string, dest: string, capability: LinkCapability
   if (capability.hardlinks !== false) {
     try {
       await withLockRetry(() => fs.link(blob, dest), 4)
-      capability.hardlinks = true
       return 'link'
     } catch (error) {
       const code = errorCode(error) ?? ''
-      // NTFS takes 1023 names per file: this content gets a copy, the others keep their links
-      if (code != 'EMLINK') {
-        if (!linksUnsupported(code, capability)) throw error
-        capability.hardlinks = false
-      }
+      // NTFS takes 1023 names per file: this content gets a copy, the others
+      // keep their links. Without a probe, a refusal gets a copy for this name only
+      const copy = code == 'EMLINK' || (capability.hardlinks === undefined && LINKS_UNSUPPORTED.has(code))
+      if (!copy) throw error
     }
   }
   await copyTo(blob, dest, exclusive)

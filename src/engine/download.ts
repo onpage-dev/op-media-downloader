@@ -3,24 +3,22 @@
  * `<token>.<random>.download` (a leftover another program still holds never
  * blocks a new attempt) with a timeout before the first byte and between
  * chunks, check the size, flush it to the disk, then rename (retrying
- * transient Windows locks). Nothing is left behind on error.
+ * transient Windows locks). Nothing is left behind on error, the connection
+ * neither: a disk that refuses a write closes it at once. Errors of the disk
+ * work are DiskErrors, never retried as network ones.
  */
 import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
 import type { FileHandle } from 'fs/promises'
 import {
   AbortedError,
+  DiskError,
   HttpError,
   SizeMismatchError,
   TimeoutError,
 } from './errors'
 import { flushToDisk, renameWithRetry, unlinkQuiet, writeAll } from './fsx'
-import {
-  abortReason,
-  FetchLike,
-  linkedController,
-  parseRetryAfter,
-} from './http'
+import { abortReason, FetchLike, parseRetryAfter } from './http'
 
 export interface DownloadOptions {
   fetch: FetchLike
@@ -38,8 +36,8 @@ export interface DownloadOptions {
   onLength?: (length: number) => void
 }
 
-export const HEADERS_TIMEOUT_MS = 30_000
-export const IDLE_TIMEOUT_MS = 60_000
+const HEADERS_TIMEOUT_MS = 30_000
+const IDLE_TIMEOUT_MS = 60_000
 
 /** What fetch and stream readers throw when their signal fires */
 function isAbortError(error: unknown): boolean {
@@ -49,31 +47,38 @@ function isAbortError(error: unknown): boolean {
   return name == 'AbortError' || name == 'TimeoutError'
 }
 
+/** Work on the disk: its errors are the folder's */
+function onDisk<T>(work: Promise<T>): Promise<T> {
+  return work.catch((error: unknown) => {
+    throw new DiskError(error)
+  })
+}
+
 export async function downloadToFile(
   options: DownloadOptions,
 ): Promise<number> {
   const temp = `${options.target}.${randomBytes(4).toString('hex')}.download`
-  const { controller, dispose } = linkedController(options.signal)
+  // Our timeouts, and the connection closed on a local error; a stop comes with options.signal
+  const own = new AbortController()
+  const signal = AbortSignal.any(
+    options.signal ? [options.signal, own.signal] : [own.signal],
+  )
   const headers_timeout = options.headers_timeout_ms ?? HEADERS_TIMEOUT_MS
   const idle_timeout = options.idle_timeout_ms ?? IDLE_TIMEOUT_MS
   let timer: NodeJS.Timeout | undefined = setTimeout(
-    () => controller.abort(new TimeoutError('headers')),
+    () => own.abort(new TimeoutError('headers')),
     headers_timeout,
   )
   const arm = (): void => {
     if (timer) clearTimeout(timer)
-    timer = setTimeout(
-      () => controller.abort(new TimeoutError('idle')),
-      idle_timeout,
-    )
+    timer = setTimeout(() => own.abort(new TimeoutError('idle')), idle_timeout)
   }
   let handle: FileHandle | undefined
+  let response: Response | undefined
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
   let written = 0
   try {
-    const response = await options.fetch(options.url, {
-      signal: controller.signal,
-      redirect: 'follow',
-    })
+    response = await options.fetch(options.url, { signal, redirect: 'follow' })
     if (!response.ok) {
       await response.body?.cancel().catch(() => undefined)
       throw new HttpError(
@@ -89,10 +94,11 @@ export async function downloadToFile(
     // Opening the file is disk work: no network timer meanwhile
     if (timer) clearTimeout(timer)
     timer = undefined
-    handle = await fs.open(temp, 'w')
+    const file = await onDisk(fs.open(temp, 'w'))
+    handle = file
     arm()
     if (response.body) {
-      const reader = response.body.getReader()
+      reader = response.body.getReader()
       for (;;) {
         const { done, value } = await reader.read()
         if (done) break
@@ -100,7 +106,7 @@ export async function downloadToFile(
         // share, an antivirus) must not look like a silent server
         if (timer) clearTimeout(timer)
         timer = undefined
-        await writeAll(handle, value)
+        await onDisk(writeAll(file, value))
         written += value.byteLength
         options.onBytes?.(value.byteLength)
         arm()
@@ -111,21 +117,23 @@ export async function downloadToFile(
     timer = undefined
     if (expected !== undefined && written != expected)
       throw new SizeMismatchError(expected, written)
-    await flushToDisk(handle)
-    await handle.close()
+    await onDisk(flushToDisk(file))
     handle = undefined
-    await renameWithRetry(temp, options.target)
+    await onDisk(file.close())
+    await onDisk(renameWithRetry(temp, options.target))
     return written
   } catch (error) {
+    // Only an error caused by our timeout is one; a disk error stays a disk error
+    const timed_out = own.signal.aborted && isAbortError(error)
+    // The connection goes now, not when the body is collected
+    own.abort(new AbortedError())
+    await (reader ?? response?.body)?.cancel().catch(() => undefined)
     await handle?.close().catch(() => undefined)
     await unlinkQuiet(temp).catch(() => undefined)
     if (options.signal?.aborted) throw new AbortedError()
-    // Only an error caused by the abort is a timeout; a disk error stays a disk error
-    if (controller.signal.aborted && isAbortError(error))
-      throw abortReason(controller.signal, options.signal)
+    if (timed_out) throw abortReason(own.signal, options.signal)
     throw error
   } finally {
     if (timer) clearTimeout(timer)
-    dispose()
   }
 }

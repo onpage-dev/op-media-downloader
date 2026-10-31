@@ -71,6 +71,14 @@ export interface ListingResult {
   failed_resources: FailedResource[]
 }
 
+/** The collections not read, for the detail of `listing_incomplete`: three names, then +N */
+export function failedLabels(failed: FailedResource[]): string {
+  const labels = failed.map(f => f.label)
+  return labels.length > 3
+    ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}`
+    : labels.join(', ')
+}
+
 /** On Page compares dates as text: UTC, `YYYY-MM-DD HH:mm:ss` */
 export function formatServerDate(ms: number): string {
   return new Date(ms)

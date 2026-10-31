@@ -6,6 +6,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { LINK_JSON_FILE, LOCK_FILE, MANIFEST_FILE, TEMP_PREFIX } from './manifest'
+import { runQueue } from './queue'
 
 export type DataDirOwner = 'missing' | 'ours' | 'foreign'
 
@@ -41,7 +42,11 @@ export async function dataDirOwner(data_dir: string): Promise<DataDirOwner> {
   return entries.every(isOwnDataEntry) ? 'ours' : 'foreign'
 }
 
-/** Removes what the app put in data/ and data/ itself when nothing else is left */
+/**
+ * Removes what the app put in data/, a few at a time (a share answers each
+ * call slowly), and data/ itself when nothing else is left. The lock is not
+ * removed: its holder releases it last, once data/ is empty.
+ */
 export async function removeOwnDataEntries(data_dir: string): Promise<{ removed: number; kept: number }> {
   let entries: string[]
   try {
@@ -51,18 +56,22 @@ export async function removeOwnDataEntries(data_dir: string): Promise<{ removed:
   }
   let removed = 0
   let kept = 0
-  for (const name of entries) {
-    if (!isOwnDataEntry(name)) {
-      kept++
-      continue
-    }
-    try {
-      await fs.rm(path.join(data_dir, name), { force: true })
-      removed++
-    } catch {
-      kept++
-    }
-  }
+  await runQueue(
+    entries.filter(name => name != LOCK_FILE),
+    8,
+    async name => {
+      if (!isOwnDataEntry(name)) {
+        kept++
+        return
+      }
+      try {
+        await fs.rm(path.join(data_dir, name), { force: true })
+        removed++
+      } catch {
+        kept++
+      }
+    },
+  )
   if (!kept) await fs.rmdir(data_dir).catch(() => undefined)
   return { removed, kept }
 }

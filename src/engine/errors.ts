@@ -58,6 +58,19 @@ export class InUseError extends Error {
   }
 }
 
+/**
+ * A file system error of a download (the temporary file, a write, the flush,
+ * the rename): the folder's problem, checked as such by the executor. A
+ * share that hiccups gives socket codes (ECONNRESET, ETIMEDOUT, EPIPE) that
+ * must not pass for network errors and start the download again.
+ */
+export class DiskError extends Error {
+  constructor(cause: unknown) {
+    super((cause as Error | undefined)?.message ?? String(cause), { cause })
+    this.name = 'DiskError'
+  }
+}
+
 /** An error that ends the whole job, with the issue to show */
 export class JobError extends Error {
   constructor(
@@ -102,7 +115,11 @@ const NETWORK_CODES = new Set([
 
 /** Connection problems from Node's fetch (undici) or from Electron's net.fetch */
 export function isNetworkError(error: unknown): boolean {
-  if (error instanceof HttpError || error instanceof SizeMismatchError)
+  if (
+    error instanceof HttpError ||
+    error instanceof SizeMismatchError ||
+    error instanceof DiskError
+  )
     return false
   const code = errorCode(error)
   if (code && NETWORK_CODES.has(code)) return true

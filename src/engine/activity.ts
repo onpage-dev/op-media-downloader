@@ -9,8 +9,11 @@ const MAX_ENTRIES = 1000
 const PROGRESS_STEP = 0.05
 
 export class ActivityLog {
-  private entries: ActivityEntry[] = []
+  /** The last MAX_ENTRIES events, a ring: `start` is the oldest */
+  private ring: ActivityEntry[] = []
+  private start = 0
   private by_id = new Map<number, ActivityEntry>()
+  /** Added or changed since the last batch: only entries still in the ring */
   private changed = new Map<number, ActivityEntry>()
   private next_id = 1
 
@@ -22,12 +25,17 @@ export class ActivityLog {
       id: this.next_id++,
       at: new Date(this.now()).toISOString(),
     }
-    this.entries.push(full)
-    this.by_id.set(full.id, full)
-    if (this.entries.length > MAX_ENTRIES) {
-      const dropped = this.entries.splice(0, this.entries.length - MAX_ENTRIES)
-      for (const old of dropped) this.by_id.delete(old.id)
+    if (this.ring.length < MAX_ENTRIES) {
+      this.ring.push(full)
+    } else {
+      // The oldest leaves, from the next batch too
+      const old = this.ring[this.start]
+      this.by_id.delete(old.id)
+      this.changed.delete(old.id)
+      this.ring[this.start] = full
+      this.start = (this.start + 1) % MAX_ENTRIES
     }
+    this.by_id.set(full.id, full)
     this.changed.set(full.id, full)
     return full
   }
@@ -49,8 +57,13 @@ export class ActivityLog {
     this.changed.set(id, entry)
   }
 
+  /** The newest `limit` entries, oldest first */
   recent(limit = MAX_ENTRIES): ActivityEntry[] {
-    return this.entries.slice(-limit).map(e => ({ ...e }))
+    const count = Math.max(0, Math.min(limit, this.ring.length))
+    const out: ActivityEntry[] = []
+    for (let i = this.ring.length - count; i < this.ring.length; i++)
+      out.push({ ...this.ring[(this.start + i) % this.ring.length] })
+    return out
   }
 
   /** Entries added or changed since the last call, oldest first */
@@ -75,14 +88,6 @@ export class FailedList {
     this.items.delete(name)
   }
 
-  clear(): void {
-    this.items.clear()
-  }
-
-  get size(): number {
-    return this.items.size
-  }
-
   list(): FailedEntry[] {
     return Array.from(this.items.values())
   }
@@ -92,9 +97,5 @@ export class FailedList {
     return this.list().filter(
       e => e.reason != 'name_conflict' && e.reason != 'invalid_name',
     )
-  }
-
-  conflicts(): number {
-    return this.list().filter(e => e.reason == 'name_conflict').length
   }
 }

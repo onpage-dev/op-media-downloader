@@ -6,7 +6,10 @@ import {
   adoptionCandidates,
   buildPlan,
   ManifestView,
+  onlyNames,
   PlanInput,
+  removalsOnly,
+  summaryLeft,
 } from './plan'
 import { EntryType, FolderScan } from './scan'
 
@@ -300,7 +303,7 @@ describe('plan: rules 3 and 4, removals that wait or never happen', () => {
       scan: scan(files, Object.values(many)),
     })
     expect(p.remove_names).toEqual([])
-    expect(p.withheld_removals).toBe(99)
+    expect(p.withheld).toHaveLength(99)
     expect(p.summary).toMatchObject({
       cleanup_needs_confirmation: true,
       to_remove: 99,
@@ -311,9 +314,43 @@ describe('plan: rules 3 and 4, removals that wait or never happen', () => {
       desired: [want('f0.jpg', 't0')],
       manifest: manifest(many),
       scan: scan(files, Object.values(many)),
-      cleanup_confirmed: true,
+      confirmed: new Set(p.withheld),
     })
     expect(confirmed.remove_names).toHaveLength(99)
+    expect(confirmed.withheld).toEqual([])
+    expect(confirmed.summary).toMatchObject({
+      cleanup_needs_confirmation: false,
+      to_remove: 99,
+    })
+  })
+
+  it('a confirmation covers its names only: more removals since then wait again above the threshold', () => {
+    // The user confirmed 10 names; since then 89 more left On Page
+    const p = plan({
+      desired: [want('f0.jpg', 't0')],
+      manifest: manifest(many),
+      scan: scan(files, Object.values(many)),
+      confirmed: new Set(files.slice(90)),
+    })
+    expect(p.remove_names).toEqual(files.slice(90))
+    expect(p.withheld).toEqual(files.slice(1, 90))
+    expect(p.summary).toMatchObject({
+      cleanup_needs_confirmation: true,
+      to_remove: 89,
+    })
+    // The contents of the names that wait stay
+    expect(p.remove_tokens.sort()).toEqual(
+      files.slice(90).map(f => many[f]).sort(),
+    )
+    // A few more than confirmed (below the threshold) go, as they would without a confirmation
+    const few = plan({
+      desired: [want('f0.jpg', 't0')],
+      manifest: manifest(many),
+      scan: scan(files, Object.values(many)),
+      confirmed: new Set(files.slice(40)),
+    })
+    expect(few.remove_names).toHaveLength(99)
+    expect(few.withheld).toEqual([])
   })
 
   it('50 names or fewer are removed without asking', () => {
@@ -324,7 +361,7 @@ describe('plan: rules 3 and 4, removals that wait or never happen', () => {
       scan: scan(files, Object.values(many)),
     })
     expect(p.remove_names).toHaveLength(50)
-    expect(p.withheld_removals).toBe(0)
+    expect(p.withheld).toEqual([])
   })
 
   it('an incomplete listing removes nothing, names or contents', () => {
@@ -336,6 +373,58 @@ describe('plan: rules 3 and 4, removals that wait or never happen', () => {
     })
     expect(p.remove_names).toEqual([])
     expect(p.remove_tokens).toEqual([])
+  })
+})
+
+describe('plan: parts and what is left', () => {
+  const desired = [
+    want('a.jpg', 't1'),
+    want('b.jpg', 't1'),
+    want('c.jpg', 't2'),
+    want('d.jpg', 't3'),
+  ]
+  const many: Record<string, string> = { 'd.jpg': 't9' }
+  for (let i = 0; i < 60; i++) many[`old${i}.jpg`] = `o${i}`
+  const p = plan({
+    desired,
+    manifest: manifest(many),
+    scan: scan(Object.keys(many), ['t3', ...Object.values(many)]),
+  })
+
+  it('splits a plan: removals only, the names that failed only', () => {
+    expect(p.withheld).toHaveLength(60)
+    const removals = removalsOnly(p)
+    expect(removals.downloads).toEqual([])
+    expect(removals.links).toEqual([])
+    const retry = onlyNames(p, new Set(['b.jpg', 'd.jpg']))
+    expect(retry.downloads.map(t => t.names.map(n => n.name))).toEqual([['b.jpg']])
+    expect(retry.links.map(l => l.name)).toEqual(['d.jpg'])
+    expect(retry.remove_names).toEqual([])
+    expect(retry.remove_tokens).toEqual([])
+  })
+
+  it('what is left after part of a plan ran, from the manifest', () => {
+    const done = new Map<string, ManifestEntry>([
+      // The content of t1 arrived, b.jpg could not be linked
+      ['a.jpg', { token: 't1', mode: 'link' }],
+      ['d.jpg', { token: 't3', mode: 'link' }],
+    ])
+    for (const name of Object.keys(many).filter(n => n != 'd.jpg'))
+      done.set(name, { token: many[name], mode: 'link' })
+    expect(summaryLeft(p, done, 0)).toMatchObject({
+      to_download: 1,
+      to_download_names: 1,
+      to_link: 1,
+      up_to_date: 2,
+      to_remove: 60,
+      cleanup_needs_confirmation: true,
+    })
+    expect(summaryLeft(p, new Map(), 0)).toMatchObject({
+      to_download: 2,
+      to_download_names: 3,
+      to_link: 1,
+      up_to_date: 0,
+    })
   })
 })
 

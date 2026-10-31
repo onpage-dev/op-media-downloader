@@ -2,7 +2,9 @@
  * Executes a plan: renames and links first (fast, no network), then the
  * downloads (one per token, then linked to all its names), then removals.
  * Per-file failures are recorded and the run goes on; disk full, a folder
- * that disappears or becomes read-only end the run.
+ * that disappears or becomes read-only end the run: the job fails at once
+ * (`fail`), so the transfers in flight stop too, and nothing more is placed
+ * or checkpointed. The same once the folder lock is lost (`guard`).
  */
 import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
@@ -23,7 +25,13 @@ import {
 } from './errors'
 import { freeSpace, reachable, unlinkQuiet } from './fsx'
 import { DOWNLOAD_RETRY, FetchLike, RetryPolicy, withRetry } from './http'
-import { LinkCapability, placeName, removeName, renameName } from './link'
+import {
+  LinkCapability,
+  placeName,
+  probeHardLinks,
+  removeName,
+  renameName,
+} from './link'
 import { Manifest } from './manifest'
 import { DownloadTask, LinkTask, Plan } from './plan'
 import { ProgressTracker } from './progress'
@@ -41,9 +49,8 @@ export interface ExecuteContext {
   progress: ProgressTracker
   activity: ActivityLog
   failed: FailedList
+  /** Links or copies: probed before the first name is placed, unless known */
   capability: LinkCapability
-  /** Apply plan.remove_names / remove_tokens */
-  allow_removals: boolean
   policy?: RetryPolicy
   headers_timeout_ms?: number
   idle_timeout_ms?: number
@@ -52,8 +59,10 @@ export interface ExecuteContext {
   onStage?: (stage: 'links' | 'downloads' | 'removals') => void
   onRateLimited?: (delay_ms: number) => void
   log?: (level: 'debug' | 'info' | 'warn' | 'error', message: string) => void
-  /** The reason to stop writing, when there is one: the folder lock went to another computer */
-  lost?: () => JobError | undefined
+  /** Throws when the folder is not the job's to write any more: its lock went to another computer */
+  guard?: () => void
+  /** Ends the job with a fatal error: `signal` fires, the transfers in flight abort */
+  fail?: (error: JobError) => void
   /** How long a folder may take to answer before it counts as gone */
   reach_timeout_ms?: number
 }
@@ -92,7 +101,7 @@ async function fatalError(
       ? undefined
       : new JobError('disk_full', 'The disk is full', detail)
   }
-  if (FOLDER_GONE_CODES.has(code) && !(await reachable(ctx.data_dir, ctx.reach_timeout_ms ?? 5000))) {
+  if (FOLDER_GONE_CODES.has(code) && !(await reachable(ctx.data_dir, ctx.reach_timeout_ms ?? 5000, ctx.signal))) {
     return new JobError('folder_unreachable', 'The folder cannot be reached', detail)
   }
   if (NOT_WRITABLE_CODES.has(code) && !(await canWrite(ctx.data_dir))) {
@@ -163,18 +172,33 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
   const handle = async (error: unknown, size?: number): Promise<FailureCode | undefined> => {
     if (error instanceof AbortedError || ctx.signal.aborted) return undefined
     if (fatal) throw fatal
-    const end = await fatalError(error, ctx, size)
+    // The check of the folder ends with a stop (AbortedError): no verdict then
+    const end = await fatalError(error, ctx, size).catch(() => undefined)
+    if (ctx.signal.aborted) return undefined
+    if (fatal) throw fatal
     if (end) {
-      fatal ??= end
+      fatal = end
+      // The other workers' transfers stop now, not when they end
+      ctx.fail?.(end)
       throw fatal
     }
     return errorCode(error) == 'ENOSPC' ? 'file_too_large' : failureCode(error)
   }
 
-  /** Before each item: stop writing when the folder went to another computer */
-  const checkLock = (): void => {
-    const lost = ctx.lost?.()
-    if (lost) throw lost
+  /** Before each write: none once the run failed or the folder went to another computer */
+  const guard = (): void => {
+    if (fatal) throw fatal
+    ctx.guard?.()
+  }
+
+  /** The manifest now and then, under the same guard */
+  const checkpoint = async (): Promise<void> => {
+    try {
+      guard()
+    } catch {
+      return
+    }
+    await manifest.checkpoint().catch(() => undefined)
   }
 
   // Manifest-only changes: no disk work
@@ -209,6 +233,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
   changed()
 
   const place = async (target: LinkTask): Promise<'link' | 'copy'> => {
+    guard()
     const mode = await placeName({
       folder: ctx.folder,
       data_dir: ctx.data_dir,
@@ -229,6 +254,16 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
   }
 
   try {
+    // Links or copies, decided once for the whole job
+    if (
+      ctx.capability.hardlinks === undefined &&
+      (plan.links.length || plan.downloads.length)
+    ) {
+      ctx.capability.hardlinks = await probeHardLinks(ctx.data_dir)
+      if (ctx.capability.hardlinks === false)
+        ctx.log?.('info', 'The folder does not take hard links: names are copies')
+    }
+
     // 1. Case changes
     ctx.onStage?.('links')
     await runQueue(
@@ -236,7 +271,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
       fs_lanes,
       async task => {
         try {
-          checkLock()
+          guard()
           await renameName(ctx.folder, task.from, task.to)
           manifest.set(task.to, task.entry)
           result.linked++
@@ -259,7 +294,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
               task.entry.size,
             )
         }
-        await manifest.checkpoint().catch(() => undefined)
+        await checkpoint()
         changed()
       },
       ctx.signal,
@@ -271,7 +306,6 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
       fs_lanes,
       async task => {
         try {
-          checkLock()
           await place(task)
           result.linked++
           progress.count('linked')
@@ -306,7 +340,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
             }
           }
         }
-        await manifest.checkpoint().catch(() => undefined)
+        await checkpoint()
         changed()
       },
       ctx.signal,
@@ -322,7 +356,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
     )
 
     // 4. Removals
-    if (ctx.allow_removals && !ctx.signal.aborted) {
+    if (!ctx.signal.aborted) {
       if (plan.remove_names.length || plan.remove_tokens.length)
         ctx.onStage?.('removals')
       await runQueue(
@@ -331,7 +365,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
         async name => {
           const entry = manifest.get(name)
           try {
-            checkLock()
+            guard()
             await removeName(ctx.folder, name)
             manifest.delete(name)
             result.removed++
@@ -356,7 +390,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
               ctx.log?.('warn', `Cannot remove ${name}: ${errorDetail(error)}`)
             }
           }
-          await manifest.checkpoint().catch(() => undefined)
+          await checkpoint()
           changed()
         },
         ctx.signal,
@@ -366,7 +400,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
         fs_lanes,
         async token => {
           try {
-            checkLock()
+            guard()
             await removeName(ctx.data_dir, token)
           } catch (error) {
             const reason = await handle(error)
@@ -387,7 +421,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
   return result
 
   async function download(task: DownloadTask): Promise<void> {
-    checkLock()
+    guard()
     const first = task.names[0]
     const entry = activity.add({
       name: first.name,
@@ -484,6 +518,7 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
 
     // The content is in data/: put it under every name
     let placed_first = false
+    let stopped = false
     for (const target of task.names) {
       try {
         await place({ ...target, token: task.token })
@@ -518,7 +553,11 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
           continue
         }
         const reason = await handle(error, task.size)
-        if (!reason) return
+        if (!reason) {
+          // Stopped, or the job is over: no more names
+          stopped = true
+          break
+        }
         const code = linkFailure(reason)
         activity.add({
           name: target.name,
@@ -533,10 +572,10 @@ export async function executePlan(ctx: ExecuteContext): Promise<ExecuteResult> {
     if (!placed_first)
       activity.update(entry.id, {
         outcome: 'failed',
-        reason: 'link_error',
+        reason: stopped ? 'aborted' : 'link_error',
         progress: undefined,
       })
-    await manifest.checkpoint().catch(() => undefined)
+    await checkpoint()
     changed()
   }
 }

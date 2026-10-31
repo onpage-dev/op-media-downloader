@@ -4,7 +4,7 @@
  */
 import { promises as fs } from 'fs'
 import path from 'path'
-import { isNotFound } from './errors'
+import { isNotFound, JobError } from './errors'
 import { atomicWrite, withLockRetry } from './fsx'
 import { isSafeToken, nameKey, sanitizeName } from './names'
 
@@ -28,8 +28,11 @@ export interface ManifestEntry {
   remote_name?: string
 }
 
+/** The registry's format; a newer one is another app's to read */
+const VERSION = 2
+
 interface ManifestJson {
-  version: 2
+  version: typeof VERSION
   project_id: string
   updated_at: string
   files: Record<string, ManifestEntry>
@@ -65,6 +68,10 @@ export class Manifest {
     return path.join(data_dir, MANIFEST_FILE)
   }
 
+  /**
+   * A manifest written by a newer version of the app is refused, untouched:
+   * read as broken, it would be rebuilt and overwritten with our format
+   */
   static async load(
     data_dir: string,
     project_id: string,
@@ -73,10 +80,17 @@ export class Manifest {
     let recovered = false
     const text = await readText(Manifest.file(data_dir))
     if (text !== undefined) {
-      const json = parse<ManifestJson>(text)
+      const json = parse<Omit<ManifestJson, 'version'> & { version?: unknown }>(text)
+      if (typeof json?.version == 'number' && json.version > VERSION) {
+        throw new JobError(
+          'folder_protected',
+          'The folder was synced by a newer version of the app',
+          `The folder was synced by a newer version of the app (data/${MANIFEST_FILE} version ${json.version})`,
+        )
+      }
       if (
         json &&
-        json.version == 2 &&
+        json.version == VERSION &&
         json.files &&
         typeof json.files == 'object'
       ) {
@@ -114,10 +128,6 @@ export class Manifest {
 
   get size(): number {
     return this.files.size
-  }
-
-  get dirty(): boolean {
-    return this.changes > 0
   }
 
   entries(): [string, ManifestEntry][] {
@@ -159,7 +169,7 @@ export class Manifest {
 
   toJson(): ManifestJson {
     return {
-      version: 2,
+      version: VERSION,
       project_id: this.project_id,
       updated_at: new Date().toISOString(),
       files: Object.fromEntries(this.files),

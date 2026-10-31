@@ -52,6 +52,7 @@ const PERSISTED_ISSUES: IssueCode[] = [
   'project_unavailable',
   'listing_failed',
   'unexpected',
+  'listing_incomplete',
   'folder_unreachable',
   'folder_not_writable',
   'folder_protected',

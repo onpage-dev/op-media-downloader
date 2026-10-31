@@ -3,6 +3,7 @@
  * utility process, so the system proxy applies; Node's `fetch` in tests),
  * timeouts, retries with backoff and an axios adapter for onpage-js.
  */
+import { setTimeout as delay } from 'timers/promises'
 import { AbortedError, HttpError, isRetryable, TimeoutError } from './errors'
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
@@ -31,19 +32,12 @@ export const DOWNLOAD_RETRY: RetryPolicy = {
 }
 
 /** Resolves after `ms`, rejects with AbortedError when the signal fires */
-export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(new AbortedError())
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort)
-      resolve()
-    }, ms)
-    const onAbort = (): void => {
-      clearTimeout(timer)
-      reject(new AbortedError())
-    }
-    signal?.addEventListener('abort', onAbort, { once: true })
-  })
+export async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  try {
+    await delay(ms, undefined, { signal })
+  } catch {
+    throw new AbortedError()
+  }
 }
 
 /** Exponential backoff with ±25% jitter */
@@ -95,21 +89,6 @@ export async function withRetry<T>(
       hooks.onRetry?.(error, attempt, delay)
       await sleep(delay, hooks.signal)
     }
-  }
-}
-
-/** An AbortController that follows a parent signal and can time out */
-export function linkedController(parent?: AbortSignal): {
-  controller: AbortController
-  dispose: () => void
-} {
-  const controller = new AbortController()
-  if (parent?.aborted) controller.abort(parent.reason)
-  const onAbort = (): void => controller.abort(parent?.reason)
-  parent?.addEventListener('abort', onAbort, { once: true })
-  return {
-    controller,
-    dispose: () => parent?.removeEventListener('abort', onAbort),
   }
 }
 
@@ -201,9 +180,11 @@ export function fetchAdapter(
       policy,
       { signal: parent, onRetry: options.onRetry },
       async () => {
-        const { controller, dispose } = linkedController(parent)
+        // Our timeout, or the job's stop
+        const own = new AbortController()
+        const signal = AbortSignal.any(parent ? [parent, own.signal] : [own.signal])
         const timer = setTimeout(
-          () => controller.abort(new TimeoutError('request')),
+          () => own.abort(new TimeoutError('request')),
           timeout_ms,
         )
         try {
@@ -211,7 +192,7 @@ export function fetchAdapter(
             method,
             headers,
             body,
-            signal: controller.signal,
+            signal,
           })
           const text = await response.text()
           if (!response.ok) {
@@ -237,12 +218,10 @@ export function fetchAdapter(
             request: undefined,
           }
         } catch (error) {
-          if (controller.signal.aborted)
-            throw abortReason(controller.signal, parent)
+          if (signal.aborted) throw abortReason(signal, parent)
           throw error
         } finally {
           clearTimeout(timer)
-          dispose()
         }
       },
     )

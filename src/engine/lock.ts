@@ -4,7 +4,9 @@
  * two minutes belongs to a crashed instance and can be taken over. The
  * clocks of two computers can differ by minutes: before taking a lock that
  * looks stale the app watches it for a heartbeat, and a lock of this
- * computer whose process is gone is taken at once.
+ * computer whose process is gone is taken at once. A lock that is lost later
+ * (taken by another instance, or not refreshed for most of the stale time)
+ * says so through `signal`: the job ends and stops writing.
  */
 import { promises as fs } from 'fs'
 import os from 'os'
@@ -31,7 +33,11 @@ export interface LockOptions {
   /** How long a lock that looks stale is watched for a heartbeat before it is taken */
   confirm_ms?: number
   now?: () => number
+  /** The job's: a stop ends the wait for a lock that looks stale */
+  signal?: AbortSignal
 }
+
+type Settings = Required<Omit<LockOptions, 'signal'>> & { signal?: AbortSignal }
 
 export const LOCK_STALE_MS = 120_000
 export const LOCK_HEARTBEAT_MS = 30_000
@@ -85,7 +91,7 @@ function crashedHere(info: LockInfo): boolean {
 /** Whether the lock in the folder can be taken over; otherwise who holds it */
 async function takeOver(
   file: string,
-  opts: Required<LockOptions>,
+  opts: Settings,
 ): Promise<{ take: boolean; holder?: LockInfo }> {
   const first = await readLockFile(file)
   if (!first.exists) return { take: true }
@@ -98,7 +104,7 @@ async function takeOver(
     if (!isStale(held, opts.now(), opts.stale_ms)) return { take: false, holder: held }
   }
   // Stale by its own clock, or unreadable: a live instance beats (or finishes writing) meanwhile
-  await sleep(held ? opts.confirm_ms : Math.min(opts.confirm_ms, 2000))
+  await sleep(held ? opts.confirm_ms : Math.min(opts.confirm_ms, 2000), opts.signal)
   const second = await readLockFile(file)
   if (!second.exists) return { take: true }
   if (JSON.stringify(second.info) != JSON.stringify(held))
@@ -119,19 +125,25 @@ export class FolderLock {
   private timer?: NodeJS.Timeout
   private info: LockInfo
   private last_beat: number
+  private beating?: Promise<void>
+  private lost_controller = new AbortController()
   /**
-   * Set when another instance took the folder while we were working, or when
-   * the heartbeat could not be written for so long that others may take it
+   * Aborted when another instance took the folder while we were working, or
+   * when the heartbeat could not be written for so long that others may take it
    */
-  lost = false
+  readonly signal = this.lost_controller.signal
 
   private constructor(
     private file: string,
     info: LockInfo,
-    private options: Required<LockOptions>,
+    private options: Settings,
   ) {
     this.info = info
     this.last_beat = options.now()
+  }
+
+  get lost(): boolean {
+    return this.signal.aborted
   }
 
   static async acquire(
@@ -141,13 +153,14 @@ export class FolderLock {
     // `??`, not a spread: an option passed as undefined must keep the default
     // (setInterval with undefined runs every millisecond)
     const heartbeat_ms = Math.max(10, options.heartbeat_ms ?? LOCK_HEARTBEAT_MS)
-    const opts: Required<LockOptions> = {
+    const opts: Settings = {
       instance_id: options.instance_id,
       project_id: options.project_id,
       stale_ms: options.stale_ms ?? LOCK_STALE_MS,
       heartbeat_ms,
       confirm_ms: options.confirm_ms ?? heartbeat_ms + 5000,
       now: options.now ?? Date.now,
+      signal: options.signal,
     }
     const file = path.join(data_dir, LOCK_FILE)
     const now = new Date(opts.now()).toISOString()
@@ -183,16 +196,23 @@ export class FolderLock {
   }
 
   private startHeartbeat(): void {
-    this.timer = setInterval(() => void this.beat(), this.options.heartbeat_ms)
+    this.timer = setInterval(() => {
+      // One beat at a time: a slow share must not pile them up
+      this.beating ??= this.beat().finally(() => (this.beating = undefined))
+    }, this.options.heartbeat_ms)
     this.timer.unref?.()
+  }
+
+  private lose(): void {
+    this.stopHeartbeat()
+    this.lost_controller.abort()
   }
 
   private async beat(): Promise<void> {
     try {
       const current = await readLock(path.dirname(this.file))
       if (current && current.instance_id != this.info.instance_id) {
-        this.lost = true
-        this.stopHeartbeat()
+        this.lose()
         return
       }
       this.info = {
@@ -203,18 +223,15 @@ export class FolderLock {
       // Someone may have written between our read and our write: check again
       const after = await readLock(path.dirname(this.file))
       if (after && after.instance_id != this.info.instance_id) {
-        this.lost = true
-        this.stopHeartbeat()
+        this.lose()
         return
       }
       this.last_beat = this.options.now()
     } catch {
       // A missed beat is not fatal, the next one retries; but after most of
       // the stale time without one, another computer may take the folder
-      if (this.options.now() - this.last_beat > this.options.stale_ms * 0.75) {
-        this.lost = true
-        this.stopHeartbeat()
-      }
+      if (this.options.now() - this.last_beat > this.options.stale_ms * 0.75)
+        this.lose()
     }
   }
 
@@ -225,6 +242,8 @@ export class FolderLock {
 
   async release(): Promise<void> {
     this.stopHeartbeat()
+    // A beat in flight would write the lock again after it is gone
+    await this.beating
     if (this.lost) return
     try {
       const current = await readLock(path.dirname(this.file))

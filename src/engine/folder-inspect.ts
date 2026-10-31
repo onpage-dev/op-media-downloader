@@ -344,8 +344,11 @@ export async function inspectFolder(
     if (has_data && (await dataDirOwner(data_dir).catch(() => 'ours')) == 'foreign') {
       problems.push('foreign_data')
     } else if (has_data) {
-      const { manifest } = await Manifest.load(data_dir, ctx.project_id ?? '')
-      for (const [name] of manifest.entries()) own.add(nameKey(name))
+      // Unreadable now, or of a newer version of the app: the job will tell
+      const loaded = await Manifest.load(data_dir, ctx.project_id ?? '').catch(
+        () => undefined,
+      )
+      for (const [name] of loaded?.manifest.entries() ?? []) own.add(nameKey(name))
       const lock = await readLock(data_dir)
       if (
         lock &&

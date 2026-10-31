@@ -30,12 +30,19 @@ const engine = new Engine({
   post,
 })
 
+/**
+ * After an uncaught exception the engine's state may be half-updated: it
+ * ends, and main starts a new one (the jobs that ran are «interrupted»). The
+ * log message gets a moment to leave; stderr reaches main's log too.
+ */
 process.on('uncaughtException', error => {
-  post({
-    kind: 'log',
-    level: 'error',
-    message: `Engine uncaught exception: ${error?.stack ?? error}`,
-  })
+  const message = `Engine uncaught exception: ${error?.stack ?? error}`
+  process.stderr.write(`${message}\n`)
+  try {
+    post({ kind: 'log', level: 'error', message })
+  } finally {
+    setTimeout(() => process.exit(1), 100)
+  }
 })
 process.on('unhandledRejection', error => {
   post({

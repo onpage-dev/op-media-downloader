@@ -184,6 +184,23 @@ describe('disk full', () => {
     await checkComplete(folder)
   })
 
+  it('the transfers in flight stop at once: nothing more arrives under a name', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    const first = (thing(1001).files.foto as FakeFile[])[0]
+    for (const file of remoteNames().values())
+      if (file.token != first.token) fake.storage.set(file.token, { delay_ms: 1500 })
+    const faults = injectFaults([{ op: 'write', path: f => f.includes(first.token) && f.endsWith('.download'), code: 'ENOSPC' }])
+    fakeFreeSpace(() => (faults.fired.get('write') ? 4096 : 10e9))
+    const started = Date.now()
+    const result = await run({ type: 'download', project: project(folder) })
+    expect(result.outcome).toBe('failed')
+    expect(issues()).toContain('disk_full')
+    expect(Date.now() - started).toBeLessThan(1200)
+    expect((await listDir(folder)).filter(n => n != 'data')).toEqual([])
+    expect((await listDir(path.join(folder, 'data'))).filter(n => n.endsWith('.download'))).toEqual([])
+  })
+
   it('checked before starting: not enough room, nothing downloaded', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
@@ -347,6 +364,40 @@ describe('what the disk does', () => {
     await checkComplete(folder)
   })
 
+  it('a share hiccup on a write (ECONNRESET) is the folder’s problem, not the network’s: not downloaded again, that file fails alone', async () => {
+    const folder = await tempDir()
+    const photo = (thing(1005).files.foto as FakeFile[])[0]
+    await run({ type: 'sync', project: project(folder) })
+    injectFaults([
+      { op: 'write', path: f => f.includes(photo.token) && f.endsWith('.download'), code: 'ECONNRESET', times: 1 },
+    ])
+    expect(await run({ type: 'download', project: project(folder) })).toMatchObject({ outcome: 'completed', failed: 2 })
+    expect(fake.hits.storage.get(photo.token)).toBe(1)
+    const failed = (await ask<FailedPage>({ type: 'get_failed', project_id: 'p1' })).entries
+    expect(failed.map(f => [f.name, f.reason]).sort()).toEqual([
+      ['prodotto-5-copertina.jpg', 'write_error'],
+      ['prodotto-5.jpg', 'write_error'],
+    ])
+    await checkFolder(folder)
+  })
+
+  it('a name that cannot be linked fails alone: the other names stay links, no copies', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    injectFaults([{ op: 'link', path: f => f.endsWith('prodotto-2.jpg'), code: 'EINVAL' }])
+    const result = await run({ type: 'download', project: project(folder) })
+    expect(result).toMatchObject({ outcome: 'completed', failed: 1 })
+    expect(issues()).not.toContain('copies_instead_of_links')
+    const failed = (await ask<FailedPage>({ type: 'get_failed', project_id: 'p1' })).entries
+    expect(failed).toMatchObject([{ name: 'prodotto-2.jpg', reason: 'link_error' }])
+    for (const id of [1001, 1003, 1020]) {
+      const photo = (thing(id).files.foto as FakeFile[])[0]
+      const blob = (await fs.stat(path.join(folder, 'data', photo.token), { bigint: true })).ino
+      expect((await fs.stat(path.join(folder, photo.name), { bigint: true })).ino, photo.name).toBe(blob)
+    }
+    await checkFolder(folder)
+  })
+
   it('a content with too many names (NTFS: 1023) gets a copy for the extra name; the others stay links', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
@@ -409,6 +460,23 @@ describe('the registry of the folder', () => {
     expect(Object.keys(manifest.files)).toHaveLength(remoteNames().size)
   })
 
+  it('a manifest written by a newer version of the app: the job ends («folder protected»), the manifest is left as it is', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    await run({ type: 'download', project: project(folder) })
+    fake.project.things = fake.project.things.filter(t => t.id != 1010)
+    const file = path.join(folder, 'data', 'manifest.json')
+    const newer = JSON.stringify({ version: 3, project_id: 'p1', updated_at: new Date().toISOString(), entries: [] })
+    await fs.writeFile(file, newer)
+    const hits = storageHits()
+    const result = await run({ type: 'sync', project: project(folder) })
+    expect(result).toMatchObject({ outcome: 'failed', removed: 0, error: { code: 'folder_protected' } })
+    expect(result.error?.detail).toMatch(/newer version of the app/)
+    expect(await fs.readFile(file, 'utf8')).toBe(newer)
+    expect(await listDir(folder)).toContain('prodotto-10.jpg')
+    expect(storageHits()).toBe(hits)
+  })
+
   it('a manifest that cannot be saved at the end: the run is not «completed», the next one registers the files', async () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
@@ -451,5 +519,38 @@ describe('another computer', () => {
     expect(JSON.parse(await fs.readFile(lock, 'utf8')).instance_id).toBe('altro')
     expect(storageHits()).toBeLessThan(remoteNames().size)
     await checkFolder(folder)
+  })
+
+  it('takes the folder while files are in flight: the transfers stop, nothing is linked or registered after the loss', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    for (const file of remoteNames().values()) fake.storage.set(file.token, { delay_ms: 1000 })
+    engine.command({ type: 'download', project: project(folder) })
+    // Four transfers in flight, none arrived yet
+    await waitFor(() => storageHits() >= 4)
+    const data = path.join(folder, 'data')
+    const lock = path.join(data, '.lock')
+    const theirs = JSON.stringify({
+      host: 'altro-pc',
+      pid: 4242,
+      instance_id: 'altro',
+      project_id: 'x',
+      started_at: new Date().toISOString(),
+      heartbeat_at: new Date().toISOString(),
+    })
+    let done = false
+    void engine.idle().then(() => (done = true))
+    const started = Date.now()
+    while (!done) {
+      await fs.writeFile(lock, theirs).catch(() => undefined)
+      await new Promise(resolve => setTimeout(resolve, 5))
+    }
+    expect(lastResult().outcome).toBe('failed')
+    expect(issues()).toContain('folder_locked')
+    expect(Date.now() - started).toBeLessThan(800)
+    expect((await listDir(folder)).filter(n => n != 'data')).toEqual([])
+    expect(existsSync(path.join(data, 'manifest.json'))).toBe(false)
+    expect((await listDir(data)).filter(n => n.endsWith('.download'))).toEqual([])
+    expect(JSON.parse(await fs.readFile(lock, 'utf8')).instance_id).toBe('altro')
   })
 })
