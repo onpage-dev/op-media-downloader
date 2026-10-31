@@ -9,7 +9,7 @@ import '@fortawesome/fontawesome-svg-core/styles.css'
 import { createApp, type Component } from 'vue'
 import { i18n } from './i18n'
 import { vTooltip } from './lib/tooltip'
-import './styles/app.scss'
+import './styles/app.css'
 
 config.autoAddCss = false
 

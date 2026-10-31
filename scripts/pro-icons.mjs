@@ -10,7 +10,7 @@
  * The token: FONTAWESOME_NPM_AUTH_TOKEN, or `//npm.fontawesome.com/:_authToken=…`
  * in the user's .npmrc. `--required` fails without one (release builds).
  */
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -81,10 +81,13 @@ function fromKit(text, name) {
 async function main() {
   const auth = token()
   if (!auth) {
-    rmSync(OUT, { force: true })
-    const message = 'Font Awesome: no Pro token, the app uses the Font Awesome Free icons'
-    if (required) throw new Error(`${message} (--required)`)
-    console.log(message)
+    if (required) throw new Error('Font Awesome: no Pro token (--required)')
+    // Icons generated earlier stay: an install without the token must not take them away
+    console.log(
+      existsSync(OUT)
+        ? 'Font Awesome: no Pro token, the Pro icons generated before stay'
+        : 'Font Awesome: no Pro token, the app uses the Font Awesome Free icons',
+    )
     return
   }
   const names = [...readFileSync(path.join(ICONS, 'free.ts'), 'utf8').matchAll(/\b(?:as )?(fa[A-Z]\w*),?$/gm)]

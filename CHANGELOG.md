@@ -35,6 +35,6 @@ A new app: a desktop sync manager for On Page media, rebuilt around a sync engin
 - 1.x cannot read the migrated settings anymore.
 
 ### Development
-- Electron 45, electron-vite 6, Vite 8, Vue 3.5, TypeScript 6, ESLint 10, Vitest 5, electron-store 12.
+- Electron 45, electron-vite 6, Vite 8, Vue 3.5, Tailwind CSS 4, TypeScript 6, ESLint 10, Vitest 5, electron-store 12.
 - CI on pull requests (typecheck, lint, tests, build); the release workflow uses Node 22 and current actions.
 - Building needs no token: without one the app uses Font Awesome Free icons. With the `FONTAWESOME_NPM_AUTH_TOKEN` secret (CI, releases) the Pro light icons of the design system are generated at build time, never committed.
