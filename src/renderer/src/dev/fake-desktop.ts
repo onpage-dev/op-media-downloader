@@ -13,6 +13,7 @@ import {
   type AppStatus,
   type DestinationKind,
   type DuplicateGroup,
+  type DuplicateUse,
   type FailedEntry,
   type FolderInfo,
   type Issue,
@@ -226,7 +227,7 @@ const failed: Record<string, FailedEntry[]> = {
     { name: 'scheda «vaso:alto».pdf', token: 't3', size: 310 * 1024, reason: 'invalid_name', attempts: 1, at: at(20) },
   ],
 }
-const use = (resource_label: string, field_label: string, thing_label: string, thing_id: number, lang?: string) => ({
+const use = (resource_label: string, field_label: string, thing_label: string, thing_id: number, lang?: string): DuplicateUse => ({
   resource_label,
   field_label,
   thing_label,

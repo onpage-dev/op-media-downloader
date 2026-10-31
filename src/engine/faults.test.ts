@@ -18,6 +18,7 @@ import {
   FakeFile,
   fileContent,
   FakeOnPage,
+  FakeThing,
   sampleProject,
   startFakeOnPage,
   token,
@@ -132,7 +133,7 @@ async function checkComplete(folder: string): Promise<void> {
   for (const name of remoteNames().keys()) expect(names, name).toContain(name)
 }
 
-const thing = (id: number) => fake.project.things.find(t => t.id == id)!
+const thing = (id: number): FakeThing => fake.project.things.find(t => t.id == id)!
 
 beforeEach(async () => {
   fake = await startFakeOnPage({ project: sampleProject({ things: 20, duplicates: 2 }) })

@@ -3,3 +3,6 @@ dist
 out
 *.log*
 .DS_Store
+
+# Font Awesome Pro icons, generated with an On Page token (scripts/pro-icons.mjs): never commit
+src/renderer/src/lib/icons/pro.generated.ts

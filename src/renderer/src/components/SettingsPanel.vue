@@ -73,16 +73,16 @@ const v = (version: string): string => `v${bare(version)}`
     <div class="flex min-h-0 flex-1">
       <nav class="flex w-[200px] shrink-0 flex-col gap-2xs p-sm">
         <button
-          v-for="[section, icon] in SECTIONS"
-          :key="section"
+          v-for="[item, icon] in SECTIONS"
+          :key="item"
           type="button"
           class="flex items-center gap-sm rounded-md px-[10px] py-[9px] text-left text-sm font-medium"
-          :class="section == props.section ? 'bg-accent-soft text-accent-fg' : 'hover:bg-text/[.06]'"
-          :aria-current="section == props.section ? 'page' : undefined"
-          @click="emit('section', section)"
+          :class="item == props.section ? 'bg-accent-soft text-accent-fg' : 'hover:bg-text/[.06]'"
+          :aria-current="item == props.section ? 'page' : undefined"
+          @click="emit('section', item)"
         >
           <AppIcon :icon="icon" />
-          {{ t(`settings.section.${section}`) }}
+          {{ t(`settings.section.${item}`) }}
         </button>
       </nav>
       <section class="flex min-w-0 flex-1 flex-col gap-lg overflow-auto rounded-tl-md border-l border-t border-line bg-box p-xl">

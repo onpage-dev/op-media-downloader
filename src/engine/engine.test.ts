@@ -18,6 +18,7 @@ import {
   FakeFile,
   fileContent,
   FakeOnPage,
+  FakeThing,
   sampleProject,
   startFakeOnPage,
   token,
@@ -264,7 +265,8 @@ describe('engine: the core flow', () => {
     const folder = await tempDir()
     await run({ type: 'sync', project: project(folder) })
     await run({ type: 'download', project: project(folder) })
-    const thing = (id: number) => fake.project.things.find(t => t.id == id)!
+    const thing = (id: number): FakeThing =>
+      fake.project.things.find(t => t.id == id)!
 
     // Renamed (same content), also in a translatable field: linked again, nothing downloaded
     const photo = (thing(1003).files.foto as FakeFile[])[0]

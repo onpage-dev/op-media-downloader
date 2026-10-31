@@ -6,13 +6,13 @@
     "src/main/**/*",
     "src/engine/**/*",
     "src/preload/**/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "src/renderer/**/*.test.ts"
   ],
   "compilerOptions": {
     "composite": true,
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["src/shared/*"]
+      "@shared/*": ["./src/shared/*"]
     }
   }
 }

@@ -24,10 +24,9 @@ When two files on On Page share a name (case does not count), only the first one
 
 ## Development
 
-Prerequisites: Node.js 22 and Yarn 1, plus a Font Awesome Pro token for the design system icons, once in your user `.npmrc` (never in the repository):
+Prerequisites: Node.js 22 and Yarn 1. No token is needed.
 
 ```bash
-npm config set //npm.fontawesome.com/:_authToken <token>
 yarn
 yarn dev        # app with hot reload (its data folder is separate from the installed app)
 yarn test       # sync engine tests
@@ -37,6 +36,8 @@ yarn build:<win | mac | linux>
 
 - `OPMD_USER_DATA=<folder>` runs a development build on another data folder.
 - `OPMD_API_DOMAIN=http://127.0.0.1:<port>` points a development build at a fake On Page server (see `src/engine/testing`).
+
+**Icons.** Without a token the app uses the closest Font Awesome Free icons. With an On Page Font Awesome Pro token (`FONTAWESOME_NPM_AUTH_TOKEN`, or `//npm.fontawesome.com/:_authToken` in your user `.npmrc`), `yarn` (or `yarn icons`) generates the Pro light icons of the On Page design system in `src/renderer/src/lib/icons/pro.generated.ts`. That file is never committed: Font Awesome Pro icons may be embedded in the app, not published in an open-source repository.
 
 Architecture, safety rules and the sync flows: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Changes: [CHANGELOG.md](CHANGELOG.md).
 
@@ -61,7 +62,7 @@ GitHub Actions:
 
 - The release workflow builds, signs and notarizes the app and uploads the artifacts to the release that started it.
 - Required secrets:
-  - FONTAWESOME_NPM_AUTH_TOKEN: Font Awesome Pro npm token
+  - FONTAWESOME_NPM_AUTH_TOKEN: Font Awesome Pro token, for the design system icons (required by releases)
   - MAC_CERTIFICATE: .p12 certificate obtained from Apple
   - APPLE_CERTIFICATE_PASSWORD: password applied to the certificate.p12
   - APPLE_ID: User developer id eg. user@test.com
