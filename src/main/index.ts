@@ -24,6 +24,15 @@ import { createMainWindow, loadRenderer, preloadPath, secureContents } from './w
 
 const APP_ID = 'com.onpage.mediadownloader'
 
+/**
+ * Development builds never touch the data of the installed app (1.x keeps its
+ * projects and tokens there, and 2.0 would migrate them): they get their own
+ * folder, or the one in OPMD_USER_DATA.
+ */
+if (!app.isPackaged) {
+  app.setPath('userData', process.env['OPMD_USER_DATA'] || path.join(app.getPath('appData'), 'op-media-downloader-dev'))
+}
+
 process.on('uncaughtException', error => log('error', 'Uncaught exception', error))
 process.on('unhandledRejection', error => log('error', 'Unhandled rejection', error))
 
@@ -53,6 +62,8 @@ function start(): void {
     concurrency: store.settings.concurrency,
     app_version: app.getVersion(),
     instance_id,
+    /** Development only: point the engine at a fake On Page server */
+    api_domain: app.isPackaged ? undefined : process.env['OPMD_API_DOMAIN'] || undefined,
   }))
   const projects = new ProjectService(store, engine)
 

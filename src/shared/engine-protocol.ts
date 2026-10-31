@@ -36,6 +36,12 @@ export interface EngineInit {
   app_version: string
   /** For logs and the folder lock */
   instance_id: string
+  /**
+   * Development and tests only: On Page domain to use instead of
+   * https://app.onpage.it (e.g. http://127.0.0.1:4310 for a fake server that
+   * answers both the API and the storage links)
+   */
+  api_domain?: string
 }
 
 /* ------------------------------------------------------------------ main → engine */

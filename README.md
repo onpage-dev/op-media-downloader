@@ -1,61 +1,44 @@
 # [On Page ® Media Downloader](https://app.onpage.it/#/help/advanced-tools/on-page-media-downloader/)
 
-A desktop app to download all media files from an On Page project using an [API Token](https://app.onpage.it/#/help/advanced-tools/api).
+A desktop app that keeps a local or network folder in sync with the media files of an On Page project, read through an [API Token](https://app.onpage.it/#/help/advanced-tools/api) (the token's View is honoured).
 
 ## Highlights
 
-- Sync project media via API token
-- Download media to a local target folder
-- Keep or remove previously downloaded files
-- Resolve filename conflicts before downloading
-- Pause / stop running downloads
+- Sync manager window: every project with its state, progress, speed and time left
+- Incremental syncs: after the first one, only what changed on On Page is read
+- Safe by design: the app only removes the files it created, never anything else in the folder
+- Works with network folders: no freezes, folder checks, a lock against two computers syncing the same folder
+- Proxy aware downloads with retries, timeouts and a real Stop
+- Notification area icon, system notifications, taskbar progress, light and dark theme
 
 ## Usage
 
-1. Add a new project:
+1. **New project**: name, API token (verified on the spot), folder (checked: network or local, free space, hard links), options.
+   - *Keep old local files*: files removed from On Page stay in the folder. Prefer leaving it off.
+2. **Sync** compares On Page with the folder and shows what is left to do; **Download** does it. When nothing needs downloading, links and removals are applied right away.
+3. The inspector shows the project, the live activity, the failed files (with **Retry**), the names with different files on On Page and the project settings.
 
-   - Name: display name for the project
-   - API Token: token used to fetch files (respects token view filters if applied)
-   - Target Folder: where files are saved
-   - Keep old local files: when enabled, previously downloaded files not present remotely are kept (use with caution as it can create conflicts between new and old files with the same name)
+Inside the folder, `data/` holds one file per content (named by its On Page token) and `data/manifest.json` lists what the app created; every file name in the folder is a hard link to its content (a copy where hard links are not supported).
 
-2. Actions available per project:
-   - Sync: compares remote files and prepares downloads; shows conflict modal if duplicate names exist
-   - Download: starts downloading synced files
-   - Stop download: stops the active download process as soon as possible
-   - Edit: modify project settings
-   - Delete: remove project and optionally local files
-   - Open Folder: open target folder in OS file explorer
+When two files on On Page share a name (case does not count), only the first one is downloaded: rename them on On Page to get both.
 
-Notes:
+## Development
 
-- If you continue with unresolved conflicts only the first file for each conflicting name will be downloaded.
-- Prefer disabling "Keep old local files" to avoid conflicts.
-
-## Quick start
-
-Prerequisites:
-
-- Node.js (LTS) and Yarn
-- Electron build dependencies (platform specific)
-
-Install and run in development:
+Prerequisites: Node.js 22 and Yarn 1, plus a Font Awesome Pro token for the design system icons:
 
 ```bash
-git clone https://github.com/onpage-dev/op-media-downloader.git
-cd op-media-downloader
+export FONTAWESOME_NPM_AUTH_TOKEN=<token>
 yarn
-yarn dev
-```
-
-Install and build for release:
-
-```bash
-git clone https://github.com/onpage-dev/op-media-downloader.git
-cd op-media-downloader
-yarn
+yarn dev        # app with hot reload (its data folder is separate from the installed app)
+yarn test       # sync engine tests
+yarn typecheck
 yarn build:<win | mac | linux>
 ```
+
+- `OPMD_USER_DATA=<folder>` runs a development build on another data folder.
+- `OPMD_API_DOMAIN=http://127.0.0.1:<port>` points a development build at a fake On Page server (see `src/engine/testing`).
+
+Architecture, safety rules and the sync flows: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Notarization (macOS)
 
@@ -76,8 +59,9 @@ yarn build:mac-with-notarize
 
 GitHub Actions:
 
-- The release workflow builds, signs and notarizes the app and uploads the artifacts.
+- The release workflow builds, signs and notarizes the app and uploads the artifacts to the release that started it.
 - Required secrets:
+  - FONTAWESOME_NPM_AUTH_TOKEN: Font Awesome Pro npm token
   - MAC_CERTIFICATE: .p12 certificate obtained from Apple
   - APPLE_CERTIFICATE_PASSWORD: password applied to the certificate.p12
   - APPLE_ID: User developer id eg. user@test.com
