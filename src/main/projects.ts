@@ -185,7 +185,7 @@ export class ProjectService {
         folder,
         keep_old_files: !!input.keep_old_files,
         created_at: new Date().toISOString(),
-        ...this.store.encryptToken(token),
+        ...(await this.store.encryptToken(token)),
         folder_info: info,
         /** The user chose the folder for this token, whatever On Page project it had */
         take_over_folder: true,
@@ -215,7 +215,7 @@ export class ProjectService {
         const token = patch.token.trim()
         if (!token) throw new Error('invalid_input')
         if (token != this.store.token(current)) {
-          Object.assign(changes, this.store.encryptToken(token))
+          Object.assign(changes, await this.store.encryptToken(token))
           reset = true
         }
       }

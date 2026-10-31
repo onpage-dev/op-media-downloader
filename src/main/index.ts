@@ -82,10 +82,12 @@ function startFailed(error: unknown): void {
   }
 }
 
-function start(onSecondInstance: (handler: (argv: string[]) => void) => void): void {
+async function start(onSecondInstance: (handler: (argv: string[]) => void) => void): Promise<void> {
   denyPermissions(session.defaultSession)
   const store = new AppStore({ default_language: language() })
   nativeTheme.themeSource = store.settings.theme
+  /** Before anything reads a token: the system decrypts them asynchronously */
+  await store.unlockTokens()
   const instance_id = crypto.randomUUID()
 
   const engine: EngineHost = new EngineHost(() => ({

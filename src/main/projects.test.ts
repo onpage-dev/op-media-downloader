@@ -22,12 +22,12 @@ vi.mock('electron', () => {
       },
     },
     safeStorage: {
-      isEncryptionAvailable: () => true,
-      encryptString: (text: string) => Buffer.from(`enc:${text}`),
-      decryptString: (buffer: Buffer) => {
+      isAsyncEncryptionAvailable: async () => true,
+      encryptStringAsync: async (text: string) => Buffer.from(`enc:${text}`),
+      decryptStringAsync: async (buffer: Buffer) => {
         const text = buffer.toString()
         if (!text.startsWith('enc:')) throw new Error('Error while decrypting')
-        return text.slice(4)
+        return { result: text.slice(4), shouldReEncrypt: false }
       },
     },
     utilityProcess: { fork: () => undefined },

@@ -30,7 +30,7 @@ import { log } from './log'
 import { cleanSettings, concurrency, isLanguage, isProjectId, isRecord } from './validate'
 
 export interface StoredProject extends ProjectConfig {
-  /** safeStorage.encryptString, base64 */
+  /** safeStorage.encryptStringAsync (or encryptString before: the same format), base64 */
   token_enc?: string
   /** Only where the OS offers no encryption (some Linux setups) */
   token_plain?: string
@@ -82,8 +82,8 @@ const EPOCH = new Date(0).toISOString()
 export class AppStore {
   private store: Store<StoreSchema>
   private readonly default_language: AppLanguage
-  /** Whether each encrypted token decrypts here to a token (another user's or computer's does not) */
-  private token_ok = new Map<string, boolean>()
+  /** Each encrypted token in clear, as this computer decrypts it: empty when it cannot (another user's or computer's) */
+  private tokens = new Map<string, string>()
   /** Where a config file that could not be parsed was set aside, to tell the user */
   readonly set_aside?: string
 
@@ -93,7 +93,6 @@ export class AppStore {
     this.store = opened.store
     this.set_aside = opened.set_aside
     this.migrate()
-    this.encryptPlainTokens()
   }
 
   /* ---------------------------------------------------------------- settings */
@@ -151,16 +150,46 @@ export class AppStore {
 
   /* ---------------------------------------------------------------- tokens */
 
-  encryptToken(token: string): Pick<StoredProject, 'token_enc' | 'token_plain'> {
-    if (safeStorage.isEncryptionAvailable()) {
-      return { token_enc: safeStorage.encryptString(token).toString('base64'), token_plain: undefined }
+  /** The token as saved: encrypted where the system can (the system's credential store), else in clear */
+  async encryptToken(token: string): Promise<Pick<StoredProject, 'token_enc' | 'token_plain'>> {
+    if (!(await encryptionAvailable())) return { token_enc: undefined, token_plain: token }
+    const token_enc = (await safeStorage.encryptStringAsync(token)).toString('base64')
+    this.tokens.set(token_enc, token)
+    return { token_enc, token_plain: undefined }
+  }
+
+  /**
+   * Once, after the app is ready and before the tokens are read: decrypts
+   * them (the jobs and the page read them from memory), and encrypts in one
+   * write those saved in clear (the system had no encryption then, or 1.x
+   * had them) and those whose key the system rotated.
+   */
+  async unlockTokens(): Promise<void> {
+    const available = await encryptionAvailable()
+    const renew = new Map<ProjectId, string>()
+    await Promise.all(
+      this.projects.map(async project => {
+        if (project.token_enc) {
+          const decrypted = await this.decrypt(project.token_enc, project.id)
+          if (decrypted?.rotated && available) renew.set(project.id, decrypted.token)
+        } else if (project.token_plain && available) {
+          renew.set(project.id, project.token_plain)
+        }
+      }),
+    )
+    if (!renew.size) return
+    const next: Record<string, unknown> = { ...this.projectMap() }
+    for (const [id, token] of renew) {
+      const project = readProject(id, next[id])
+      if (project) next[id] = { ...project, ...(await this.encryptToken(token)) }
     }
-    return { token_enc: undefined, token_plain: token }
+    this.store.set('projects', next)
+    log('info', `Tokens of ${renew.size} projects encrypted`)
   }
 
   /** The token in clear; empty when there is none or it cannot be decrypted here */
   token(project: StoredProject): string {
-    if (project.token_enc) return this.decrypt(project.token_enc, project.id)
+    if (project.token_enc) return this.tokens.get(project.token_enc) ?? ''
     return project.token_plain ?? ''
   }
 
@@ -169,37 +198,19 @@ export class AppStore {
    * computer) does not count: the page asks for a new one
    */
   hasToken(project: StoredProject): boolean {
-    if (!project.token_enc) return !!project.token_plain
-    return this.token_ok.get(project.token_enc) ?? !!this.decrypt(project.token_enc, project.id)
+    return !!this.token(project)
   }
 
-  private decrypt(token_enc: string, id: ProjectId): string {
+  private async decrypt(token_enc: string, id: ProjectId): Promise<{ token: string; rotated: boolean } | undefined> {
     try {
-      const token = safeStorage.decryptString(Buffer.from(token_enc, 'base64'))
-      this.token_ok.set(token_enc, !!token)
-      return token
+      const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(token_enc, 'base64'))
+      this.tokens.set(token_enc, result)
+      return { token: result, rotated: shouldReEncrypt && !!result }
     } catch (error) {
-      if (!this.token_ok.has(token_enc)) log('error', `Cannot decrypt the token of project ${id}`, error)
-      this.token_ok.set(token_enc, false)
-      return ''
+      log('error', `Cannot decrypt the token of project ${id}`, error)
+      this.tokens.set(token_enc, '')
+      return undefined
     }
-  }
-
-  /** Tokens saved in clear because the OS had no encryption are encrypted once it has (one write) */
-  private encryptPlainTokens(): void {
-    if (!safeStorage.isEncryptionAvailable()) return
-    const projects = this.projectMap()
-    const next: Record<string, unknown> = { ...projects }
-    let count = 0
-    for (const [id, value] of Object.entries(projects)) {
-      const project = readProject(id, value)
-      if (!project?.token_plain || project.token_enc) continue
-      next[id] = { ...project, ...this.encryptToken(project.token_plain) }
-      count++
-    }
-    if (!count) return
-    this.store.set('projects', next)
-    log('info', `Tokens of ${count} projects encrypted`)
   }
 
   /* ---------------------------------------------------------------- window */
@@ -223,7 +234,8 @@ export class AppStore {
   /* ---------------------------------------------------------------- migration */
 
   /**
-   * 1.x → 2.0 in one write: settings, projects (tokens encrypted), version.
+   * 1.x → 2.0 in one write: settings, projects, version (the tokens are
+   * encrypted by unlockTokens() right after).
    * The 1.x keys go whenever they are there (1.x run again after the
    * migration writes them anew): projects 1.x added meanwhile are kept.
    */
@@ -240,7 +252,7 @@ export class AppStore {
         .map(folderKey),
     )
     let imported = 0
-    for (const project of v1Projects(raw.storage_data, token => this.encryptToken(token))) {
+    for (const project of v1Projects(raw.storage_data)) {
       /** Already migrated (by id or by folder: two projects never share a folder) */
       if (Object.hasOwn(projects, project.id) || folders.has(folderKey(project.folder))) continue
       projects[project.id] = project
@@ -328,6 +340,11 @@ function isIssue(value: unknown): boolean {
   return isRecord(value) && typeof value.code == 'string' && typeof value.at == 'string'
 }
 
+/** Whether the system encrypts (a Linux without a keyring does not); never throws */
+function encryptionAvailable(): Promise<boolean> {
+  return safeStorage.isAsyncEncryptionAvailable().catch(() => false)
+}
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value == 'number' && Number.isFinite(value)
 }
@@ -354,11 +371,12 @@ function v1Settings(value: unknown, has_v1: boolean, default_language: AppLangua
   }
 }
 
-/** 1.x projects (`storage_data`: id, label, api_token, folder_path, keep_old_files, last_sync) in their order */
-function v1Projects(
-  value: unknown,
-  encrypt: (token: string) => Pick<StoredProject, 'token_enc' | 'token_plain'>,
-): StoredProject[] {
+/**
+ * 1.x projects (`storage_data`: id, label, api_token, folder_path,
+ * keep_old_files, last_sync) in their order; the tokens in clear as 1.x had
+ * them, until unlockTokens() encrypts them
+ */
+function v1Projects(value: unknown): StoredProject[] {
   if (!isRecord(value)) return []
   const now = Date.now()
   const projects: StoredProject[] = []
@@ -373,7 +391,7 @@ function v1Projects(
       keep_old_files: v1.keep_old_files === true,
       /** One millisecond apart: the list keeps the order of 1.x */
       created_at: new Date(now + projects.length).toISOString(),
-      ...(token ? encrypt(token) : {}),
+      token_plain: token || undefined,
       last_result: isRecord(v1.last_sync) ? fromV1Sync(v1.last_sync) : undefined,
     })
   }

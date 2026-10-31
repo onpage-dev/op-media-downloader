@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '../shared/models'
 import { AppStore, StoredProject } from './store'
 
-/** safeStorage stand-in: «encrypts» as `enc:<token>`, fails on anything else */
+/** safeStorage stand-in: «encrypts» as `enc:<token>`; `old:<token>` is a key the system rotated; anything else fails */
 const electron = vi.hoisted(() => ({ encryption: true }))
 
 vi.mock('electron', () => {
@@ -15,13 +15,12 @@ vi.mock('electron', () => {
     ipcMain: { on: () => undefined },
     shell: {},
     safeStorage: {
-      isEncryptionAvailable: () => electron.encryption,
-      encryptString: (text: string) => Buffer.from(`enc:${text}`),
-      decryptString: (buffer: Buffer) => {
+      isAsyncEncryptionAvailable: async () => electron.encryption,
+      encryptStringAsync: async (text: string) => Buffer.from(`enc:${text}`),
+      decryptStringAsync: async (buffer: Buffer) => {
         const text = buffer.toString()
-        if (!text.startsWith('enc:'))
-          throw new Error('Error while decrypting the ciphertext provided to safeStorage.decryptString.')
-        return text.slice(4)
+        if (!/^(enc|old):/.test(text)) throw new Error('Error while decrypting the ciphertext provided to safeStorage.')
+        return { result: text.slice(4), shouldReEncrypt: text.startsWith('old:') }
       },
     },
   }
@@ -105,9 +104,10 @@ describe('the 1.x migration', () => {
     user_properties: { dark_mode: true, simultaneous_downloads: 50, language: 'en' },
   }
 
-  it('moves projects and settings, encrypts the tokens and drops the 1.x keys', () => {
+  it('moves projects and settings, encrypts the tokens and drops the 1.x keys', async () => {
     writeConfig(V1)
     const store = new AppStore({ cwd: dir, default_language: 'de' })
+    await store.unlockTokens()
 
     expect(store.projects.map(p => [p.id, p.label, p.keep_old_files])).toEqual([
       [A, 'Catalogo', true],
@@ -140,15 +140,16 @@ describe('the 1.x migration', () => {
     expect(store.settings).toMatchObject({ theme: 'system', language: 'it', concurrency: DEFAULT_SETTINGS.concurrency })
   })
 
-  it('keeps the tokens in clear where the system has no encryption', () => {
+  it('keeps the tokens in clear where the system has no encryption', async () => {
     electron.encryption = false
     writeConfig(V1)
     const store = new AppStore({ cwd: dir })
+    await store.unlockTokens()
     expect(store.projects[0]).toMatchObject({ token_plain: 'token-a', token_enc: undefined })
     expect(store.hasToken(store.projects[0])).toBe(true)
   })
 
-  it('imports the projects 1.x added after the migration and removes its keys again', () => {
+  it('imports the projects 1.x added after the migration and removes its keys again', async () => {
     writeConfig({
       version: 2,
       settings: { ...DEFAULT_SETTINGS, theme: 'light' },
@@ -161,6 +162,7 @@ describe('the 1.x migration', () => {
       user_properties: { dark_mode: true },
     })
     const store = new AppStore({ cwd: dir })
+    await store.unlockTokens()
     expect(store.projects.map(p => p.id).sort()).toEqual([A, C].sort())
     expect(store.project(A)?.label).toBe(`Project ${A.slice(0, 4)}`)
     expect(store.token(store.project(C)!)).toBe('token-c')
@@ -259,7 +261,7 @@ describe('values read back', () => {
 })
 
 describe('tokens', () => {
-  it('a token that cannot be decrypted counts as none', () => {
+  it('a token that cannot be decrypted counts as none', async () => {
     writeConfig({
       version: 2,
       settings: DEFAULT_SETTINGS,
@@ -270,25 +272,27 @@ describe('tokens', () => {
       },
     })
     const store = new AppStore({ cwd: dir })
+    await store.unlockTokens()
     expect(store.hasToken(store.project(A)!)).toBe(true)
     expect(store.hasToken(store.project(B)!)).toBe(false)
     expect(store.token(store.project(B)!)).toBe('')
     expect(store.hasToken(store.project(C)!)).toBe(false)
   })
 
-  it('tokens saved in clear are encrypted once the system can', () => {
+  it('tokens saved in clear are encrypted once the system can', async () => {
     writeConfig({
       version: 2,
       settings: DEFAULT_SETTINGS,
       projects: { [A]: project(A, { token_enc: undefined, token_plain: 'clear-a' }) },
     })
     const store = new AppStore({ cwd: dir })
+    await store.unlockTokens()
     expect(store.project(A)).toMatchObject({ token_enc: encrypted('clear-a'), token_plain: undefined })
     expect(store.token(store.project(A)!)).toBe('clear-a')
     expect(fs.readFileSync(configFile(), 'utf8')).not.toContain('clear-a')
   })
 
-  it('stay in clear while it cannot', () => {
+  it('stay in clear while it cannot', async () => {
     electron.encryption = false
     writeConfig({
       version: 2,
@@ -296,7 +300,35 @@ describe('tokens', () => {
       projects: { [A]: project(A, { token_enc: undefined, token_plain: 'clear-a' }) },
     })
     const store = new AppStore({ cwd: dir })
+    await store.unlockTokens()
     expect(store.project(A)?.token_plain).toBe('clear-a')
     expect(store.hasToken(store.project(A)!)).toBe(true)
+  })
+
+  it('a token whose key the system rotated is encrypted again, the others stay as they are', async () => {
+    const rotated = Buffer.from('old:token-a').toString('base64')
+    writeConfig({
+      version: 2,
+      settings: DEFAULT_SETTINGS,
+      projects: { [A]: project(A, { token_enc: rotated }), [B]: project(B) },
+    })
+    const store = new AppStore({ cwd: dir })
+    // Nothing is read before the tokens are unlocked
+    expect(store.token(store.project(A)!)).toBe('')
+    await store.unlockTokens()
+    expect(store.project(A)?.token_enc).toBe(encrypted('token-a'))
+    expect(store.token(store.project(A)!)).toBe('token-a')
+    expect(store.project(B)?.token_enc).toBe(encrypted(`token-${B}`))
+    expect(store.token(store.project(B)!)).toBe(`token-${B}`)
+  })
+
+  it('a token saved now is read back without decrypting it again', async () => {
+    const store = new AppStore({ cwd: dir })
+    const saved = await store.encryptToken('new-token')
+    expect(saved).toEqual({ token_enc: encrypted('new-token'), token_plain: undefined })
+    store.saveProject(project(A, saved))
+    expect(store.token(store.project(A)!)).toBe('new-token')
+    electron.encryption = false
+    expect(await store.encryptToken('plain')).toEqual({ token_enc: undefined, token_plain: 'plain' })
   })
 })
