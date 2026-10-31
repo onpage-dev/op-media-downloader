@@ -1,0 +1,5 @@
+# Formatting-only commits: `git blame` skips them with
+# `git config blame.ignoreRevsFile .git-blame-ignore-revs` (GitHub does it by itself)
+
+# #style Prettier at 120 columns across the repository
+3de7679c2e74999ccacf62fd62e4c850bcabdd74
