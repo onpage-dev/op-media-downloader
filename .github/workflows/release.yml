@@ -3,7 +3,9 @@ name: Release
 # Push a tag `vX.Y.Z` (the version of package.json): the installers are built,
 # attached to a draft release with their checksums and provenance, and the
 # release is published last, so the in-app update check never points at a
-# release without installers.
+# release without installers. A version with a hyphen (2.1.0-beta.1) becomes a
+# prerelease, which the update check skips. The builds restore no dependency
+# cache: a cache saved by another run must never end up in an installer.
 on:
   push:
     tags: ['v*']
@@ -12,7 +14,27 @@ permissions:
   contents: read
 
 jobs:
+  # The update check compares the tag with the version the app reports, the one of package.json: they must match
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The tag is the version of package.json
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::The tag $TAG is not v$version, the version of package.json"
+            exit 1
+          fi
+
   build-windows:
+    needs: version
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -23,7 +45,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-          cache: yarn
+          package-manager-cache: false
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -49,6 +71,7 @@ jobs:
           if-no-files-found: error
 
   build-mac:
+    needs: version
     runs-on: macos-latest
     timeout-minutes: 60
     strategy:
@@ -63,7 +86,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-          cache: yarn
+          package-manager-cache: false
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -73,25 +96,16 @@ jobs:
           FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
         run: node scripts/pro-icons.mjs --required
 
-      - name: Signing keychain
-        env:
-          CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
-          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-          security create-keychain -p "" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
-          rm "$RUNNER_TEMP/certificate.p12"
-
+      # As in 1.x, electron-builder imports the certificate (base64 in CSC_LINK) into a keychain of its own;
+      # forceCodeSigning stops the build when it cannot sign, instead of a warning and an unsigned app
       - name: Build and sign for macOS
         env:
           ARCH: ${{ matrix.arch }}
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           yarn run build
-          npx electron-builder --mac --$ARCH --publish never
+          npx electron-builder --mac --$ARCH --publish never -c.forceCodeSigning=true
 
       - name: Notarize and validate
         env:
@@ -115,6 +129,7 @@ jobs:
           if-no-files-found: error
 
   build-linux:
+    needs: version
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -125,7 +140,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-          cache: yarn
+          package-manager-cache: false
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -175,5 +190,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes --draft
+          prerelease=false
+          case "$TAG" in *-*) prerelease=true ;; esac
+          gh release create "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes \
+            --draft --prerelease="$prerelease"
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

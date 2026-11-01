@@ -36,8 +36,14 @@ jobs:
           FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
         run: yarn install --frozen-lockfile
 
+      # Once, on Linux: the advisories are the same everywhere. Whatever --level says, Yarn 1 adds 1, 2, 4, 8 and 16 to
+      # its exit code for info, low, moderate, high and critical advisories, and exits with 1 when the audit fails
       - name: Known vulnerabilities in the app's dependencies
-        run: yarn audit --groups dependencies --level high
+        if: runner.os == 'Linux'
+        run: |
+          status=0
+          yarn audit --groups dependencies --level high || status=$?
+          [ "$status" -ne 1 ] && [ "$status" -lt 8 ]
 
       - name: Typecheck
         run: yarn typecheck

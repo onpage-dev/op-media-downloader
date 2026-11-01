@@ -249,7 +249,9 @@ Built with Electron 45, Vue 3.5, TypeScript 6, Tailwind CSS 4, electron-vite 6 w
 
 Bump `version` in `package.json`, then push a tag `vX.Y.Z`. The release workflow builds Windows, macOS (x64 and arm64) and Linux, signs and notarizes the macOS DMGs, attaches the installers with their SHA-256 checksums and build provenance to a draft release and publishes it last, so the app's update check never points at a release without installers. The Windows installer is not code-signed yet: Windows shows "unknown publisher".
 
-Repository secrets:
+Don't create the release on GitHub's Releases page: GitHub would publish it at once, without installers, and the workflow would then fail because the release already exists. The workflow stops if the tag is not `v` followed by the version in `package.json`. A version with a hyphen (`2.1.0-beta.1`) is published as a prerelease, which the update check skips.
+
+Secrets (organization or repository):
 
 - `FONTAWESOME_NPM_AUTH_TOKEN`: Font Awesome Pro token, for the design system icons (required by releases)
 - `MAC_CERTIFICATE`: the .p12 Developer ID certificate, base64
