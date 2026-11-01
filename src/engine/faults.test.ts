@@ -581,4 +581,35 @@ describe('another computer', () => {
     expect((await listDir(data)).filter(n => n.endsWith('.download'))).toEqual([])
     expect(JSON.parse(await fs.readFile(lock, 'utf8')).instance_id).toBe('altro')
   })
+
+  it('takes the folder while the share holds the heartbeat: noticed at once, the held write never lands on its lock', async () => {
+    const folder = await tempDir()
+    await run({ type: 'sync', project: project(folder) })
+    for (const file of remoteNames().values()) fake.storage.set(file.token, { delay_ms: 1000 })
+    engine.command({ type: 'download', project: project(folder) })
+    await waitFor(() => storageHits() >= 4)
+    // The share holds the lock's next 3 renames: the beat waits 100, 200 and 400 ms, then its write goes through
+    const faults = injectFaults([{ op: 'rename', path: f => f.endsWith('.lock'), code: 'EBUSY', times: 3 }])
+    await waitFor(() => (faults.fired.get('rename') ?? 0) >= 1)
+    const lock = path.join(folder, 'data', '.lock')
+    await fs.writeFile(
+      lock,
+      JSON.stringify({
+        host: 'altro-pc',
+        pid: 4242,
+        instance_id: 'altro',
+        project_id: 'x',
+        started_at: new Date().toISOString(),
+        heartbeat_at: new Date().toISOString(),
+      }),
+    )
+    const started = Date.now()
+    await engine.idle()
+    expect(lastResult().outcome).toBe('failed')
+    expect(issues()).toContain('folder_locked')
+    expect(Date.now() - started).toBeLessThan(800)
+    // Past the time the held write needed: the lock is still theirs
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    expect(JSON.parse(await fs.readFile(lock, 'utf8')).instance_id).toBe('altro')
+  })
 })

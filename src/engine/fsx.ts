@@ -20,14 +20,17 @@ export function isTransientLock(error: unknown): boolean {
   return TRANSIENT.has(errorCode(error) ?? '')
 }
 
-/** Runs `operation`, retrying transient locks: `tries` attempts, 100 ms doubling up to 1 s */
-export async function withLockRetry<T>(operation: () => Promise<T>, tries: number): Promise<T> {
+/**
+ * Runs `operation`, retrying transient locks: `tries` attempts, 100 ms doubling up to 1 s. When `signal`
+ * fires the wait ends with AbortedError and the operation is not tried again
+ */
+export async function withLockRetry<T>(operation: () => Promise<T>, tries: number, signal?: AbortSignal): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       return await operation()
     } catch (error) {
       if (!isTransientLock(error) || attempt >= tries) throw error
-      await sleep(Math.min(1000, 100 * 2 ** (attempt - 1)))
+      await sleep(Math.min(1000, 100 * 2 ** (attempt - 1)), signal)
     }
   }
 }
@@ -37,8 +40,8 @@ export async function withLockRetry<T>(operation: () => Promise<T>, tries: numbe
  * a moment. On a network share the antivirus can hold a new file for
  * seconds: 10 tries over ~8 s.
  */
-export async function renameWithRetry(from: string, to: string, tries = 10): Promise<void> {
-  await withLockRetry(() => fs.rename(from, to), tries)
+export async function renameWithRetry(from: string, to: string, tries = 10, signal?: AbortSignal): Promise<void> {
+  await withLockRetry(() => fs.rename(from, to), tries, signal)
 }
 
 /** Writes all of `data`: a write can take fewer bytes than given */
@@ -77,8 +80,11 @@ export async function flushFile(file: string): Promise<void> {
   }
 }
 
-/** Writes a sibling temporary file, flushed, then renames it over the target */
-export async function atomicWrite(file: string, data: string | Buffer): Promise<void> {
+/**
+ * Writes a sibling temporary file, flushed, then renames it over the target; once `signal` fires, a rename
+ * that the share holds is not tried again
+ */
+export async function atomicWrite(file: string, data: string | Buffer, signal?: AbortSignal): Promise<void> {
   await fs.mkdir(path.dirname(file), { recursive: true })
   const temp = `${file}.${process.pid}-${randomBytes(4).toString('hex')}.tmp`
   try {
@@ -89,7 +95,7 @@ export async function atomicWrite(file: string, data: string | Buffer): Promise<
     } finally {
       await handle.close()
     }
-    await renameWithRetry(temp, file)
+    await renameWithRetry(temp, file, 10, signal)
   } catch (error) {
     // The cause is the write, not the clean-up
     await unlinkQuiet(temp).catch(() => undefined)

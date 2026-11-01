@@ -108,6 +108,7 @@ export class FolderLock {
   private info: LockInfo
   private last_beat: number
   private beating?: Promise<void>
+  private watching?: Promise<void>
   private lost_controller = new AbortController()
   /**
    * Aborted when another instance took the folder while we were working, or
@@ -176,10 +177,18 @@ export class FolderLock {
 
   private startHeartbeat(): void {
     this.timer = setInterval(() => {
-      // One beat at a time: a slow share must not pile them up
-      this.beating ??= this.beat().finally(() => (this.beating = undefined))
+      // One beat at a time: a slow share must not pile them up. While a beat waits for the share to let
+      // its write through, a read still notices another computer's lock
+      if (this.beating) this.watching ??= this.watch().finally(() => (this.watching = undefined))
+      else this.beating = this.beat().finally(() => (this.beating = undefined))
     }, this.options.heartbeat_ms)
     this.timer.unref?.()
+  }
+
+  /** Another instance's lock in place of ours: the folder is theirs */
+  private async watch(): Promise<void> {
+    const current = await readLock(path.dirname(this.file))
+    if (current && current.instance_id != this.info.instance_id) this.lose()
   }
 
   private lose(): void {
@@ -198,7 +207,8 @@ export class FolderLock {
         ...this.info,
         heartbeat_at: new Date(this.options.now()).toISOString(),
       }
-      await atomicWrite(this.file, JSON.stringify(this.info))
+      // Once the folder is lost, a write that the share holds never lands on the other instance's lock
+      await atomicWrite(this.file, JSON.stringify(this.info), this.signal)
       // Someone may have written between our read and our write: check again
       const after = await readLock(path.dirname(this.file))
       if (after && after.instance_id != this.info.instance_id) {
@@ -221,7 +231,7 @@ export class FolderLock {
   async release(): Promise<void> {
     this.stopHeartbeat()
     // A beat in flight would write the lock again after it is gone
-    await this.beating
+    await Promise.all([this.beating, this.watching])
     if (this.lost) return
     try {
       const current = await readLock(path.dirname(this.file))
