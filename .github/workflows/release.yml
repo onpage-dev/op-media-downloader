@@ -1,85 +1,113 @@
-name: Build and Release OP Media Downloader
+name: Release
 
+# Push a tag `vX.Y.Z` (the version of package.json): the installers are built,
+# attached to a draft release with their checksums and provenance, and the
+# release is published last, so the in-app update check never points at a
+# release without installers. A version with a hyphen (2.1.0-beta.1) becomes a
+# prerelease, which the update check skips. The builds restore no dependency
+# cache: a cache saved by another run must never end up in an installer.
 on:
-  release:
-    types: [created]
+  push:
+    tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  # The update check compares the tag with the version the app reports, the one of package.json: they must match
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 16
-          cache: 'yarn'
+          persist-credentials: false
+
+      - name: The tag is the version of package.json
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::The tag $TAG is not v$version, the version of package.json"
+            exit 1
+          fi
+
+  build-windows:
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
-      - name: Build for Windows
+      - name: Font Awesome Pro icons (a release must have them)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn run build:win
+          FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
+        run: node scripts/pro-icons.mjs --required
 
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v3
+      - name: Test
+        run: yarn test
+
+      # Not code-signed yet: Windows shows "unknown publisher" until a certificate is set up
+      - name: Build for Windows
+        run: |
+          yarn run build
+          npx electron-builder --win --publish never
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: op-media-downloader-windows
+          name: windows
           path: dist/*.exe
+          if-no-files-found: error
 
   build-mac:
+    needs: version
     runs-on: macos-latest
+    timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
         arch: [x64, arm64]
-    env:
-      CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 16
-          cache: 'yarn'
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
-      - name: Prepare signing certificate
+      - name: Font Awesome Pro icons (a release must have them)
         env:
-          CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
-        run: |
-          echo "$CERTIFICATE" | base64 --decode > certificate.p12
+          FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
+        run: node scripts/pro-icons.mjs --required
 
-      - name: Configure macOS keychain for signing
-        run: |
-          security create-keychain -p "" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
-          security find-identity -v -p codesigning build.keychain
-
+      # As in 1.x, electron-builder imports the certificate (base64 in CSC_LINK) into a keychain of its own;
+      # forceCodeSigning stops the build when it cannot sign, instead of a warning and an unsigned app
       - name: Build and sign for macOS
         env:
           ARCH: ${{ matrix.arch }}
-          CSC_LINK: certificate.p12
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Building for architecture: $ARCH"
-          yarn run build:mac
+          yarn run build
+          npx electron-builder --mac --$ARCH --publish never -c.forceCodeSigning=true
 
-      - name: Notarize and validate App
+      - name: Notarize and validate
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -87,63 +115,83 @@ jobs:
         run: |
           dmg_file=$(find dist -name "*.dmg" | head -n 1)
           if [ -z "$dmg_file" ]; then
-            echo "Error: No .dmg file found."
+            echo "Error: no .dmg file found."
             exit 1
           fi
-          xcrun notarytool store-credentials "AC_PASSWORD" --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "$TEAM_ID"
-          xcrun notarytool submit "$dmg_file" --keychain-profile "AC_PASSWORD" --wait
+          xcrun notarytool submit "$dmg_file" --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "$TEAM_ID" --wait
           xcrun stapler staple "$dmg_file"
           spctl -a -vvv -t install "$dmg_file"
 
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: op-media-downloader-mac-${{ matrix.arch }}
+          name: mac-${{ matrix.arch }}
           path: dist/*.dmg
+          if-no-files-found: error
+
+  build-linux:
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Font Awesome Pro icons (a release must have them)
+        env:
+          FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
+        run: node scripts/pro-icons.mjs --required
+
+      - name: Build for Linux
+        run: |
+          yarn run build
+          npx electron-builder --linux --publish never
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+          if-no-files-found: error
 
   release:
-    needs:
-      - build-windows
-      - build-mac
+    needs: [build-windows, build-mac, build-linux]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: op-media-downloader-windows
-          path: release/windows
+          path: assets
+          merge-multiple: true
 
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v3
+      - name: Checksums
+        working-directory: assets
+        run: sha256sum * > SHA256SUMS.txt
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          name: op-media-downloader-mac-x64
-          path: release/mac-x64
+          subject-path: 'assets/*'
 
-      - name: Download macOS ARM artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: op-media-downloader-mac-arm64
-          path: release/mac-arm64
-
-      - name: Upload assets to the latest release
+      - name: Draft release with the installers, then publish it
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          # Get the latest release tag
-          LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-          echo "Latest release tag: $LATEST_RELEASE"
-
-          if [ -z "$LATEST_RELEASE" ]; then
-            echo "Error: No release found."
-            exit 1
-          fi
-
-          # Upload assets
-          gh release upload "$LATEST_RELEASE" \
-            release/windows/*.exe \
-            release/mac-x64/*.dmg \
-            release/mac-arm64/*.dmg \
-            --clobber
+          prerelease=false
+          case "$TAG" in *-*) prerelease=true ;; esac
+          gh release create "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes \
+            --draft --prerelease="$prerelease"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

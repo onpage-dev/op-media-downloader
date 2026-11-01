@@ -1,0 +1,535 @@
+{
+  "app": {
+    "name": "On Page Media Downloader",
+    "short": "Media Downloader"
+  },
+  "common": {
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "save": "Enregistrer",
+    "retry": "Réessayer",
+    "loading": "Chargement…",
+    "load_error": "Impossible de lire la liste."
+  },
+  "toolbar": {
+    "new": "Nouveau projet",
+    "sync": "Synchroniser",
+    "download": "Télécharger",
+    "stop": "Arrêter",
+    "sync_all": "Tout synchroniser",
+    "open": "Ouvrir le dossier",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "settings": "Paramètres",
+    "search": "Rechercher un projet..."
+  },
+  "filters": {
+    "state": "Statut",
+    "destinations": "Destinations",
+    "all": "Tous",
+    "running": "En cours",
+    "todo": "À télécharger",
+    "errors": "En erreur",
+    "done": "À jour",
+    "never": "Non synchronisés",
+    "local": "Locales",
+    "network": "Réseau",
+    "removable": "Disques externes"
+  },
+  "table": {
+    "status": "Statut",
+    "project": "Projet",
+    "destination": "Destination",
+    "progress": "Progression",
+    "files": "Fichiers",
+    "speed": "Vitesse",
+    "last": "Synchronisé",
+    "never": "jamais",
+    "no_results": "Aucun projet ne correspond à ces filtres",
+    "show_all": "Tout afficher",
+    "label": "Projets"
+  },
+  "kind": {
+    "local": "Dossier local",
+    "network": "Dossier réseau",
+    "removable": "Disque externe",
+    "unknown": "Dossier"
+  },
+  "group": {
+    "done": "À jour",
+    "todo": "À télécharger",
+    "running": "En cours",
+    "stopping": "Arrêt en cours",
+    "warning": "Attention",
+    "error": "Erreur",
+    "never": "Non synchronisé",
+    "offline": "Hors ligne"
+  },
+  "status": {
+    "done": "À jour",
+    "todo": "{count} fichier à télécharger | {count} fichiers à télécharger",
+    "listing": "Lecture d’On Page…",
+    "listing_progress": "Lecture d’On Page : {done} sur {total}",
+    "comparing": "Comparaison…",
+    "downloading": "Téléchargement",
+    "finishing": "Liens et nettoyage…",
+    "stopping": "Arrêt en cours…",
+    "warning_failed": "{count} fichier non téléchargé | {count} fichiers non téléchargés",
+    "warning_duplicates": "{count} nom en double | {count} noms en double",
+    "warning_conflicts": "{count} nom déjà pris | {count} noms déjà pris",
+    "warning_copies": "Copies au lieu de liens",
+    "warning_cleanup": "{count} fichiers à supprimer : à confirmer",
+    "warning_interrupted": "Synchronisation incomplète",
+    "error_token": "Jeton non valide",
+    "error_folder": "Dossier inaccessible",
+    "error_locked": "Dossier utilisé par un autre ordinateur",
+    "error_other_project": "Dossier d’un autre projet",
+    "error_disk": "Disque plein",
+    "error_listing": "Liste des fichiers non lue",
+    "error_unexpected": "Erreur inattendue",
+    "offline": "En attente du réseau",
+    "never": "Non synchronisé",
+    "warning_incomplete": "Liste incomplète"
+  },
+  "menu": {
+    "sync_now": "Synchroniser",
+    "download": "Télécharger",
+    "stop": "Arrêter",
+    "open": "Ouvrir le dossier",
+    "copy_path": "Copier le chemin",
+    "edit": "Modifier…",
+    "delete": "Supprimer…"
+  },
+  "tabs": {
+    "general": "Général",
+    "activity": "Activité",
+    "failed": "Échecs",
+    "duplicates": "Doublons",
+    "settings": "Paramètres",
+    "resize": "Hauteur du panneau"
+  },
+  "general": {
+    "onpage": "Projet On Page",
+    "remote": "{files} fichiers · {size}",
+    "remote_unknown": "Les fichiers sont comptés à la première synchronisation",
+    "to": "télécharge dans",
+    "free": "{free} libres",
+    "hardlinks_yes": "liens physiques : oui",
+    "hardlinks_no": "liens physiques : non",
+    "hardlinks_unknown": "liens physiques : à tester",
+    "double_space": "Chaque fichier occupe le double",
+    "downloaded": "Téléchargés",
+    "present": "Déjà présents",
+    "failed": "Échecs",
+    "total": "Total",
+    "size": "Sur On Page",
+    "speed": "Vitesse",
+    "running": "Démarrée à {time} · étape {step} sur 4, {phase} · {eta} · {concurrency} fichiers à la fois",
+    "running_short": "Démarrée à {time} · étape {step} sur 4, {phase}",
+    "last": "Dernière synchronisation : {when}, {result}",
+    "never": "Pas encore synchronisé",
+    "phase": {
+      "idle": "à l’arrêt",
+      "preparing": "préparation",
+      "listing": "lecture d’On Page",
+      "comparing": "comparaison avec le dossier",
+      "downloading": "téléchargement",
+      "finishing": "liens et nettoyage",
+      "stopping": "arrêt"
+    },
+    "outcome": {
+      "completed": "terminée",
+      "stopped": "arrêtée",
+      "failed": "échouée"
+    },
+    "stopping": "Démarrée à {time} · arrêt en cours"
+  },
+  "issue": {
+    "token_invalid": {
+      "title": "Jeton non valide",
+      "text": "On Page n’accepte pas le jeton : il a peut-être été révoqué. Collez-en un nouveau dans les paramètres du projet."
+    },
+    "project_unavailable": {
+      "title": "Projet indisponible",
+      "text": "On Page ne répond pas pour ce projet. Réessayez dans un moment."
+    },
+    "listing_failed": {
+      "title": "Liste des fichiers non lue",
+      "text": "La lecture d’On Page s’est interrompue : aucun fichier n’a été supprimé du dossier."
+    },
+    "rate_limited": {
+      "title": "On Page demande de ralentir",
+      "text": "La synchronisation reprendra d’elle-même."
+    },
+    "folder_unreachable": {
+      "title": "Dossier inaccessible",
+      "text": "{folder} ne répond pas : vérifiez le réseau ou le disque."
+    },
+    "folder_not_writable": {
+      "title": "Impossible d’écrire dans le dossier",
+      "text": "L’app ne peut pas créer de fichiers dans {folder}."
+    },
+    "folder_protected": {
+      "title": "Dossier protégé",
+      "text": "Choisissez un dossier dédié : les racines des disques, le dossier utilisateur et les dossiers système ne sont pas utilisés."
+    },
+    "folder_locked": {
+      "title": "Dossier en cours d’utilisation",
+      "text": "Un autre ordinateur synchronise ce dossier. {detail}"
+    },
+    "folder_other_project": {
+      "title": "Dossier d’un autre projet On Page",
+      "text": "Le dossier est synchronisé avec le projet On Page « {detail} » : rien n’a été modifié. Choisissez un autre dossier, ou utilisez celui-ci pour ce projet."
+    },
+    "disk_full": {
+      "title": "Disque plein",
+      "text": "Libérez de l’espace et réessayez : les fichiers déjà téléchargés sont conservés."
+    },
+    "offline": {
+      "title": "Vous êtes hors ligne",
+      "text": "La synchronisation reprendra au retour du réseau."
+    },
+    "duplicates": {
+      "title": "{count} nom en double | {count} noms en double",
+      "text": "Pour chaque nom, le premier fichier trouvé est téléchargé."
+    },
+    "failed_files": {
+      "title": "{count} fichier non téléchargé | {count} fichiers non téléchargés",
+      "text": "Vous pouvez réessayer : les autres fichiers sont en ordre."
+    },
+    "copies_instead_of_links": {
+      "title": "Le dossier copie au lieu de lier",
+      "text": "Ici, les liens physiques ne fonctionnent pas : chaque fichier occupe deux fois plus d’espace."
+    },
+    "name_conflicts": {
+      "title": "{count} nom déjà pris | {count} noms déjà pris",
+      "text": "Le dossier contient des fichiers du même nom qui ne viennent pas de l’app : ils restent où ils sont et ces fichiers ne sont pas téléchargés."
+    },
+    "cleanup_needs_confirmation": {
+      "title": "{count} fichiers à supprimer",
+      "text": "Ils ne sont plus sur On Page et ils sont nombreux : l’app attend votre confirmation."
+    },
+    "interrupted": {
+      "title": "Synchronisation incomplète",
+      "text": "La dernière synchronisation n’est pas allée jusqu’au bout : il faut la relancer."
+    },
+    "unexpected": {
+      "title": "Erreur inattendue",
+      "text": "La synchronisation s’est arrêtée : {detail}. Réessayez."
+    },
+    "action": {
+      "retry": "Réessayer",
+      "sync": "Synchroniser",
+      "change_token": "Changer de jeton",
+      "change_folder": "Changer de dossier",
+      "retry_failed": "Réessayer les échecs",
+      "see": "Voir",
+      "see_duplicates": "Voir les doublons",
+      "confirm": "Confirmer",
+      "take_over": "Utiliser ce dossier"
+    },
+    "listing_incomplete": {
+      "title": "Certaines collections n’ont pas été lues",
+      "text": "{detail} : aucun fichier n’a été supprimé ; les nouveaux arriveront à la prochaine synchronisation."
+    }
+  },
+  "activity": {
+    "time": "Heure",
+    "file": "Fichier",
+    "size": "Taille",
+    "outcome": "Résultat",
+    "same_as": "même fichier que {name}",
+    "empty": "Aucune activité récente",
+    "result": {
+      "downloading": "En cours",
+      "downloaded": "Téléchargé",
+      "linked": "Lié",
+      "removed": "Supprimé",
+      "failed": "Échec",
+      "conflict": "Conflit"
+    },
+    "removed_why": "n’est plus sur On Page"
+  },
+  "failed": {
+    "summary": "{count} fichier non téléchargé lors de la dernière synchronisation | {count} fichiers non téléchargés lors de la dernière synchronisation",
+    "retry_all": "Tout réessayer",
+    "attempts": "{count} tentative | {count} tentatives",
+    "empty": "Aucun fichier en échec",
+    "summary_running": "{count} fichier non téléchargé pendant cette synchronisation | {count} fichiers non téléchargés pendant cette synchronisation"
+  },
+  "reason": {
+    "not_found": "n’est plus sur On Page (404)",
+    "http_error": "On Page a répondu par une erreur",
+    "rate_limited": "On Page a demandé de ralentir",
+    "network": "la connexion s’est interrompue",
+    "timeout": "pas de réponse à temps",
+    "size_mismatch": "le fichier reçu est incomplet",
+    "disk_full": "disque plein",
+    "write_error": "le dossier n’accepte pas le fichier",
+    "link_error": "impossible de créer le lien",
+    "invalid_name": "le nom n’est pas valide sous Windows",
+    "name_conflict": "un autre fichier porte déjà ce nom",
+    "aborted": "arrêté",
+    "in_use": "le fichier est ouvert dans un autre programme",
+    "file_too_large": "le fichier est trop volumineux pour ce disque"
+  },
+  "duplicates": {
+    "rule": "Pour chaque nom, seul le premier fichier est téléchargé : renommez les autres sur On Page pour les avoir tous.",
+    "variants": "{count} fichiers différents",
+    "chosen": "Téléchargé",
+    "skipped": "Non téléchargé",
+    "empty": "Aucun nom en double",
+    "search": "Rechercher un nom…",
+    "no_results": "Aucun nom trouvé",
+    "languages": "{count} nom est le même champ en plusieurs langues | {count} noms sont le même champ en plusieurs langues",
+    "refresh": "Resynchroniser"
+  },
+  "project": {
+    "name": "Nom",
+    "token": "Jeton d’API",
+    "folder": "Dossier",
+    "keep": "Conserver les anciens fichiers locaux qui ne sont plus sur On Page",
+    "keep_note": "Les fichiers supprimés d’On Page restent dans le dossier.",
+    "token_note": "Le jeton détermine ce qui est téléchargé : les filtres de sa vue s’appliquent aussi.",
+    "token_other": "Jeton d’un autre projet On Page : une fois enregistré, le dossier passe de « {previous} » à « {project} ».",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "verify": "Vérifier",
+    "change_folder": "Changer…",
+    "copies_network": "Réseau : les fichiers sont copiés",
+    "copies": "Les fichiers sont copiés"
+  },
+  "status_bar": {
+    "online": "Connecté",
+    "offline": "Hors ligne",
+    "running": "{count} en cours",
+    "files": "{count} fichiers",
+    "empty": "Aucun projet",
+    "update": "Mise à jour disponible : {version}"
+  },
+  "empty": {
+    "title": "Ajoutez votre premier projet",
+    "text": "Glissez ici le dossier où télécharger les fichiers, ou commencez par le jeton d’API.",
+    "drop_title": "Déposez le dossier pour créer un projet",
+    "drop_text": "Le dossier devient la destination ; il faudra ensuite le jeton et le nom.",
+    "drop_on_table": "Déposez pour créer un projet"
+  },
+  "wizard": {
+    "title": "Nouveau projet",
+    "step": {
+      "token": "Jeton",
+      "folder": "Dossier",
+      "options": "Options"
+    },
+    "token_placeholder": "Collez le jeton du projet",
+    "checking": "Vérification du jeton…",
+    "ok_title": "Projet « {label} »",
+    "ok_text": "{count} collection contient des fichiers | {count} collections contiennent des fichiers",
+    "langs": "langues : {langs}",
+    "error": {
+      "token_invalid": {
+        "title": "Jeton non valide",
+        "text": "Vérifiez-le sur On Page, dans les paramètres d’API du projet."
+      },
+      "offline": {
+        "title": "Vous êtes hors ligne",
+        "text": "Le jeton sera vérifié au retour du réseau."
+      },
+      "project_unavailable": {
+        "title": "Projet indisponible",
+        "text": "On Page ne répond pas pour ce projet : réessayez dans un moment."
+      }
+    },
+    "folder_placeholder": "Aucun dossier choisi",
+    "pick": "Choisir un dossier",
+    "inspecting": "Vérification du dossier…",
+    "name_note": "Repris du projet On Page : vous pouvez le changer.",
+    "sync_now": "Synchroniser dès la création",
+    "back": "Retour",
+    "next": "Suivant",
+    "create": "Créer le projet",
+    "steps_label": "Étapes"
+  },
+  "check": {
+    "network": {
+      "title": "Dossier réseau",
+      "text": "Accessible depuis cet ordinateur ; la synchronisation dépend du réseau."
+    },
+    "removable": {
+      "title": "Disque externe",
+      "text": "Le projet se synchronise quand le disque est connecté."
+    },
+    "local": {
+      "title": "Dossier local",
+      "text": "Sur le disque de cet ordinateur."
+    },
+    "missing": {
+      "title": "Le dossier n’existe pas encore",
+      "text": "Il sera créé à la première synchronisation."
+    },
+    "bound": {
+      "title": "Dossier du projet On Page « {label} »",
+      "text": "Les fichiers déjà téléchargés par l’app y sont réutilisés."
+    },
+    "bound_other": {
+      "title": "Dossier d’un autre projet On Page",
+      "text": "Il est synchronisé avec « {label} » : avec ce jeton, il passe à « {project} » et les fichiers téléchargés par l’app pour « {label} » sont supprimés à la première synchronisation.",
+      "text_keep": "Il est synchronisé avec « {label} » : avec ce jeton, il passe à « {project} » ; les fichiers de « {label} » restent comme anciens fichiers."
+    },
+    "hardlinks_no": {
+      "title": "Liens physiques non pris en charge",
+      "text": "Chaque fichier est copié et occupe deux fois plus d’espace."
+    },
+    "hardlinks_yes": {
+      "title": "Liens physiques pris en charge",
+      "text": "Un fichier utilisé sous plusieurs noms n’occupe de l’espace qu’une fois."
+    },
+    "free": {
+      "title": "Espace libre : {free}",
+      "text": "Il en faut environ {needed}.",
+      "text_unknown": "L’espace nécessaire sera connu à la première synchronisation."
+    },
+    "foreign": {
+      "title": "Le dossier n’est pas vide",
+      "text": "Il y a déjà {count} élément : il reste en place, l’app ne supprime que les fichiers qu’elle télécharge. | Il y a déjà {count} éléments : ils restent en place, l’app ne supprime que les fichiers qu’elle télécharge."
+    },
+    "unreachable": {
+      "title": "Dossier inaccessible",
+      "text": "Vérifiez le réseau ou le disque."
+    },
+    "not_writable": {
+      "title": "Impossible d’écrire dans le dossier",
+      "text": "L’app ne peut pas créer de fichiers ici."
+    },
+    "protected": {
+      "title": "Dossier protégé",
+      "text": "Les racines des disques, le dossier utilisateur et les dossiers système ne peuvent pas être utilisés."
+    },
+    "used_by_other_project": {
+      "title": "Dossier déjà utilisé",
+      "text": "Le projet « {detail} » télécharge déjà ici ou dans un dossier proche."
+    },
+    "locked": {
+      "title": "Dossier en cours d’utilisation",
+      "text": "{detail} est en train de le synchroniser."
+    },
+    "foreign_data": {
+      "title": "Il y a déjà un dossier « data » non créé par l’app",
+      "text": "Il n’est jamais utilisé, vidé ni supprimé par l’app : choisissez un autre dossier."
+    }
+  },
+  "delete": {
+    "title": "Supprimer le projet ?",
+    "text": "« {label} » sera retiré de la liste.",
+    "files": "Supprimer aussi les fichiers téléchargés",
+    "removes": "{count} fichier téléchargé par l’app et son dossier « data » | {count} fichiers téléchargés par l’app et son dossier « data »",
+    "removes_unknown": "Les fichiers téléchargés par l’app et son dossier « data »",
+    "keeps": "Il reste {count} élément qui ne vient pas d’On Page ; le dossier {folder} est conservé | Il reste {count} éléments qui ne viennent pas d’On Page ; le dossier {folder} est conservé",
+    "keeps_none": "Le dossier {folder} est supprimé s’il reste vide",
+    "keeps_all": "Les fichiers restent dans le dossier.",
+    "removes_size": "{count} fichier téléchargé par l’app ({size}) et son dossier « data » | {count} fichiers téléchargés par l’app ({size}) et son dossier « data »"
+  },
+  "stop": {
+    "title": "Arrêter la synchronisation ?",
+    "text": "Les fichiers de « {label} » déjà téléchargés restent dans le dossier.",
+    "title_download": "Arrêter le téléchargement ?"
+  },
+  "cleanup": {
+    "title": "Supprimer {count} fichiers ?",
+    "text": "Ils ne sont plus sur On Page. L’app ne supprime que les fichiers qu’elle a téléchargés : les autres restent.",
+    "confirm": "Supprimer les fichiers"
+  },
+  "take_over": {
+    "title": "Utiliser le dossier pour « {label} » ?",
+    "text": "Désormais, le dossier suit le jeton de ce projet. Les fichiers téléchargés par l’app pour « {other} » sont supprimés à la synchronisation, avec une confirmation s’ils sont nombreux ; les autres fichiers restent.",
+    "text_keep": "Désormais, le dossier suit le jeton de ce projet. Les fichiers téléchargés par l’app pour « {other} » restent comme anciens fichiers.",
+    "confirm": "Utiliser le dossier"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "section": {
+      "general": "Général",
+      "download": "Téléchargements",
+      "appearance": "Apparence",
+      "language": "Langue",
+      "updates": "Mises à jour"
+    },
+    "open_at_login": {
+      "title": "Lancer au démarrage",
+      "text": "L’app se lance au démarrage du système, dans la zone de notification.",
+      "text_win32": "L’app se lance au démarrage de Windows, dans la zone de notification.",
+      "text_darwin": "L’app s’ouvre avec la session macOS, dans la barre des menus."
+    },
+    "close_to_tray": {
+      "title": "Icône dans la zone de notification",
+      "text": "Si vous fermez la fenêtre, l’app reste là et continue de synchroniser.",
+      "title_darwin": "Icône dans la barre des menus"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "text": "À la fin d’une synchronisation, pour les fichiers en échec et les erreurs."
+    },
+    "concurrency": {
+      "title": "Téléchargements simultanés",
+      "text": "Nombre de fichiers à télécharger en même temps, de 1 à 10."
+    },
+    "auto_retry": {
+      "title": "Réessayer les échecs automatiquement",
+      "text": "Une fois, au bout d’une minute, les fichiers non téléchargés à cause du réseau."
+    },
+    "theme": {
+      "title": "Thème",
+      "text": "« Système » suit le thème du système d’exploitation.",
+      "system": "Système",
+      "light": "Clair",
+      "dark": "Sombre",
+      "text_win32": "« Système » suit le thème de Windows.",
+      "text_darwin": "« Système » suit l’apparence de macOS."
+    },
+    "language": {
+      "title": "Langue de l’application",
+      "text": "La langue des fenêtres, des menus et des notifications."
+    },
+    "updates": {
+      "version": "Version {version}",
+      "available": "La version {version} est disponible.",
+      "latest": "C’est la dernière version.",
+      "download": "Télécharger {version}",
+      "check": "Vérifier maintenant",
+      "check_updates": {
+        "title": "Vérifier les mises à jour",
+        "text": "Au démarrage, sur GitHub."
+      },
+      "never": "Pas encore vérifié.",
+      "failed": "La vérification a échoué : réessayez plus tard.",
+      "licenses": "Licences open source"
+    }
+  },
+  "tray": {
+    "running": "{count} en cours · {speed}",
+    "idle": "Tout est en ordre",
+    "empty": "Aucun projet",
+    "open": "Ouvrir",
+    "quit": "Quitter",
+    "comparing": "Comparaison avec le dossier…"
+  },
+  "time": {
+    "now": "à l’instant",
+    "minutes_ago": "il y a {n} min",
+    "today": "aujourd’hui, {time}",
+    "yesterday": "hier, {time}",
+    "less_than_minute": "moins d’une minute",
+    "about": "environ {duration}"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Maj",
+    "delete": "Suppr"
+  },
+  "errors": {
+    "generic": "L’opération a échoué : {detail}",
+    "project_busy": "Le projet est occupé : réessayez quand il aura terminé.",
+    "engine_timeout": "Le moteur de synchronisation n’a pas répondu à temps.",
+    "open_failed": "Impossible d’ouvrir le dossier."
+  }
+}

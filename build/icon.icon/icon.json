@@ -1,0 +1,42 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": ["srgb:1.00000,1.00000,1.00000,1.00000", "srgb:0.90980,0.90980,0.89804,1.00000"],
+        "orientation": { "start": { "x": 0.5, "y": 0 }, "stop": { "x": 0.5, "y": 1 } }
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": ["srgb:0.22745,0.22745,0.22745,1.00000", "srgb:0.14510,0.14510,0.14510,1.00000"],
+        "orientation": { "start": { "x": 0.5, "y": 0 }, "stop": { "x": 0.5, "y": 1 } }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "layers": [
+        {
+          "glass": false,
+          "image-name": "bar.svg",
+          "name": "bar",
+          "position": { "scale": 1, "translation-in-points": [0, 0] }
+        },
+        {
+          "fill-specializations": [
+            { "value": { "solid": "srgb:0.09412,0.09412,0.09412,1.00000" } },
+            { "appearance": "dark", "value": { "solid": "srgb:0.94902,0.94902,0.94118,1.00000" } }
+          ],
+          "glass": false,
+          "image-name": "ring.svg",
+          "name": "ring",
+          "position": { "scale": 1, "translation-in-points": [0, 0] }
+        }
+      ],
+      "shadow": { "kind": "neutral", "opacity": 0.5 },
+      "translucency": { "enabled": false, "value": 0.5 }
+    }
+  ],
+  "supported-platforms": { "squares": ["macOS"] }
+}

@@ -1,0 +1,535 @@
+{
+  "app": {
+    "name": "On Page Media Downloader",
+    "short": "Media Downloader"
+  },
+  "common": {
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "save": "Speichern",
+    "retry": "Erneut versuchen",
+    "loading": "Wird geladen…",
+    "load_error": "Die Liste konnte nicht geladen werden."
+  },
+  "toolbar": {
+    "new": "Neues Projekt",
+    "sync": "Synchronisieren",
+    "download": "Herunterladen",
+    "stop": "Stoppen",
+    "sync_all": "Alle synchronisieren",
+    "open": "Ordner öffnen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "settings": "Einstellungen",
+    "search": "Projekte suchen..."
+  },
+  "filters": {
+    "state": "Status",
+    "destinations": "Ziele",
+    "all": "Alle",
+    "running": "Aktiv",
+    "todo": "Ausstehend",
+    "errors": "Mit Fehlern",
+    "done": "Aktuell",
+    "never": "Nie synchronisiert",
+    "local": "Lokal",
+    "network": "Netzwerk",
+    "removable": "Externe Laufwerke"
+  },
+  "table": {
+    "status": "Status",
+    "project": "Projekt",
+    "destination": "Ziel",
+    "progress": "Fortschritt",
+    "files": "Dateien",
+    "speed": "Tempo",
+    "last": "Synchronisiert",
+    "never": "nie",
+    "no_results": "Kein Projekt passt zu diesen Filtern",
+    "show_all": "Alle anzeigen",
+    "label": "Projekte"
+  },
+  "kind": {
+    "local": "Lokaler Ordner",
+    "network": "Netzwerkordner",
+    "removable": "Externes Laufwerk",
+    "unknown": "Ordner"
+  },
+  "group": {
+    "done": "Aktuell",
+    "todo": "Ausstehend",
+    "running": "Aktiv",
+    "stopping": "Wird gestoppt",
+    "warning": "Warnung",
+    "error": "Fehler",
+    "never": "Nie synchronisiert",
+    "offline": "Offline"
+  },
+  "status": {
+    "done": "Aktuell",
+    "todo": "{count} Datei ausstehend | {count} Dateien ausstehend",
+    "listing": "Abruf von On Page…",
+    "listing_progress": "Abruf von On Page: {done} von {total}",
+    "comparing": "Vergleich läuft…",
+    "downloading": "Download läuft",
+    "finishing": "Links und Bereinigung…",
+    "stopping": "Wird gestoppt…",
+    "warning_failed": "{count} Datei nicht heruntergeladen | {count} Dateien nicht heruntergeladen",
+    "warning_duplicates": "{count} doppelter Name | {count} doppelte Namen",
+    "warning_conflicts": "{count} Name bereits belegt | {count} Namen bereits belegt",
+    "warning_copies": "Kopien statt Links",
+    "warning_cleanup": "{count} Dateien zu entfernen: Bestätigung nötig",
+    "warning_interrupted": "Synchronisierung unterbrochen",
+    "error_token": "Ungültiges Token",
+    "error_folder": "Ordner nicht erreichbar",
+    "error_locked": "Ordner von anderem Computer belegt",
+    "error_other_project": "Ordner eines anderen Projekts",
+    "error_disk": "Datenträger voll",
+    "error_listing": "Dateiliste nicht abgerufen",
+    "error_unexpected": "Unerwarteter Fehler",
+    "offline": "Warten auf Netzwerk",
+    "never": "Nie synchronisiert",
+    "warning_incomplete": "Liste unvollständig"
+  },
+  "menu": {
+    "sync_now": "Jetzt synchronisieren",
+    "download": "Herunterladen",
+    "stop": "Stoppen",
+    "open": "Ordner öffnen",
+    "copy_path": "Pfad kopieren",
+    "edit": "Bearbeiten…",
+    "delete": "Löschen…"
+  },
+  "tabs": {
+    "general": "Allgemein",
+    "activity": "Aktivität",
+    "failed": "Fehlgeschlagen",
+    "duplicates": "Duplikate",
+    "settings": "Einstellungen",
+    "resize": "Höhe des Bereichs"
+  },
+  "general": {
+    "onpage": "On Page-Projekt",
+    "remote": "{files} Dateien · {size}",
+    "remote_unknown": "Die Dateien werden bei der ersten Synchronisierung gezählt",
+    "to": "speichert in",
+    "free": "{free} frei",
+    "hardlinks_yes": "feste Links: ja",
+    "hardlinks_no": "feste Links: nein",
+    "hardlinks_unknown": "feste Links: noch ungeprüft",
+    "double_space": "Doppelter Speicherbedarf",
+    "downloaded": "Geladen",
+    "present": "Vorhanden",
+    "failed": "Fehler",
+    "total": "Gesamt",
+    "size": "Auf On Page",
+    "speed": "Tempo",
+    "running": "Gestartet um {time} · Schritt {step} von 4, {phase} · {eta} · {concurrency} gleichzeitig",
+    "running_short": "Gestartet um {time} · Schritt {step} von 4, {phase}",
+    "last": "Letzte Synchronisierung: {when}, {result}",
+    "never": "Noch nicht synchronisiert",
+    "phase": {
+      "idle": "inaktiv",
+      "preparing": "Vorbereitung",
+      "listing": "Abruf von On Page",
+      "comparing": "Vergleich mit dem Ordner",
+      "downloading": "Herunterladen",
+      "finishing": "Links und Bereinigung",
+      "stopping": "Stoppen"
+    },
+    "outcome": {
+      "completed": "abgeschlossen",
+      "stopped": "gestoppt",
+      "failed": "fehlgeschlagen"
+    },
+    "stopping": "Gestartet um {time} · wird gestoppt"
+  },
+  "issue": {
+    "token_invalid": {
+      "title": "Ungültiges Token",
+      "text": "On Page akzeptiert das Token nicht: Vielleicht wurde es widerrufen. Fügen Sie in den Projekteinstellungen ein neues ein."
+    },
+    "project_unavailable": {
+      "title": "Projekt nicht verfügbar",
+      "text": "On Page antwortet für dieses Projekt nicht. Versuchen Sie es in Kürze erneut."
+    },
+    "listing_failed": {
+      "title": "Dateiliste nicht abgerufen",
+      "text": "Der Abruf von On Page wurde unterbrochen: Es wurde keine Datei aus dem Ordner entfernt."
+    },
+    "rate_limited": {
+      "title": "On Page bittet um weniger Anfragen",
+      "text": "Die Synchronisierung wird automatisch fortgesetzt."
+    },
+    "folder_unreachable": {
+      "title": "Ordner nicht erreichbar",
+      "text": "{folder} antwortet nicht: Prüfen Sie das Netzwerk oder das Laufwerk."
+    },
+    "folder_not_writable": {
+      "title": "Ordner nicht beschreibbar",
+      "text": "Die App kann in {folder} keine Dateien erstellen."
+    },
+    "folder_protected": {
+      "title": "Geschützter Ordner",
+      "text": "Wählen Sie einen eigenen Ordner: Stammverzeichnisse von Laufwerken, der Benutzerordner und Systemordner werden nicht verwendet."
+    },
+    "folder_locked": {
+      "title": "Ordner wird verwendet",
+      "text": "Ein anderer Computer synchronisiert gerade diesen Ordner. {detail}"
+    },
+    "folder_other_project": {
+      "title": "Ordner eines anderen On Page-Projekts",
+      "text": "Der Ordner wird mit dem On Page-Projekt „{detail}“ synchronisiert: Es wurde nichts verändert. Wähle einen anderen Ordner oder verwende diesen für dieses Projekt."
+    },
+    "disk_full": {
+      "title": "Datenträger voll",
+      "text": "Geben Sie Speicherplatz frei und versuchen Sie es erneut: Bereits heruntergeladene Dateien bleiben erhalten."
+    },
+    "offline": {
+      "title": "Sie sind offline",
+      "text": "Die Synchronisierung startet wieder, sobald das Netzwerk verfügbar ist."
+    },
+    "duplicates": {
+      "title": "{count} Name mit verschiedenen Dateien | {count} Namen mit verschiedenen Dateien",
+      "text": "Für jeden Namen wird die zuerst gefundene Datei heruntergeladen."
+    },
+    "failed_files": {
+      "title": "{count} Datei nicht heruntergeladen | {count} Dateien nicht heruntergeladen",
+      "text": "Ein erneuter Versuch ist möglich: Die übrigen Dateien sind in Ordnung."
+    },
+    "copies_instead_of_links": {
+      "title": "Im Ordner wird kopiert statt verlinkt",
+      "text": "Feste Links funktionieren hier nicht: Jede Datei belegt doppelt so viel Speicherplatz."
+    },
+    "name_conflicts": {
+      "title": "{count} Name bereits belegt | {count} Namen bereits belegt",
+      "text": "Im Ordner gibt es Dateien mit demselben Namen, die nicht von der App stammen: Sie bleiben, wo sie sind, und die Dateien von On Page mit diesen Namen werden nicht heruntergeladen."
+    },
+    "cleanup_needs_confirmation": {
+      "title": "{count} Dateien zu entfernen",
+      "text": "Sie sind nicht mehr auf On Page, und es sind viele: Die App wartet auf Ihre Bestätigung."
+    },
+    "interrupted": {
+      "title": "Synchronisierung unterbrochen",
+      "text": "Die letzte Synchronisierung wurde nicht abgeschlossen: Sie muss erneut ausgeführt werden."
+    },
+    "unexpected": {
+      "title": "Unerwarteter Fehler",
+      "text": "Die Synchronisierung wurde abgebrochen: {detail}. Versuchen Sie es erneut."
+    },
+    "action": {
+      "retry": "Erneut versuchen",
+      "sync": "Synchronisieren",
+      "change_token": "Token ändern",
+      "change_folder": "Ordner ändern",
+      "retry_failed": "Fehlgeschlagene wiederholen",
+      "see": "Anzeigen",
+      "see_duplicates": "Duplikate anzeigen",
+      "confirm": "Bestätigen",
+      "take_over": "Diesen Ordner verwenden"
+    },
+    "listing_incomplete": {
+      "title": "Einige Sammlungen wurden nicht gelesen",
+      "text": "{detail}: Es wurde keine Datei entfernt; neue Dateien kommen mit der nächsten Synchronisierung."
+    }
+  },
+  "activity": {
+    "time": "Zeit",
+    "file": "Datei",
+    "size": "Größe",
+    "outcome": "Ergebnis",
+    "same_as": "gleiche Datei wie {name}",
+    "empty": "Keine aktuellen Aktivitäten",
+    "result": {
+      "downloading": "Läuft",
+      "downloaded": "Heruntergeladen",
+      "linked": "Verlinkt",
+      "removed": "Entfernt",
+      "failed": "Fehlgeschlagen",
+      "conflict": "Konflikt"
+    },
+    "removed_why": "nicht mehr auf On Page"
+  },
+  "failed": {
+    "summary": "{count} Datei bei der letzten Synchronisierung nicht heruntergeladen | {count} Dateien bei der letzten Synchronisierung nicht heruntergeladen",
+    "retry_all": "Alle wiederholen",
+    "attempts": "{count} Versuch | {count} Versuche",
+    "empty": "Keine fehlgeschlagenen Dateien",
+    "summary_running": "{count} Datei bei dieser Synchronisierung nicht heruntergeladen | {count} Dateien bei dieser Synchronisierung nicht heruntergeladen"
+  },
+  "reason": {
+    "not_found": "nicht mehr auf On Page (404)",
+    "http_error": "On Page hat mit einem Fehler geantwortet",
+    "rate_limited": "On Page hat um weniger Anfragen gebeten",
+    "network": "die Verbindung wurde unterbrochen",
+    "timeout": "keine rechtzeitige Antwort",
+    "size_mismatch": "die empfangene Datei ist unvollständig",
+    "disk_full": "Datenträger voll",
+    "write_error": "der Ordner nimmt die Datei nicht an",
+    "link_error": "Verlinken fehlgeschlagen",
+    "invalid_name": "der Name ist unter Windows ungültig",
+    "name_conflict": "eine andere Datei hat bereits diesen Namen",
+    "aborted": "gestoppt",
+    "in_use": "die Datei ist in einem anderen Programm geöffnet",
+    "file_too_large": "die Datei ist zu groß für diesen Datenträger"
+  },
+  "duplicates": {
+    "rule": "Für jeden Namen wird nur die erste Datei heruntergeladen: Benennen Sie die anderen auf On Page um, um alle zu erhalten.",
+    "variants": "{count} verschiedene Dateien",
+    "chosen": "Heruntergeladen",
+    "skipped": "Nicht heruntergeladen",
+    "empty": "Keine Namen mit verschiedenen Dateien",
+    "search": "Namen suchen…",
+    "no_results": "Kein Name gefunden",
+    "languages": "{count} Name gehört zum selben Feld in verschiedenen Sprachen | {count} Namen gehören zum selben Feld in verschiedenen Sprachen",
+    "refresh": "Erneut synchronisieren"
+  },
+  "project": {
+    "name": "Name",
+    "token": "API-Token",
+    "folder": "Ordner",
+    "keep": "Alte lokale Dateien behalten, die es auf On Page nicht mehr gibt",
+    "keep_note": "Von On Page entfernte Dateien bleiben im Ordner.",
+    "token_note": "Das Token bestimmt, was heruntergeladen wird: Auch die Filter seiner Ansicht gelten.",
+    "token_other": "Token eines anderen On Page-Projekts: Nach dem Speichern wechselt der Ordner von „{previous}“ zu „{project}“.",
+    "show": "Anzeigen",
+    "hide": "Ausblenden",
+    "verify": "Prüfen",
+    "change_folder": "Ändern…",
+    "copies_network": "Netzwerk: Dateien werden kopiert",
+    "copies": "Dateien werden kopiert"
+  },
+  "status_bar": {
+    "online": "Verbunden",
+    "offline": "Offline",
+    "running": "{count} aktiv",
+    "files": "{count} Dateien",
+    "empty": "Keine Projekte",
+    "update": "Aktualisierung verfügbar: {version}"
+  },
+  "empty": {
+    "title": "Erstes Projekt hinzufügen",
+    "text": "Ziehen Sie den Zielordner für die Dateien hierher oder beginnen Sie mit dem API-Token.",
+    "drop_title": "Ordner ablegen, um ein Projekt zu erstellen",
+    "drop_text": "Der Ordner wird zum Ziel; danach werden Token und Name benötigt.",
+    "drop_on_table": "Ablegen, um ein Projekt zu erstellen"
+  },
+  "wizard": {
+    "title": "Neues Projekt",
+    "step": {
+      "token": "Token",
+      "folder": "Ordner",
+      "options": "Optionen"
+    },
+    "token_placeholder": "Token des Projekts einfügen",
+    "checking": "Token wird geprüft…",
+    "ok_title": "Projekt „{label}“",
+    "ok_text": "{count} Sammlung hat Dateien | {count} Sammlungen haben Dateien",
+    "langs": "Sprachen: {langs}",
+    "error": {
+      "token_invalid": {
+        "title": "Ungültiges Token",
+        "text": "Prüfen Sie es auf On Page in den API-Einstellungen des Projekts."
+      },
+      "offline": {
+        "title": "Sie sind offline",
+        "text": "Das Token wird geprüft, sobald das Netzwerk verfügbar ist."
+      },
+      "project_unavailable": {
+        "title": "Projekt nicht verfügbar",
+        "text": "On Page antwortet für dieses Projekt nicht: Versuchen Sie es in Kürze erneut."
+      }
+    },
+    "folder_placeholder": "Kein Ordner ausgewählt",
+    "pick": "Ordner auswählen",
+    "inspecting": "Ordner wird geprüft…",
+    "name_note": "Aus dem On Page-Projekt übernommen: Sie können ihn ändern.",
+    "sync_now": "Direkt nach dem Erstellen synchronisieren",
+    "back": "Zurück",
+    "next": "Weiter",
+    "create": "Projekt erstellen",
+    "steps_label": "Schritte"
+  },
+  "check": {
+    "network": {
+      "title": "Netzwerkordner",
+      "text": "Von diesem Computer aus erreichbar; die Synchronisierung hängt vom Netzwerk ab."
+    },
+    "removable": {
+      "title": "Externes Laufwerk",
+      "text": "Das Projekt wird synchronisiert, wenn das Laufwerk angeschlossen ist."
+    },
+    "local": {
+      "title": "Lokaler Ordner",
+      "text": "Auf dem Laufwerk dieses Computers."
+    },
+    "missing": {
+      "title": "Der Ordner existiert noch nicht",
+      "text": "Er wird bei der ersten Synchronisierung erstellt."
+    },
+    "bound": {
+      "title": "Ordner des On Page-Projekts „{label}“",
+      "text": "Die Dateien, die die App dort bereits heruntergeladen hat, werden wiederverwendet."
+    },
+    "bound_other": {
+      "title": "Ordner eines anderen On Page-Projekts",
+      "text": "Er wird mit „{label}“ synchronisiert: Mit diesem Token wechselt er zu „{project}“, und die Dateien, die die App für „{label}“ heruntergeladen hat, werden bei der ersten Synchronisierung entfernt.",
+      "text_keep": "Er wird mit „{label}“ synchronisiert: Mit diesem Token wechselt er zu „{project}“; die Dateien von „{label}“ bleiben als alte Dateien erhalten."
+    },
+    "hardlinks_no": {
+      "title": "Feste Links nicht unterstützt",
+      "text": "Jede Datei wird kopiert und belegt doppelt so viel Speicherplatz."
+    },
+    "hardlinks_yes": {
+      "title": "Feste Links unterstützt",
+      "text": "Eine Datei, die unter mehreren Namen verwendet wird, belegt nur einmal Speicherplatz."
+    },
+    "free": {
+      "title": "Freier Speicherplatz: {free}",
+      "text": "Benötigt werden etwa {needed}.",
+      "text_unknown": "Der benötigte Speicherplatz ist erst bei der ersten Synchronisierung bekannt."
+    },
+    "foreign": {
+      "title": "Der Ordner ist nicht leer",
+      "text": "Es ist bereits {count} Element vorhanden: Es bleibt, wo es ist; die App entfernt nur die Dateien, die sie selbst herunterlädt. | Es sind bereits {count} Elemente vorhanden: Sie bleiben, wo sie sind; die App entfernt nur die Dateien, die sie selbst herunterlädt."
+    },
+    "unreachable": {
+      "title": "Ordner nicht erreichbar",
+      "text": "Prüfen Sie das Netzwerk oder das Laufwerk."
+    },
+    "not_writable": {
+      "title": "Ordner nicht beschreibbar",
+      "text": "Die App kann hier keine Dateien erstellen."
+    },
+    "protected": {
+      "title": "Geschützter Ordner",
+      "text": "Stammverzeichnisse von Laufwerken, der Benutzerordner und Systemordner können nicht verwendet werden."
+    },
+    "used_by_other_project": {
+      "title": "Ordner bereits verwendet",
+      "text": "Das Projekt „{detail}“ lädt bereits in diesen oder einen benachbarten Ordner herunter."
+    },
+    "locked": {
+      "title": "Ordner wird verwendet",
+      "text": "{detail} synchronisiert ihn gerade."
+    },
+    "foreign_data": {
+      "title": "Es gibt bereits einen Ordner „data“, den die App nicht erstellt hat",
+      "text": "Die App wird ihn nie verwenden, leeren oder löschen: Wählen Sie einen anderen Ordner."
+    }
+  },
+  "delete": {
+    "title": "Projekt löschen?",
+    "text": "„{label}“ wird aus der Liste entfernt.",
+    "files": "Auch die heruntergeladenen Dateien löschen",
+    "removes": "{count} von der App heruntergeladene Datei und ihr Ordner „data“ | {count} von der App heruntergeladene Dateien und ihr Ordner „data“",
+    "removes_unknown": "Die von der App heruntergeladenen Dateien und ihr Ordner „data“",
+    "keeps": "{count} Element, das nicht von On Page stammt, bleibt erhalten; der Ordner {folder} bleibt | {count} Elemente, die nicht von On Page stammen, bleiben erhalten; der Ordner {folder} bleibt",
+    "keeps_none": "Der Ordner {folder} wird entfernt, wenn er leer bleibt",
+    "keeps_all": "Die Dateien bleiben im Ordner.",
+    "removes_size": "{count} von der App heruntergeladene Datei ({size}) und ihr Ordner „data“ | {count} von der App heruntergeladene Dateien ({size}) und ihr Ordner „data“"
+  },
+  "stop": {
+    "title": "Synchronisierung stoppen?",
+    "text": "Die bereits heruntergeladenen Dateien von „{label}“ bleiben im Ordner.",
+    "title_download": "Download stoppen?"
+  },
+  "cleanup": {
+    "title": "{count} Dateien entfernen?",
+    "text": "Sie sind nicht mehr auf On Page. Die App entfernt nur Dateien, die sie selbst heruntergeladen hat: Die anderen bleiben.",
+    "confirm": "Dateien entfernen"
+  },
+  "take_over": {
+    "title": "Ordner für „{label}“ verwenden?",
+    "text": "Ab jetzt folgt der Ordner dem Token dieses Projekts. Die Dateien, die die App für „{other}“ heruntergeladen hat, werden bei der Synchronisierung entfernt, bei vielen Dateien erst nach einer Bestätigung; alle anderen Dateien bleiben.",
+    "text_keep": "Ab jetzt folgt der Ordner dem Token dieses Projekts. Die Dateien, die die App für „{other}“ heruntergeladen hat, bleiben als alte Dateien erhalten.",
+    "confirm": "Ordner verwenden"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "section": {
+      "general": "Allgemein",
+      "download": "Downloads",
+      "appearance": "Darstellung",
+      "language": "Sprache",
+      "updates": "Aktualisierungen"
+    },
+    "open_at_login": {
+      "title": "Beim Systemstart öffnen",
+      "text": "Die App startet mit dem System und erscheint im Infobereich.",
+      "text_win32": "Die App startet mit Windows und erscheint im Infobereich.",
+      "text_darwin": "Die App startet mit macOS und erscheint in der Menüleiste."
+    },
+    "close_to_tray": {
+      "title": "Symbol im Infobereich",
+      "text": "Wenn Sie das Fenster schließen, bleibt die App dort und synchronisiert weiter.",
+      "title_darwin": "Symbol in der Menüleiste"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "text": "Am Ende einer Synchronisierung, bei fehlgeschlagenen Dateien und bei Fehlern."
+    },
+    "concurrency": {
+      "title": "Gleichzeitige Downloads",
+      "text": "Wie viele Dateien gleichzeitig heruntergeladen werden, von 1 bis 10."
+    },
+    "auto_retry": {
+      "title": "Fehlgeschlagene automatisch wiederholen",
+      "text": "Einmal nach einer Minute, bei Dateien, die wegen des Netzwerks nicht heruntergeladen wurden."
+    },
+    "theme": {
+      "title": "Design",
+      "text": "„System“ folgt dem Design des Betriebssystems.",
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel",
+      "text_win32": "„System“ folgt dem Design von Windows.",
+      "text_darwin": "„System“ folgt dem Erscheinungsbild von macOS."
+    },
+    "language": {
+      "title": "App-Sprache",
+      "text": "Die Sprache von Fenstern, Menüs und Benachrichtigungen."
+    },
+    "updates": {
+      "version": "Version {version}",
+      "available": "Version {version} ist verfügbar.",
+      "latest": "Dies ist die neueste Version.",
+      "download": "{version} herunterladen",
+      "check": "Jetzt prüfen",
+      "check_updates": {
+        "title": "Nach Aktualisierungen suchen",
+        "text": "Beim Start, auf GitHub."
+      },
+      "never": "Noch nicht geprüft.",
+      "failed": "Die Prüfung ist fehlgeschlagen: Versuchen Sie es später erneut.",
+      "licenses": "Open-Source-Lizenzen"
+    }
+  },
+  "tray": {
+    "running": "{count} aktiv · {speed}",
+    "idle": "Alles in Ordnung",
+    "empty": "Keine Projekte",
+    "open": "Öffnen",
+    "quit": "Beenden",
+    "comparing": "Vergleich mit dem Ordner…"
+  },
+  "time": {
+    "now": "gerade eben",
+    "minutes_ago": "vor {n} min",
+    "today": "heute, {time}",
+    "yesterday": "gestern, {time}",
+    "less_than_minute": "weniger als eine Minute",
+    "about": "etwa {duration}"
+  },
+  "keys": {
+    "ctrl": "Strg",
+    "shift": "Umschalt",
+    "delete": "Entf"
+  },
+  "errors": {
+    "generic": "Vorgang fehlgeschlagen: {detail}",
+    "project_busy": "Das Projekt ist beschäftigt: Versuchen Sie es erneut, wenn es fertig ist.",
+    "engine_timeout": "Das Synchronisierungsmodul hat nicht rechtzeitig geantwortet.",
+    "open_failed": "Der Ordner konnte nicht geöffnet werden."
+  }
+}

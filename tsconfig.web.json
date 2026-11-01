@@ -5,24 +5,16 @@
     "src/renderer/**/*.d.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.vue",
-    "src/renderer/src/helpers.ts",
-    "src/preload/*.d.ts",
-    "src/renderer/assets",
-    "src/shared/electron-ipc-renderer-models.ts"
+    "src/shared/**/*"
   ],
+  "exclude": ["src/renderer/**/*.test.ts"],
   "compilerOptions": {
     "composite": true,
-    "baseUrl": ".",
+    "noImplicitAny": true,
     "paths": {
-      "@renderer/*": [
-        "src/renderer/src/*"
-      ],
-      "@classes/*": [
-        "src/renderer/classes/*"
-      ],
-      "@shared/*": [
-        "src/shared/*"
-      ]
+      "#icons": ["./src/renderer/src/lib/icons/free.ts"],
+      "@renderer/*": ["./src/renderer/src/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   }
 }

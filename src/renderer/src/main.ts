@@ -1,25 +1,38 @@
-import { createApp, ref } from 'vue'
-import '../styles/1-before.css'
-import '../styles/2-app.scss'
-import '../styles/3-after.css'
+/**
+ * The renderer: the main window, or the tray panel at `#/tray`, or the
+ * settings alone at `#/settings`. In development without the preload (the
+ * renderer alone in a browser) a stand-in API with the projects of the mockup
+ * takes its place; it never reaches a production build. The page's own errors
+ * (a component that throws, a promise nobody awaited) go to main's log.
+ */
+// The app's styles first: Tailwind's licence line has to open the stylesheet to stay in the minified one
+// (Font Awesome's rules have no layer: they win over Tailwind's in any order)
+import './styles/app.css'
+import { config } from '@fortawesome/fontawesome-svg-core'
+import '@fortawesome/fontawesome-svg-core/styles.css'
+import { createApp, type Component } from 'vue'
+import { i18n } from './i18n'
+import { logError } from './lib/errors'
+import { vTooltip } from './lib/tooltip'
 
-import App from './App.vue'
-const app = createApp(App)
+config.autoAddCss = false
 
-import locale from '../boot/locale'
-import opComponents from '../boot/op-components'
-app.use(locale)
-app.use(opComponents)
+window.addEventListener('unhandledrejection', event => logError('unhandled rejection', event.reason))
+window.addEventListener('error', event => logError('uncaught error', event.error ?? event.message))
 
-import VTooltip from 'floating-vue'
-app.use(VTooltip, {
-  defaultBoundariesElement: 'window',
-})
+async function start(): Promise<void> {
+  const alone = import.meta.env.DEV && !window.desktop
+  if (alone) (await import('./dev/fake-desktop')).installFakeDesktop()
+  const route = location.hash
+  const root: Component = route.startsWith('#/tray')
+    ? (await import('./TrayView.vue')).default
+    : route.startsWith('#/settings')
+      ? (await import('./SettingsView.vue')).default
+      : (await import('./MainWindow.vue')).default
+  const vue = createApp(root).use(i18n).directive('tooltip', vTooltip)
+  vue.config.errorHandler = (error, _instance, info) => logError(`vue (${info})`, error)
+  vue.mount('#app')
+  if (alone) void (await import('./dev/scenes')).playScene()
+}
 
-window.version_info = ref(undefined)
-window.electron.ipcRenderer.send('get-version-info')
-window.electron.ipcRenderer.on('update-version-info', (_event, data) => {
-  window.version_info.value = data
-})
-
-app.mount('#app')
+void start().catch(error => logError('start', error))

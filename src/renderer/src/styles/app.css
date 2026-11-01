@@ -1,0 +1,323 @@
+/*
+ * The renderer's look: fonts, the tokens of the On Page design system for
+ * Tailwind (@theme), the roles of the default theme in light and dark (RGB
+ * triplets) and the desktop base styles. Dark follows the system (main sets
+ * nativeTheme.themeSource from the settings); `data-theme` on <html> forces
+ * one mode when the page runs alone.
+ */
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 400;
+  src: url('../../assets/fonts/Manrope-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 500;
+  src: url('../../assets/fonts/Manrope-Medium.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 600;
+  src: url('../../assets/fonts/Manrope-SemiBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 700;
+  src: url('../../assets/fonts/Manrope-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Rethink Sans';
+  font-weight: 600;
+  src: url('../../assets/fonts/RethinkSans-SemiBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Rethink Sans';
+  font-weight: 700;
+  src: url('../../assets/fonts/RethinkSans-Bold.ttf') format('truetype');
+}
+
+@theme {
+  /* Only the roles of the design system: no Tailwind palette */
+  --color-*: initial;
+  --color-text: rgb(var(--c-text));
+  --color-secondary: rgb(var(--c-secondary));
+  --color-disabled: rgb(var(--c-disabled));
+  --color-placeholder: rgb(var(--c-placeholder));
+  --color-mica: rgb(var(--c-mica));
+  --color-box: rgb(var(--c-box));
+  --color-box-soft: rgb(var(--c-box-soft));
+  --color-line: rgb(var(--c-line));
+  --color-wallpaper: rgb(var(--c-wallpaper));
+  --color-accent: rgb(var(--c-accent));
+  --color-accent-hover: rgb(var(--c-accent-hover));
+  --color-accent-fg: rgb(var(--c-accent-fg));
+  --color-accent-soft: rgb(var(--c-accent-soft));
+  --color-accent-inv: rgb(var(--c-accent-inv));
+  --color-accent-off: rgb(var(--c-accent-off));
+  --color-success: rgb(var(--c-success));
+  --color-success-fg: rgb(var(--c-success-fg));
+  --color-success-soft: rgb(var(--c-success-soft));
+  --color-info: rgb(var(--c-info));
+  --color-info-fg: rgb(var(--c-info-fg));
+  --color-info-soft: rgb(var(--c-info-soft));
+  --color-warning: rgb(var(--c-warning));
+  --color-warning-fg: rgb(var(--c-warning-fg));
+  --color-warning-soft: rgb(var(--c-warning-soft));
+  --color-warning-inv: rgb(var(--c-warning-inv));
+  --color-danger: rgb(var(--c-danger));
+  --color-danger-fg: rgb(var(--c-danger-fg));
+  --color-danger-soft: rgb(var(--c-danger-soft));
+  --color-danger-inv: rgb(var(--c-danger-inv));
+  --color-neutral: rgb(var(--c-neutral));
+  --color-neutral-fg: rgb(var(--c-neutral-fg));
+  --color-neutral-soft: rgb(var(--c-neutral-soft));
+  --color-toggle-off: rgb(var(--c-toggle-off));
+  --color-toggle-on: rgb(var(--c-toggle-on));
+  --color-knob: rgb(var(--c-knob));
+  --color-knob-on: rgb(var(--c-knob-on));
+  /* Under a modal (`bg-veil`) */
+  --color-veil: var(--veil);
+
+  /* Manrope has Cyrillic, Rethink Sans does not; Chinese comes from the system's font */
+  --font-sans: Manrope, 'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans CJK SC', system-ui, sans-serif;
+  --font-title: 'Rethink Sans', Manrope, 'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans CJK SC', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+
+  --text-*: initial;
+  --text-2xs: 10px;
+  --text-2xs--line-height: 12px;
+  --text-xs: 12px;
+  --text-xs--line-height: 1.2;
+  --text-sm: 14px;
+  --text-sm--line-height: 1.2;
+  --text-base: 14px;
+  --text-base--line-height: 1.5;
+  --text-lg: 17px;
+  --text-lg--line-height: 1.5;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.2;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 1.2;
+  --text-3xl: 29px;
+  --text-3xl--line-height: 1.2;
+
+  --radius-*: initial;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 20px;
+
+  /* The design system's spacing scale, next to Tailwind's numeric one */
+  --spacing-2xs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 40px;
+  /* The half steps of the dense rows: an icon beside small text, a row's padding */
+  --spacing-xs-sm: 6px;
+  --spacing-sm-md: 10px;
+  /* The height of a control: buttons, fields, the segmented choice, the language picker */
+  --spacing-control: 39px;
+  /* The column on the left: the filters, the sections of the settings */
+  --spacing-sidebar: 200px;
+
+  --shadow-popover: 0 3px 8px rgb(0 0 0 / 0.12);
+  --shadow-window: 0 8px 24px rgb(0 0 0 / 0.18);
+  --shadow-halo: 0 0 0 3px rgb(var(--c-accent-soft));
+}
+
+:root {
+  --c-text: 46 51 49;
+  --c-secondary: 111 115 112;
+  --c-disabled: 177 178 177;
+  --c-placeholder: 177 178 177;
+  --c-mica: 242 242 242;
+  --c-box: 255 255 255;
+  --c-box-soft: 247 247 247;
+  --c-line: 227 229 228;
+  --c-wallpaper: 250 250 250;
+  --c-accent: 1 102 61;
+  --c-accent-hover: 0 79 46;
+  --c-accent-fg: 0 79 46;
+  --c-accent-soft: 237 245 240;
+  --c-accent-inv: 255 255 255;
+  --c-accent-off: 134 181 155;
+  --c-success: 21 142 36;
+  --c-success-fg: 0 123 23;
+  --c-success-soft: 231 246 234;
+  --c-info: 5 124 179;
+  --c-info-fg: 0 107 186;
+  --c-info-soft: 224 241 254;
+  --c-warning: 247 156 9;
+  --c-warning-fg: 156 91 6;
+  --c-warning-soft: 247 242 192;
+  --c-warning-inv: 46 51 49;
+  --c-danger: 212 50 27;
+  --c-danger-fg: 212 50 27;
+  --c-danger-soft: 254 227 226;
+  --c-danger-inv: 255 255 255;
+  --c-neutral: 111 115 112;
+  --c-neutral-fg: 111 115 112;
+  --c-neutral-soft: 242 242 242;
+  --c-toggle-off: 202 204 202;
+  --c-toggle-on: 32 128 88;
+  --c-knob: 255 255 255;
+  --c-knob-on: 255 255 255;
+  --veil: rgb(0 0 0 / 0.25);
+  color-scheme: light;
+}
+
+/* The text on a fill (`-inv`) is the mode's text or its ink, whichever reads
+   better on it: in dark that is the ink on every light fill */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --c-text: 250 250 250;
+    --c-secondary: 170 172 172;
+    --c-disabled: 104 108 106;
+    --c-placeholder: 104 108 106;
+    --c-mica: 22 27 25;
+    --c-box: 38 43 41;
+    --c-box-soft: 45 50 48;
+    --c-line: 63 68 66;
+    --c-wallpaper: 29 34 32;
+    --c-accent: 113 172 139;
+    --c-accent-hover: 128 188 154;
+    --c-accent-fg: 128 188 154;
+    --c-accent-soft: 41 57 48;
+    --c-accent-inv: 13 17 16;
+    --c-accent-off: 69 107 86;
+    --c-success: 72 180 76;
+    --c-success-fg: 73 182 77;
+    --c-success-soft: 32 61 32;
+    --c-info: 71 168 225;
+    --c-info-fg: 71 168 225;
+    --c-info-soft: 31 56 73;
+    --c-warning: 247 156 9;
+    --c-warning-fg: 247 156 9;
+    --c-warning-soft: 72 47 16;
+    --c-warning-inv: 13 17 16;
+    --c-danger: 253 116 93;
+    --c-danger-fg: 253 116 93;
+    --c-danger-soft: 79 40 33;
+    --c-danger-inv: 13 17 16;
+    --c-neutral: 170 172 172;
+    --c-neutral-fg: 170 172 172;
+    --c-neutral-soft: 45 50 48;
+    --c-toggle-off: 80 85 83;
+    --c-toggle-on: 94 153 120;
+    --c-knob: 215 216 216;
+    --c-knob-on: 13 17 16;
+    --veil: rgb(0 0 0 / 0.3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --c-text: 250 250 250;
+  --c-secondary: 170 172 172;
+  --c-disabled: 104 108 106;
+  --c-placeholder: 104 108 106;
+  --c-mica: 22 27 25;
+  --c-box: 38 43 41;
+  --c-box-soft: 45 50 48;
+  --c-line: 63 68 66;
+  --c-wallpaper: 29 34 32;
+  --c-accent: 113 172 139;
+  --c-accent-hover: 128 188 154;
+  --c-accent-fg: 128 188 154;
+  --c-accent-soft: 41 57 48;
+  --c-accent-inv: 13 17 16;
+  --c-accent-off: 69 107 86;
+  --c-success: 72 180 76;
+  --c-success-fg: 73 182 77;
+  --c-success-soft: 32 61 32;
+  --c-info: 71 168 225;
+  --c-info-fg: 71 168 225;
+  --c-info-soft: 31 56 73;
+  --c-warning: 247 156 9;
+  --c-warning-fg: 247 156 9;
+  --c-warning-soft: 72 47 16;
+  --c-warning-inv: 13 17 16;
+  --c-danger: 253 116 93;
+  --c-danger-fg: 253 116 93;
+  --c-danger-soft: 79 40 33;
+  --c-danger-inv: 13 17 16;
+  --c-neutral: 170 172 172;
+  --c-neutral-fg: 170 172 172;
+  --c-neutral-soft: 45 50 48;
+  --c-toggle-off: 80 85 83;
+  --c-toggle-on: 94 153 120;
+  --c-knob: 215 216 216;
+  --c-knob-on: 13 17 16;
+  --veil: rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+  body {
+    @apply bg-mica font-sans text-base text-text antialiased;
+    /* A desktop window: no text selection by accident, the arrow over text */
+    user-select: none;
+    cursor: default;
+  }
+  input,
+  textarea {
+    user-select: text;
+    cursor: text;
+  }
+  button {
+    cursor: default;
+  }
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    box-shadow:
+      0 0 0 1px rgb(var(--c-text)),
+      0 0 0 4px rgb(var(--c-accent-soft));
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background: rgb(var(--c-text) / 0.25) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--c-text) / 0.4);
+  }
+}
+
+@utility drag-region {
+  -webkit-app-region: drag;
+}
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+/* The hover of a ghost control, a row, a menu item: the text's colour at 6% */
+@utility bg-tint {
+  background-color: color-mix(in oklab, var(--color-text) 6%, transparent);
+}
+/* The focus ring drawn inside: for what fills a box that clips (the table, the inspector) */
+@utility focus-ring-inset {
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--c-text)),
+    inset 0 0 0 4px rgb(var(--c-accent-soft));
+}

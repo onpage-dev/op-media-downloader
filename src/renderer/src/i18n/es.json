@@ -1,0 +1,535 @@
+{
+  "app": {
+    "name": "On Page Media Downloader",
+    "short": "Media Downloader"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "retry": "Reintentar",
+    "loading": "Cargando…",
+    "load_error": "No se ha podido leer la lista."
+  },
+  "toolbar": {
+    "new": "Nuevo proyecto",
+    "sync": "Sincronizar",
+    "download": "Descargar",
+    "stop": "Detener",
+    "sync_all": "Sincronizar todo",
+    "open": "Abrir carpeta",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "settings": "Ajustes",
+    "search": "Buscar proyectos..."
+  },
+  "filters": {
+    "state": "Estado",
+    "destinations": "Destinos",
+    "all": "Todos",
+    "running": "En curso",
+    "todo": "Por descargar",
+    "errors": "Con errores",
+    "done": "Actualizados",
+    "never": "Sin sincronizar",
+    "local": "Locales",
+    "network": "De red",
+    "removable": "Discos externos"
+  },
+  "table": {
+    "status": "Estado",
+    "project": "Proyecto",
+    "destination": "Destino",
+    "progress": "Progreso",
+    "files": "Archivos",
+    "speed": "Velocidad",
+    "last": "Sincronizado",
+    "never": "nunca",
+    "no_results": "No hay proyectos con estos filtros",
+    "show_all": "Mostrar todos",
+    "label": "Proyectos"
+  },
+  "kind": {
+    "local": "Carpeta local",
+    "network": "Carpeta de red",
+    "removable": "Disco externo",
+    "unknown": "Carpeta"
+  },
+  "group": {
+    "done": "Actualizado",
+    "todo": "Por descargar",
+    "running": "En curso",
+    "stopping": "Deteniendo",
+    "warning": "Atención",
+    "error": "Error",
+    "never": "Sin sincronizar",
+    "offline": "Sin conexión"
+  },
+  "status": {
+    "done": "Actualizado",
+    "todo": "{count} archivo por descargar | {count} archivos por descargar",
+    "listing": "Leyendo de On Page…",
+    "listing_progress": "Leyendo de On Page: {done} de {total}",
+    "comparing": "Comparando…",
+    "downloading": "Descargando",
+    "finishing": "Vínculos y limpieza…",
+    "stopping": "Deteniendo…",
+    "warning_failed": "{count} archivo no descargado | {count} archivos no descargados",
+    "warning_duplicates": "{count} nombre repetido | {count} nombres repetidos",
+    "warning_conflicts": "{count} nombre ya en uso | {count} nombres ya en uso",
+    "warning_copies": "Copia en lugar de vincular",
+    "warning_cleanup": "{count} archivos por eliminar: falta confirmar",
+    "warning_interrupted": "Sincronización incompleta",
+    "error_token": "Token no válido",
+    "error_folder": "Carpeta inaccesible",
+    "error_locked": "Carpeta en uso por otro ordenador",
+    "error_other_project": "Carpeta de otro proyecto",
+    "error_disk": "Disco lleno",
+    "error_listing": "Lista de archivos no leída",
+    "error_unexpected": "Error inesperado",
+    "offline": "Esperando la red",
+    "never": "Sin sincronizar",
+    "warning_incomplete": "Lista incompleta"
+  },
+  "menu": {
+    "sync_now": "Sincronizar ahora",
+    "download": "Descargar",
+    "stop": "Detener",
+    "open": "Abrir carpeta",
+    "copy_path": "Copiar ruta",
+    "edit": "Editar…",
+    "delete": "Eliminar…"
+  },
+  "tabs": {
+    "general": "General",
+    "activity": "Actividad",
+    "failed": "Fallidos",
+    "duplicates": "Duplicados",
+    "settings": "Ajustes",
+    "resize": "Altura del panel"
+  },
+  "general": {
+    "onpage": "Proyecto de On Page",
+    "remote": "{files} archivos · {size}",
+    "remote_unknown": "Los archivos se cuentan en la primera sincronización",
+    "to": "descarga en",
+    "free": "{free} libres",
+    "hardlinks_yes": "vínculos físicos: sí",
+    "hardlinks_no": "vínculos físicos: no",
+    "hardlinks_unknown": "vínculos físicos: por probar",
+    "double_space": "Cada archivo ocupa el doble",
+    "downloaded": "Descargados",
+    "present": "Ya presentes",
+    "failed": "Fallidos",
+    "total": "Total",
+    "size": "En On Page",
+    "speed": "Velocidad",
+    "running": "Iniciada a las {time} · fase {step} de 4, {phase} · {eta} · {concurrency} archivos a la vez",
+    "running_short": "Iniciada a las {time} · fase {step} de 4, {phase}",
+    "last": "Última sincronización: {when}, {result}",
+    "never": "Aún no se ha sincronizado",
+    "phase": {
+      "idle": "detenida",
+      "preparing": "preparación",
+      "listing": "lectura de On Page",
+      "comparing": "comparación con la carpeta",
+      "downloading": "descarga",
+      "finishing": "vínculos y limpieza",
+      "stopping": "detención"
+    },
+    "outcome": {
+      "completed": "completada",
+      "stopped": "detenida",
+      "failed": "fallida"
+    },
+    "stopping": "Iniciada a las {time} · deteniéndose"
+  },
+  "issue": {
+    "token_invalid": {
+      "title": "Token no válido",
+      "text": "On Page no acepta el token: puede que se haya revocado. Pega uno nuevo en los ajustes del proyecto."
+    },
+    "project_unavailable": {
+      "title": "Proyecto no disponible",
+      "text": "On Page no responde para este proyecto. Vuelve a intentarlo en un rato."
+    },
+    "listing_failed": {
+      "title": "Lista de archivos no leída",
+      "text": "La lectura de On Page se ha interrumpido: no se ha eliminado ningún archivo de la carpeta."
+    },
+    "rate_limited": {
+      "title": "On Page pide ir más despacio",
+      "text": "La sincronización se reanudará sola."
+    },
+    "folder_unreachable": {
+      "title": "Carpeta inaccesible",
+      "text": "{folder} no responde: revisa la red o el disco."
+    },
+    "folder_not_writable": {
+      "title": "No se puede escribir en la carpeta",
+      "text": "La app no puede crear archivos en {folder}."
+    },
+    "folder_protected": {
+      "title": "Carpeta protegida",
+      "text": "Elige una carpeta dedicada: no se usan las raíces de los discos, la carpeta de usuario ni las carpetas del sistema."
+    },
+    "folder_locked": {
+      "title": "Carpeta en uso",
+      "text": "Otro ordenador está sincronizando esta carpeta. {detail}"
+    },
+    "folder_other_project": {
+      "title": "Carpeta de otro proyecto de On Page",
+      "text": "La carpeta se sincroniza con el proyecto de On Page «{detail}»: no se ha tocado nada. Elige otra carpeta o úsala para este proyecto."
+    },
+    "disk_full": {
+      "title": "Disco lleno",
+      "text": "Libera espacio y vuelve a intentarlo: los archivos ya descargados se conservan."
+    },
+    "offline": {
+      "title": "Estás sin conexión",
+      "text": "La sincronización se reanudará cuando vuelva la red."
+    },
+    "duplicates": {
+      "title": "{count} nombre repetido | {count} nombres repetidos",
+      "text": "Para cada nombre se descarga el primer archivo encontrado."
+    },
+    "failed_files": {
+      "title": "{count} archivo no descargado | {count} archivos no descargados",
+      "text": "Se pueden reintentar: los demás archivos están bien."
+    },
+    "copies_instead_of_links": {
+      "title": "La carpeta copia en lugar de vincular",
+      "text": "Aquí los vínculos físicos no funcionan: cada archivo ocupa el doble de espacio."
+    },
+    "name_conflicts": {
+      "title": "{count} nombre ya en uso | {count} nombres ya en uso",
+      "text": "En la carpeta hay archivos con el mismo nombre que no vienen de la app: se quedan donde están y esos archivos no se descargan."
+    },
+    "cleanup_needs_confirmation": {
+      "title": "{count} archivos por eliminar",
+      "text": "Ya no están en On Page y son muchos: la app espera tu confirmación."
+    },
+    "interrupted": {
+      "title": "Sincronización incompleta",
+      "text": "La última sincronización no ha llegado al final: hay que repetirla."
+    },
+    "unexpected": {
+      "title": "Error inesperado",
+      "text": "La sincronización se ha detenido: {detail}. Vuelve a intentarlo."
+    },
+    "action": {
+      "retry": "Reintentar",
+      "sync": "Sincronizar",
+      "change_token": "Cambiar token",
+      "change_folder": "Cambiar carpeta",
+      "retry_failed": "Reintentar fallidos",
+      "see": "Ver",
+      "see_duplicates": "Ver duplicados",
+      "confirm": "Confirmar",
+      "take_over": "Usar esta carpeta"
+    },
+    "listing_incomplete": {
+      "title": "Algunas colecciones no se han leído",
+      "text": "{detail}: no se ha eliminado ningún archivo; los nuevos llegarán con la próxima sincronización."
+    }
+  },
+  "activity": {
+    "time": "Hora",
+    "file": "Archivo",
+    "size": "Tamaño",
+    "outcome": "Resultado",
+    "same_as": "mismo archivo que {name}",
+    "empty": "No hay actividad reciente",
+    "result": {
+      "downloading": "En curso",
+      "downloaded": "Descargado",
+      "linked": "Vinculado",
+      "removed": "Eliminado",
+      "failed": "Fallido",
+      "conflict": "Conflicto"
+    },
+    "removed_why": "ya no está en On Page"
+  },
+  "failed": {
+    "summary": "{count} archivo no descargado en la última sincronización | {count} archivos no descargados en la última sincronización",
+    "retry_all": "Reintentar todos",
+    "attempts": "{count} intento | {count} intentos",
+    "empty": "No hay archivos fallidos",
+    "summary_running": "{count} archivo no descargado en esta sincronización | {count} archivos no descargados en esta sincronización"
+  },
+  "reason": {
+    "not_found": "ya no está en On Page (404)",
+    "http_error": "On Page ha respondido con un error",
+    "rate_limited": "On Page ha pedido ir más despacio",
+    "network": "se ha cortado la conexión",
+    "timeout": "sin respuesta a tiempo",
+    "size_mismatch": "el archivo ha llegado incompleto",
+    "disk_full": "disco lleno",
+    "write_error": "la carpeta no acepta el archivo",
+    "link_error": "no se ha podido crear el vínculo",
+    "invalid_name": "el nombre no es válido en Windows",
+    "name_conflict": "otro archivo ya tiene este nombre",
+    "aborted": "detenido",
+    "in_use": "el archivo está abierto en otro programa",
+    "file_too_large": "el archivo es demasiado grande para este disco"
+  },
+  "duplicates": {
+    "rule": "Para cada nombre solo se descarga el primer archivo: renombra los demás en On Page para tenerlos todos.",
+    "variants": "{count} archivos distintos",
+    "chosen": "Descargado",
+    "skipped": "No descargado",
+    "empty": "No hay nombres repetidos",
+    "search": "Buscar un nombre…",
+    "no_results": "No se ha encontrado ningún nombre",
+    "languages": "{count} nombre es el mismo campo en distintos idiomas | {count} nombres son el mismo campo en distintos idiomas",
+    "refresh": "Volver a sincronizar"
+  },
+  "project": {
+    "name": "Nombre",
+    "token": "Token de API",
+    "folder": "Carpeta",
+    "keep": "Conservar los archivos locales antiguos que ya no están en On Page",
+    "keep_note": "Los archivos eliminados de On Page se quedan en la carpeta.",
+    "token_note": "El token decide qué se descarga: también se aplican los filtros de su vista.",
+    "token_other": "Token de otro proyecto de On Page: al guardar, la carpeta pasa de «{previous}» a «{project}».",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "verify": "Verificar",
+    "change_folder": "Cambiar…",
+    "copies_network": "De red: los archivos se copian",
+    "copies": "Los archivos se copian"
+  },
+  "status_bar": {
+    "online": "Conectado",
+    "offline": "Sin conexión",
+    "running": "{count} en curso",
+    "files": "{count} archivos",
+    "empty": "Sin proyectos",
+    "update": "Actualización disponible: {version}"
+  },
+  "empty": {
+    "title": "Añade tu primer proyecto",
+    "text": "Arrastra aquí la carpeta donde descargar los archivos, o empieza por el token de API.",
+    "drop_title": "Suelta la carpeta para crear un proyecto",
+    "drop_text": "La carpeta pasa a ser el destino; luego hacen falta el token y el nombre.",
+    "drop_on_table": "Suelta para crear un proyecto"
+  },
+  "wizard": {
+    "title": "Nuevo proyecto",
+    "step": {
+      "token": "Token",
+      "folder": "Carpeta",
+      "options": "Opciones"
+    },
+    "token_placeholder": "Pega el token del proyecto",
+    "checking": "Verificando el token…",
+    "ok_title": "Proyecto «{label}»",
+    "ok_text": "{count} colección tiene archivos | {count} colecciones tienen archivos",
+    "langs": "idiomas: {langs}",
+    "error": {
+      "token_invalid": {
+        "title": "Token no válido",
+        "text": "Revísalo en On Page, en los ajustes de API del proyecto."
+      },
+      "offline": {
+        "title": "Estás sin conexión",
+        "text": "El token se verificará cuando vuelva la red."
+      },
+      "project_unavailable": {
+        "title": "Proyecto no disponible",
+        "text": "On Page no responde para este proyecto: vuelve a intentarlo en un rato."
+      }
+    },
+    "folder_placeholder": "Ninguna carpeta elegida",
+    "pick": "Elegir carpeta",
+    "inspecting": "Comprobando la carpeta…",
+    "name_note": "Del proyecto de On Page: se puede cambiar.",
+    "sync_now": "Sincronizar al crearlo",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "create": "Crear proyecto",
+    "steps_label": "Pasos"
+  },
+  "check": {
+    "network": {
+      "title": "Carpeta de red",
+      "text": "Accesible desde este ordenador; la sincronización depende de la red."
+    },
+    "removable": {
+      "title": "Disco externo",
+      "text": "El proyecto se sincroniza cuando el disco está conectado."
+    },
+    "local": {
+      "title": "Carpeta local",
+      "text": "En el disco de este ordenador."
+    },
+    "missing": {
+      "title": "La carpeta aún no existe",
+      "text": "Se creará en la primera sincronización."
+    },
+    "bound": {
+      "title": "Carpeta del proyecto de On Page «{label}»",
+      "text": "Los archivos que la app ya descargó allí se reutilizan."
+    },
+    "bound_other": {
+      "title": "Carpeta de otro proyecto de On Page",
+      "text": "Se sincroniza con «{label}»: con este token pasa a «{project}» y los archivos que la app descargó para «{label}» se eliminan en la primera sincronización.",
+      "text_keep": "Se sincroniza con «{label}»: con este token pasa a «{project}»; los archivos de «{label}» se quedan como archivos antiguos."
+    },
+    "hardlinks_no": {
+      "title": "Vínculos físicos no admitidos",
+      "text": "Cada archivo se copia y ocupa el doble de espacio."
+    },
+    "hardlinks_yes": {
+      "title": "Vínculos físicos admitidos",
+      "text": "Un archivo usado con varios nombres ocupa espacio una sola vez."
+    },
+    "free": {
+      "title": "Espacio libre: {free}",
+      "text": "Se necesitan unos {needed}.",
+      "text_unknown": "El espacio necesario se sabrá en la primera sincronización."
+    },
+    "foreign": {
+      "title": "La carpeta no está vacía",
+      "text": "Ya hay {count} elemento: se queda donde está, la app solo elimina los archivos que ella misma descarga. | Ya hay {count} elementos: se quedan donde están, la app solo elimina los archivos que ella misma descarga."
+    },
+    "unreachable": {
+      "title": "Carpeta inaccesible",
+      "text": "Revisa la red o el disco."
+    },
+    "not_writable": {
+      "title": "No se puede escribir en la carpeta",
+      "text": "La app no puede crear archivos aquí."
+    },
+    "protected": {
+      "title": "Carpeta protegida",
+      "text": "No se pueden usar las raíces de los discos, la carpeta de usuario ni las carpetas del sistema."
+    },
+    "used_by_other_project": {
+      "title": "Carpeta ya usada",
+      "text": "El proyecto «{detail}» ya descarga aquí o en una carpeta cercana."
+    },
+    "locked": {
+      "title": "Carpeta en uso",
+      "text": "{detail} la está sincronizando."
+    },
+    "foreign_data": {
+      "title": "Ya hay una carpeta «data» que no ha creado la app",
+      "text": "La app nunca la usa, ni la vacía ni la elimina: elige otra carpeta."
+    }
+  },
+  "delete": {
+    "title": "¿Eliminar el proyecto?",
+    "text": "«{label}» se quitará de la lista.",
+    "files": "Eliminar también los archivos descargados",
+    "removes": "{count} archivo descargado por la app y su carpeta «data» | {count} archivos descargados por la app y su carpeta «data»",
+    "removes_unknown": "Los archivos descargados por la app y su carpeta «data»",
+    "keeps": "Queda {count} elemento que no viene de On Page; la carpeta {folder} se conserva | Quedan {count} elementos que no vienen de On Page; la carpeta {folder} se conserva",
+    "keeps_none": "La carpeta {folder} se elimina si queda vacía",
+    "keeps_all": "Los archivos se quedan en la carpeta.",
+    "removes_size": "{count} archivo descargado por la app ({size}) y su carpeta «data» | {count} archivos descargados por la app ({size}) y su carpeta «data»"
+  },
+  "stop": {
+    "title": "¿Detener la sincronización?",
+    "text": "Los archivos ya descargados de «{label}» se quedan en la carpeta.",
+    "title_download": "¿Detener la descarga?"
+  },
+  "cleanup": {
+    "title": "¿Eliminar {count} archivos?",
+    "text": "Ya no están en On Page. La app solo elimina los archivos que ella misma ha descargado: los demás se quedan.",
+    "confirm": "Eliminar archivos"
+  },
+  "take_over": {
+    "title": "¿Usar la carpeta para «{label}»?",
+    "text": "A partir de ahora la carpeta sigue el token de este proyecto. Los archivos que la app descargó para «{other}» se eliminan en la sincronización, con una confirmación si son muchos; los demás archivos se quedan.",
+    "text_keep": "A partir de ahora la carpeta sigue el token de este proyecto. Los archivos que la app descargó para «{other}» se quedan como archivos antiguos.",
+    "confirm": "Usar la carpeta"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "section": {
+      "general": "General",
+      "download": "Descargas",
+      "appearance": "Apariencia",
+      "language": "Idioma",
+      "updates": "Actualizaciones"
+    },
+    "open_at_login": {
+      "title": "Iniciar con el sistema",
+      "text": "La app se inicia con el sistema, en el área de notificación.",
+      "text_win32": "La app se inicia con Windows, en el área de notificación.",
+      "text_darwin": "La app se abre al iniciar sesión en macOS, en la barra de menús."
+    },
+    "close_to_tray": {
+      "title": "Icono en el área de notificación",
+      "text": "Al cerrar la ventana, la app se queda ahí y sigue sincronizando.",
+      "title_darwin": "Icono en la barra de menús"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "text": "Al final de una sincronización, para archivos fallidos y errores."
+    },
+    "concurrency": {
+      "title": "Descargas simultáneas",
+      "text": "Cuántos archivos descargar a la vez, de 1 a 10."
+    },
+    "auto_retry": {
+      "title": "Reintentar fallidos automáticamente",
+      "text": "Una vez, al cabo de un minuto, los archivos no descargados por problemas de red."
+    },
+    "theme": {
+      "title": "Tema",
+      "text": "«Sistema» sigue el tema del sistema operativo.",
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "text_win32": "«Sistema» sigue el tema de Windows.",
+      "text_darwin": "«Sistema» sigue la apariencia de macOS."
+    },
+    "language": {
+      "title": "Idioma de la aplicación",
+      "text": "El idioma de ventanas, menús y notificaciones."
+    },
+    "updates": {
+      "version": "Versión {version}",
+      "available": "Está disponible la versión {version}.",
+      "latest": "Es la última versión.",
+      "download": "Descargar {version}",
+      "check": "Buscar ahora",
+      "check_updates": {
+        "title": "Buscar actualizaciones",
+        "text": "Al iniciar, en GitHub."
+      },
+      "never": "Aún no se ha comprobado.",
+      "failed": "No se ha podido comprobar: vuelve a intentarlo más tarde.",
+      "licenses": "Licencias de código abierto"
+    }
+  },
+  "tray": {
+    "running": "{count} en curso · {speed}",
+    "idle": "Todo en orden",
+    "empty": "Sin proyectos",
+    "open": "Abrir",
+    "quit": "Salir",
+    "comparing": "Comparando con la carpeta…"
+  },
+  "time": {
+    "now": "ahora",
+    "minutes_ago": "hace {n} min",
+    "today": "hoy, {time}",
+    "yesterday": "ayer, {time}",
+    "less_than_minute": "menos de un minuto",
+    "about": "aprox. {duration}"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Mayús",
+    "delete": "Supr"
+  },
+  "errors": {
+    "generic": "La operación no se ha completado: {detail}",
+    "project_busy": "El proyecto está ocupado: vuelve a intentarlo cuando termine.",
+    "engine_timeout": "El motor de sincronización no ha respondido a tiempo.",
+    "open_failed": "No se ha podido abrir la carpeta."
+  }
+}
