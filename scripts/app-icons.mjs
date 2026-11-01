@@ -3,7 +3,9 @@
  * draws it: the ring in ink, the bar in the brand green) and rendered by the command line of
  * VectorCraft (https://getartcraft.com/apps/vectorcraft) one size at a time, so small icons stay sharp:
  *
- * - macOS, build/icon.icns: Apple's rounded square, 824 of 1024 with continuous corners and a shadow;
+ * - macOS, build/icon.icon: Icon Composer's icon, which Xcode 26 compiles for macOS 26 (light, dark and
+ *   tinted) and for older versions; build/icon.icns, drawn here, is the DMG's volume and the icon of a
+ *   build without Xcode 26: Apple's rounded square, 824 of 1024 with continuous corners and a shadow;
  *   build/icon.png is its 1024 px picture (the README)
  * - Windows, build/icon.ico: a tile as large as the icon, so that 16 px still reads
  * - Linux, build/icons/<n>x<n>.png (the window's icon too): GNOME's grid, with the depth of the tile's
@@ -21,6 +23,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inflateSync } from 'node:zlib'
+import * as prettier from 'prettier'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const TEMP = mkdtempSync(path.join(os.tmpdir(), 'app-icons-'))
@@ -46,15 +49,16 @@ const gradient = (id, top, bottom) =>
   `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">` +
   `<stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient>`
 
-/** The mark `height` units tall, centred on (x, y) */
+/** The mark `height` units tall, centred on (x, y); a part whose colour is `null` is left out */
 function mark(x, y, height, ink = MARK.ink, green = MARK.green) {
   const scale = height / (MARK.bottom - MARK.top)
   const left = x - MARK.center_x * scale
   const top = y - ((MARK.top + MARK.bottom) / 2) * scale
   return (
     `<g transform="translate(${num(left)} ${num(top)}) scale(${num(scale)})">` +
-    `<path d="${MARK.ring}" fill="${ink}" fill-rule="evenodd"/>` +
-    `<path d="${MARK.bar}" fill="${green}" fill-rule="evenodd"/></g>`
+    (ink ? `<path d="${MARK.ring}" fill="${ink}" fill-rule="evenodd"/>` : '') +
+    (green ? `<path d="${MARK.bar}" fill="${green}" fill-rule="evenodd"/>` : '') +
+    '</g>'
   )
 }
 
@@ -291,6 +295,56 @@ function icns() {
   return Buffer.concat([head, ...chunks])
 }
 
+/**
+ * macOS 26's icon in Icon Composer's format: macOS draws the rounded square, its light or dark background,
+ * the light and the shadow; the layers are the mark's two parts, each on the whole 1024 canvas so that
+ * they stay where the mark has them. The ring takes the colour of the appearance, the bar stays green
+ */
+async function iconComposer() {
+  const srgb = hex =>
+    `srgb:${[1, 3, 5].map(at => (parseInt(hex.slice(at, at + 2), 16) / 255).toFixed(5)).join(',')},1.00000`
+  const vertical = (top, bottom) => ({
+    'linear-gradient': [srgb(top), srgb(bottom)],
+    orientation: { start: { x: 0.5, y: 0 }, stop: { x: 0.5, y: 1 } },
+  })
+  const layer = (name, fill) => ({
+    ...(fill && { 'fill-specializations': fill }),
+    glass: false,
+    'image-name': `${name}.svg`,
+    name,
+    position: { scale: 1, 'translation-in-points': [0, 0] },
+  })
+  const part = (ink, green) =>
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">' +
+    `${mark(512, 512, 0.58 * 1024, ink, green)}</svg>\n`
+  const icon = {
+    'fill-specializations': [
+      { value: vertical('#ffffff', '#e8e8e5') },
+      { appearance: 'dark', value: vertical('#3a3a3a', '#252525') },
+    ],
+    groups: [
+      {
+        layers: [
+          layer('bar'),
+          layer('ring', [
+            { value: { solid: srgb(MARK.ink) } },
+            { appearance: 'dark', value: { solid: srgb('#f2f2f0') } },
+          ]),
+        ],
+        shadow: { kind: 'neutral', opacity: 0.5 },
+        translucency: { enabled: false, value: 0.5 },
+      },
+    ],
+    'supported-platforms': { squares: ['macOS'] },
+  }
+  const json = path.join(ROOT, 'build/icon.icon/icon.json')
+  write('build/icon.icon/Assets/ring.svg', part(MARK.ink, null))
+  write('build/icon.icon/Assets/bar.svg', part(null, MARK.green))
+  // Formatted as the rest of the repository, so that `yarn format:check` stays clean after a run
+  const options = { ...(await prettier.resolveConfig(json)), filepath: json }
+  write('build/icon.icon/icon.json', await prettier.format(JSON.stringify(icon), options))
+}
+
 function write(file, data) {
   mkdirSync(path.dirname(path.join(ROOT, file)), { recursive: true })
   writeFileSync(path.join(ROOT, file), data)
@@ -298,6 +352,7 @@ function write(file, data) {
 }
 
 try {
+  await iconComposer()
   write('build/icon.icns', icns())
   write('build/icon.ico', ico([16, 20, 24, 32, 40, 48, 64, 96, 128, 256]))
   for (const size of [16, 24, 32, 48, 64, 128, 256, 512])

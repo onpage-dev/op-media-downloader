@@ -34,12 +34,17 @@ nsis:
 mac:
   target:
     - dmg
+  # Icon Composer's icon (scripts/app-icons.mjs), compiled by Xcode 26's actool: light, dark and tinted on
+  # macOS 26, an icns for the older versions. Without Xcode 26: -c.mac.icon=build/icon.icns
+  icon: build/icon.icon
   identity: 'Dinside s.r.l.'
   hardenedRuntime: true
   entitlementsInherit: build/entitlements.mac.plist
   artifactName: ${name}-${version}-${arch}.${ext}
 
 dmg:
+  # The volume shows the icon drawn for every macOS, not actool's
+  icon: build/icon.icns
   artifactName: ${name}-${version}-${arch}.${ext}
   sign: true
 
