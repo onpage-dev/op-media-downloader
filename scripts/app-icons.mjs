@@ -10,6 +10,8 @@
  *   bottom edge
  * - the tray, build/tray.png (32 px), and the window's title bar, src/renderer/assets/app-icon.png: the
  *   Windows tile
+ * - macOS's menu bar, build/trayTemplate.png (32 px): the mark alone in black, a template image that macOS
+ *   paints in the menu bar's colour
  *
  * `vectorcraft-cli` from VECTORCRAFT_CLI, VectorCraft's Windows install folder or the PATH.
  */
@@ -45,14 +47,14 @@ const gradient = (id, top, bottom) =>
   `<stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient>`
 
 /** The mark `height` units tall, centred on (x, y) */
-function mark(x, y, height) {
+function mark(x, y, height, ink = MARK.ink, green = MARK.green) {
   const scale = height / (MARK.bottom - MARK.top)
   const left = x - MARK.center_x * scale
   const top = y - ((MARK.top + MARK.bottom) / 2) * scale
   return (
     `<g transform="translate(${num(left)} ${num(top)}) scale(${num(scale)})">` +
-    `<path d="${MARK.ring}" fill="${MARK.ink}" fill-rule="evenodd"/>` +
-    `<path d="${MARK.bar}" fill="${MARK.green}" fill-rule="evenodd"/></g>`
+    `<path d="${MARK.ring}" fill="${ink}" fill-rule="evenodd"/>` +
+    `<path d="${MARK.bar}" fill="${green}" fill-rule="evenodd"/></g>`
   )
 }
 
@@ -138,6 +140,11 @@ const LAYOUTS = {
         `stroke-opacity="0.12" stroke-width="${num(px)}"/>` +
         mark(512, margin + face / 2, 0.6 * side),
     }
+  },
+
+  /** macOS's menu bar: the mark alone, as tall as the icon, in black (macOS reads only its transparency) */
+  menubar() {
+    return { defs: '', body: mark(512, 512, 0.94 * 1024, '#000000', '#000000') }
   },
 }
 
@@ -289,6 +296,7 @@ try {
     write(`build/icons/${size}x${size}.png`, render('linux', size))
   write('build/icon.png', render('macos', 1024))
   write('build/tray.png', render('windows', 32))
+  write('build/trayTemplate.png', render('menubar', 32))
   write('src/renderer/assets/app-icon.png', render('windows', 64))
 } catch (error) {
   console.error(

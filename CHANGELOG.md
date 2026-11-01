@@ -32,7 +32,7 @@ A new app: a desktop sync manager for On Page media, rebuilt around a sync engin
 
 ### Desktop integration
 
-- A new app icon with the current On Page mark, drawn for each system: Apple's rounded square on macOS, a tile that still reads at 16 px on Windows, GNOME's grid on Linux.
+- A new app icon with the current On Page mark, drawn for each system: Apple's rounded square on macOS, a tile that still reads at 16 px on Windows, GNOME's grid on Linux. In the macOS menu bar the mark takes the menu bar's colour, like the system's icons: a hollow dot while syncing, a full one when a project needs a look.
 - Integrated title bar, remembered window size and position, a single instance.
 - Notification area icon with the state of the projects and a quick panel; closing the window can keep the app running there.
 - System notifications at the end of a sync, for failed files and errors; progress on the taskbar button and on the Dock.

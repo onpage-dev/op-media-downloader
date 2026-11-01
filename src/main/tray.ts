@@ -5,7 +5,15 @@
  */
 import { BrowserWindow, Menu, nativeImage, NativeImage, screen, Tray } from 'electron'
 import tray_path from '../../build/tray.png?asset'
+import template_path from '../../build/trayTemplate.png?asset'
 import { StatusTone } from '../shared/status'
+
+/**
+ * macOS's menu bar takes a template image: the mark in one colour, which macOS
+ * paints as the menu bar's text. The dot is in that colour too, hollow while
+ * projects sync.
+ */
+const TEMPLATE = process.platform == 'darwin'
 
 /** Dot colours of the state vocabulary; `undefined` = no dot (up to date) */
 const DOT_COLORS: Partial<Record<StatusTone, [number, number, number]>> = {
@@ -146,14 +154,41 @@ export class TrayController {
     const cached = this.icons.get(key)
     if (cached) return cached
     const size = 32
-    const base = nativeImage.createFromPath(tray_path)
+    const base = nativeImage.createFromPath(TEMPLATE ? template_path : tray_path)
     const color = tone ? DOT_COLORS[tone] : undefined
-    const image = color ? withDot(base, size, color) : base
+    const image = !color ? base : TEMPLATE ? withTemplateDot(base, size, tone == 'accent') : withDot(base, size, color)
     const result = nativeImage.createEmpty()
     result.addRepresentation({ scaleFactor: 2, width: size, height: size, buffer: image.toPNG() })
+    if (TEMPLATE) result.setTemplateImage(true)
     this.icons.set(key, result)
     return result
   }
+}
+
+/**
+ * The template's dot, where the coloured one would be: the mark cleared around
+ * it as the white ring does, then the dot in black, the only colour of a template
+ */
+function withTemplateDot(base: NativeImage, size: number, hollow: boolean): NativeImage {
+  const bitmap = Buffer.from(base.toBitmap())
+  const cx = size - 8
+  const cy = size - 8
+  const radius = 6.5
+  const ring = 8
+  const hole = 3
+  const coverage = (value: number): number => Math.min(1, Math.max(0, value))
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const distance = Math.hypot(x + 0.5 - cx, y + 0.5 - cy)
+      if (distance > ring + 0.5) continue
+      const i = (y * size + x) * 4
+      const kept = 1 - coverage(ring + 0.5 - distance)
+      const dot = coverage(radius + 0.5 - distance) * (hollow ? coverage(distance - hole + 0.5) : 1)
+      bitmap[i] = bitmap[i + 1] = bitmap[i + 2] = 0
+      bitmap[i + 3] = Math.round(255 * dot + bitmap[i + 3] * kept * (1 - dot))
+    }
+  }
+  return nativeImage.createFromBitmap(bitmap, { width: size, height: size })
 }
 
 /** Draws an anti-aliased dot with a light ring on a BGRA bitmap */
