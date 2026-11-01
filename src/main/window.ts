@@ -6,7 +6,7 @@
  */
 import { app, BrowserWindow, nativeTheme, Rectangle, screen } from 'electron'
 import path from 'path'
-import icon_path from '../../build/icon.png?asset'
+import icon_path from '../../build/icons/512x512.png?asset'
 import { TITLE_BAR_COLORS, TITLE_BAR_HEIGHT } from '../shared/window-chrome'
 import { log } from './log'
 import { secureContents } from './security'

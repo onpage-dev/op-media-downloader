@@ -4,7 +4,7 @@
  * Linux the menu is the icon's context menu: most desktops report no clicks.
  */
 import { BrowserWindow, Menu, nativeImage, NativeImage, screen, Tray } from 'electron'
-import icon_path from '../../build/icon.png?asset'
+import tray_path from '../../build/tray.png?asset'
 import { StatusTone } from '../shared/status'
 
 /** Dot colours of the state vocabulary; `undefined` = no dot (up to date) */
@@ -140,13 +140,13 @@ export class TrayController {
     ])
   }
 
-  /** The app icon at 16pt (32px) with a dot for the state in the corner */
+  /** The tray picture (32px, drawn for that size by scripts/app-icons.mjs) at 16pt, with a dot for the state */
   private icon(tone: StatusTone | undefined): NativeImage {
     const key = tone ?? 'none'
     const cached = this.icons.get(key)
     if (cached) return cached
     const size = 32
-    const base = nativeImage.createFromPath(icon_path).resize({ width: size, height: size, quality: 'best' })
+    const base = nativeImage.createFromPath(tray_path)
     const color = tone ? DOT_COLORS[tone] : undefined
     const image = color ? withDot(base, size, color) : base
     const result = nativeImage.createEmpty()

@@ -44,6 +44,8 @@ dmg:
   sign: true
 
 linux:
+  # Drawn for Linux by scripts/app-icons.mjs, as build/icon.icns for macOS and build/icon.ico for Windows
+  icon: build/icons
   target:
     - AppImage
     - deb

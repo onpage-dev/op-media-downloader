@@ -29,6 +29,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "node scripts/pro-icons.mjs",
+    "app-icons": "node scripts/app-icons.mjs",
     "postinstall": "electron-builder install-app-deps && node scripts/pro-icons.mjs && node scripts/notices.mjs"
   },
   "dependencies": {
