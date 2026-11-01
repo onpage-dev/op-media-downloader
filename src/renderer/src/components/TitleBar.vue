@@ -7,8 +7,8 @@
  */
 import { useI18n } from 'vue-i18n'
 import { TITLE_BAR_HEIGHT } from '@shared/window-chrome'
-import icon from '../../assets/app-icon.png'
 import { platform } from '../store'
+import AppLogo from './ui/AppLogo.vue'
 
 defineProps<{ title?: string }>()
 const { t } = useI18n()
@@ -25,7 +25,7 @@ const mac = platform() == 'darwin'
       paddingLeft: mac ? '80px' : '12px',
     }"
   >
-    <img :src="icon" class="h-4 w-4" alt="" />
+    <AppLogo class="h-4 w-4" />
     <span class="truncate text-xs">{{ title ?? t('app.name') }}</span>
   </header>
 </template>

@@ -10,11 +10,11 @@ import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SettingsSection } from '@shared/desktop-api'
 import type { AppSettings, ThemeSetting } from '@shared/models'
-import appIcon from '../../assets/app-icon.png'
 import * as icons from '../lib/icons'
 import { app, checkForUpdates, openLicenses, openRelease, platform, setSettings } from '../store'
 import TitleBar from './TitleBar.vue'
 import AppIcon from './ui/AppIcon.vue'
+import AppLogo from './ui/AppLogo.vue'
 import IconButton from './ui/IconButton.vue'
 import LangSelect from './ui/LangSelect.vue'
 import UiButton from './ui/UiButton.vue'
@@ -85,7 +85,7 @@ const v = (version: string): string => `v${bare(version)}`
       <TitleBar v-if="alone" :title="t('settings.title')" />
       <template v-else>
         <span :id="titleId" class="flex h-8 flex-1 items-center gap-sm pl-md text-xs">
-          <img :src="appIcon" class="h-4 w-4" alt="" />
+          <AppLogo class="h-4 w-4" />
           {{ t('settings.title') }}
         </span>
         <IconButton :icon="icons.faXmark" :label="t('common.close')" :size="32" class="mr-2xs" @click="emit('close')" />

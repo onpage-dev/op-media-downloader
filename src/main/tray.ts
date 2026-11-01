@@ -2,8 +2,10 @@
  * Icon in the notification area (menu bar on macOS) with a dot for the state,
  * a native menu on right click and the panel (`#/tray`) on left click. On
  * Linux the menu is the icon's context menu: most desktops report no clicks.
+ * On Windows the tile is dark when the taskbar is.
  */
-import { BrowserWindow, Menu, nativeImage, NativeImage, screen, Tray } from 'electron'
+import { BrowserWindow, Menu, nativeImage, NativeImage, nativeTheme, screen, Tray } from 'electron'
+import tray_dark_path from '../../build/tray-dark.png?asset'
 import tray_path from '../../build/tray.png?asset'
 import template_path from '../../build/trayTemplate.png?asset'
 import { StatusTone } from '../shared/status'
@@ -44,7 +46,9 @@ export class TrayController {
   private tone?: StatusTone
   private tooltip = ''
 
-  constructor(private actions: TrayActions) {}
+  constructor(private actions: TrayActions) {
+    nativeTheme.on('updated', () => this.tray?.setImage(this.icon(this.tone)))
+  }
 
   get enabled(): boolean {
     return !!this.tray
@@ -150,11 +154,13 @@ export class TrayController {
 
   /** The tray picture (32px, drawn for that size by scripts/app-icons.mjs) at 16pt, with a dot for the state */
   private icon(tone: StatusTone | undefined): NativeImage {
-    const key = tone ?? 'none'
+    /** Windows' taskbar has a light or dark mode of its own, apart from the apps' */
+    const dark = process.platform == 'win32' && nativeTheme.shouldUseDarkColorsForSystemIntegratedUI
+    const key = `${tone ?? 'none'}${dark ? '-dark' : ''}`
     const cached = this.icons.get(key)
     if (cached) return cached
     const size = 32
-    const base = nativeImage.createFromPath(TEMPLATE ? template_path : tray_path)
+    const base = nativeImage.createFromPath(TEMPLATE ? template_path : dark ? tray_dark_path : tray_path)
     const color = tone ? DOT_COLORS[tone] : undefined
     const image = !color ? base : TEMPLATE ? withTemplateDot(base, size, tone == 'accent') : withDot(base, size, color)
     const result = nativeImage.createEmpty()

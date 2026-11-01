@@ -8,11 +8,11 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ProjectView } from '@shared/models'
 import { projectStatus, type ProjectStatus } from '@shared/status'
-import icon from '../../assets/app-icon.png'
 import { formatEtaShort, formatPercent, formatSpeed, formatWhen } from '../lib/format'
 import * as icons from '../lib/icons'
 import { statusIcon, statusLabel, statusText } from '../lib/status-view'
 import { app, quit, showMainWindow as show, syncAll } from '../store'
+import AppLogo from './ui/AppLogo.vue'
 import IconButton from './ui/IconButton.vue'
 import ProgressBar from './ui/ProgressBar.vue'
 import StatusTag from './ui/StatusTag.vue'
@@ -42,7 +42,7 @@ function words(project: ProjectView, status: ProjectStatus): string {
 <template>
   <div class="flex h-full flex-col overflow-hidden bg-box">
     <header class="flex shrink-0 items-center gap-sm py-md pl-lg pr-md">
-      <img :src="icon" class="h-5 w-5" alt="" />
+      <AppLogo class="h-5 w-5" />
       <div class="min-w-0 flex-1">
         <div class="text-sm font-medium leading-[19px]">{{ t('app.short') }}</div>
         <div class="truncate text-xs text-secondary">{{ summary }}</div>

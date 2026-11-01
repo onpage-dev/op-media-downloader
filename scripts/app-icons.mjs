@@ -9,7 +9,7 @@
  * - Linux, build/icons/<n>x<n>.png (the window's icon too): GNOME's grid, with the depth of the tile's
  *   bottom edge
  * - the tray, build/tray.png (32 px), and the window's title bar, src/renderer/assets/app-icon.png: the
- *   Windows tile
+ *   Windows tile; -dark.png the same tile for a dark taskbar or window
  * - macOS's menu bar, build/trayTemplate.png (32 px): the mark alone in black, a template image that macOS
  *   paints in the menu bar's colour
  *
@@ -103,21 +103,29 @@ const LAYOUTS = {
   },
 
   /** The whole icon, with a pixel around it from 32 px up; the mark larger where pixels are few */
-  windows(size) {
+  windows(size, dark = false) {
     const px = 1024 / size
     const inset = snap(20, size)
     const side = 1024 - 2 * inset
     const radius = num(0.19 * side)
+    const [top, bottom, edge, ink] = dark
+      ? ['#3a3a3a', '#252525', '#ffffff', '#f2f2f0']
+      : ['#ffffff', '#ebebe8', '#000000', MARK.ink]
     return {
-      defs: gradient('face', '#ffffff', '#ebebe8'),
+      defs: gradient('face', top, bottom),
       body:
         `<rect x="${num(inset)}" y="${num(inset)}" width="${num(side)}" height="${num(side)}" rx="${radius}" ` +
         `fill="url(#face)"/>` +
         `<rect x="${num(inset + px / 2)}" y="${num(inset + px / 2)}" width="${num(side - px)}" ` +
-        `height="${num(side - px)}" rx="${num(radius - px / 2)}" fill="none" stroke="#000000" ` +
-        `stroke-opacity="0.14" stroke-width="${num(px)}"/>` +
-        mark(512, 512, (size <= 32 ? 0.68 : 0.62) * side),
+        `height="${num(side - px)}" rx="${num(radius - px / 2)}" fill="none" stroke="${edge}" ` +
+        `stroke-opacity="${dark ? 0.18 : 0.14}" stroke-width="${num(px)}"/>` +
+        mark(512, 512, (size <= 32 ? 0.68 : 0.62) * side, ink),
     }
+  },
+
+  /** The same tile for dark windows and taskbars: a dark face, the ring light as the text on it */
+  windows_dark(size) {
+    return LAYOUTS.windows(size, true)
   },
 
   /** GNOME's grid of 128: 8 around the tile, the bottom 4 a darker edge that gives the tile its depth */
@@ -296,8 +304,10 @@ try {
     write(`build/icons/${size}x${size}.png`, render('linux', size))
   write('build/icon.png', render('macos', 1024))
   write('build/tray.png', render('windows', 32))
+  write('build/tray-dark.png', render('windows_dark', 32))
   write('build/trayTemplate.png', render('menubar', 32))
   write('src/renderer/assets/app-icon.png', render('windows', 64))
+  write('src/renderer/assets/app-icon-dark.png', render('windows_dark', 64))
 } catch (error) {
   console.error(
     error.code == 'ENOENT'

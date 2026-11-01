@@ -8,7 +8,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Issue, IssueCode, JobPhase, ProjectView } from '@shared/models'
 import { projectStatus } from '@shared/status'
-import icon from '../../../assets/app-icon.png'
 import {
   formatBytes,
   formatEta,
@@ -22,6 +21,7 @@ import * as icons from '../../lib/icons'
 import { KIND_ICONS, kindOf, TONE_FG, TONE_SOFT } from '../../lib/status-view'
 import { app, ask, edit, retryFailed, sync } from '../../store'
 import AppIcon from '../ui/AppIcon.vue'
+import AppLogo from '../ui/AppLogo.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import UiAlert from '../ui/UiAlert.vue'
 import UiButton from '../ui/UiButton.vue'
@@ -175,7 +175,7 @@ const plan = computed(() => runtime.value.plan)
     <div class="flex items-center gap-md">
       <div class="flex min-w-0 flex-1 flex-col gap-xs rounded-md bg-box-soft p-md">
         <div class="flex items-center gap-xs-sm text-xs text-secondary">
-          <img :src="icon" class="h-[14px] w-[14px]" alt="" />
+          <AppLogo class="h-[14px] w-[14px]" />
           {{ t('general.onpage') }}
         </div>
         <div class="truncate text-sm font-medium">{{ project.label }}</div>
