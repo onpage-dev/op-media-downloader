@@ -21,9 +21,19 @@ afterAll(() => {
 
 async function until(condition: () => boolean): Promise<void> {
   const end = Date.now() + 5_000
-  while (!condition()) {
+  while (!met(condition)) {
     if (Date.now() > end) throw new Error('condition not met in time')
     await new Promise(resolve => setTimeout(resolve, 5))
+  }
+}
+
+/** While the log rotates main.log is missing until the next write: not met yet */
+function met(condition: () => boolean): boolean {
+  try {
+    return condition()
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code == 'ENOENT') return false
+    throw error
   }
 }
 
