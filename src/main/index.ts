@@ -54,7 +54,9 @@ if (debugging) {
   app.quit()
 } else {
   const onSecondInstance = watchSecondInstance()
-  if (process.platform == 'win32') app.setAppUserModelId(APP_ID)
+  // A development run is Electron's own exe: an identity of its own keeps Windows from giving the installed
+  // app's taskbar button and notifications the Electron icon
+  if (process.platform == 'win32') app.setAppUserModelId(app.isPackaged ? APP_ID : `${APP_ID}.dev`)
   app
     .whenReady()
     .then(() => start(onSecondInstance))

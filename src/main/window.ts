@@ -6,7 +6,9 @@
  */
 import { app, BrowserWindow, nativeTheme, Rectangle, screen } from 'electron'
 import path from 'path'
-import icon_path from '../../build/icons/512x512.png?asset'
+import windows_icon from '../../build/icon.ico?asset'
+import mac_icon from '../../build/icon.png?asset'
+import linux_icon from '../../build/icons/512x512.png?asset'
 import { TITLE_BAR_COLORS, TITLE_BAR_HEIGHT } from '../shared/window-chrome'
 import { log } from './log'
 import { secureContents } from './security'
@@ -77,7 +79,9 @@ export function createMainWindow(store: AppStore): BrowserWindow {
     ...(is_mac
       ? { trafficLightPosition: { x: 12, y: (TITLE_BAR_HEIGHT - 14) / 2 } }
       : { titleBarOverlay: { color: colors.background, symbolColor: colors.symbol, height: TITLE_BAR_HEIGHT } }),
-    ...(process.platform == 'linux' ? { icon: icon_path } : {}),
+    // Linux takes the window's icon from here, Windows from the exe: in development that is Electron's
+    ...(process.platform == 'win32' ? { icon: windows_icon } : {}),
+    ...(process.platform == 'linux' ? { icon: linux_icon } : {}),
     webPreferences: {
       preload: preloadPath(),
       sandbox: true,
@@ -87,6 +91,8 @@ export function createMainWindow(store: AppStore): BrowserWindow {
     },
   })
   if (state.maximized) window.maximize()
+  // The installed app's Dock icon is the bundle's, light or dark with macOS; in development Electron's
+  if (is_mac && !app.isPackaged) app.dock?.setIcon(mac_icon)
 
   const onTheme = (): void => {
     if (window.isDestroyed()) return
