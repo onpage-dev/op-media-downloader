@@ -83,6 +83,7 @@
     "error_token": "令牌无效",
     "error_folder": "文件夹无法访问",
     "error_locked": "文件夹正被另一台计算机使用",
+    "error_other_project": "其他项目的文件夹",
     "error_disk": "磁盘已满",
     "error_listing": "未能读取文件列表",
     "error_unexpected": "意外错误",

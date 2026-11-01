@@ -4,7 +4,10 @@
  * when the preload did not expose the real API: never inside Electron.
  * URL parameters: `empty` (no projects), `duplicates` (Catalogo Piante 2026 with
  * names with different files), `freeze` (no live progress), `fail=<code>` (the
- * commands reject with that code, as main does: `project_busy`, `engine_timeout`…).
+ * commands reject with that code, as main does: `project_busy`, `engine_timeout`…),
+ * `taken` (another computer synced the folder of Schede tecniche with another On
+ * Page project). A folder with «Listino 2026» in its path is that other
+ * project's, and so is a token with «listino» in it.
  * Like main, it answers a change with the project and pushes the list 100 ms later.
  */
 import type { AppCommand, DesktopApi, NewProjectInput, ProjectPatch } from '@shared/desktop-api'
@@ -19,6 +22,7 @@ import {
   type FailedEntry,
   type FolderInfo,
   type Issue,
+  type OnPageProject,
   type PlanSummary,
   type ProjectRuntime,
   type ProjectView,
@@ -104,6 +108,18 @@ const issue = (code: Issue['code'], severity: Issue['severity'], count?: number)
 })
 const idle = (more: Partial<ProjectRuntime> = {}): ProjectRuntime => ({ phase: 'idle', issues: [], ...more })
 
+/** The On Page project of each demo project; Listino Acme never synced (its token is not valid) */
+const ONPAGE: Record<string, OnPageProject> = {
+  vasi: { id: 101, label: 'Vasi e accessori' },
+  eventi: { id: 102, label: 'Foto eventi' },
+  archivio: { id: 103, label: 'Archivio foto' },
+  piante: { id: 104, label: 'Catalogo Piante 2026' },
+  schede: { id: 105, label: 'Schede tecniche' },
+}
+/** Another On Page project, synced by another computer */
+const LISTINO: OnPageProject = { id: 120, label: 'Listino 2026' }
+const taken = params.has('taken')
+
 let created = 0
 function project(
   id: string,
@@ -115,7 +131,18 @@ function project(
 ): ProjectView {
   // Added a day apart, in the order of the mockup
   const created_at = new Date(new Date(2026, 8, 2).getTime() + created++ * 86400000).toISOString()
-  return { id, label, folder: path, keep_old_files, created_at, has_token: true, folder_info: info, runtime }
+  const onpage_project = ONPAGE[id] as OnPageProject | undefined
+  return {
+    id,
+    label,
+    folder: path,
+    keep_old_files,
+    created_at,
+    has_token: true,
+    folder_info: { onpage_project, ...info },
+    runtime,
+    onpage_project,
+  }
 }
 
 const VASI = '\\\\nas-ufficio\\media\\vasi'
@@ -195,8 +222,15 @@ let projects: ProjectView[] = params.has('empty')
         'schede',
         'Schede tecniche',
         'C:\\Media\\Schede tecniche',
-        folder('C:\\Media\\Schede tecniche', 'local', { free_bytes: 212 * GB }),
-        idle({ plan: plan(1630, 1.9 * GB), last_result: result(yesterday(18, 9), 1630, 2) }),
+        folder('C:\\Media\\Schede tecniche', 'local', {
+          free_bytes: 212 * GB,
+          ...(taken ? { onpage_project: LISTINO } : {}),
+        }),
+        idle({
+          plan: plan(1630, 1.9 * GB),
+          last_result: result(yesterday(18, 9), 1630, 2),
+          issues: taken ? [{ ...issue('folder_other_project', 'error'), detail: LISTINO.label }] : [],
+        }),
       ),
       project(
         'acme',
@@ -414,7 +448,8 @@ async function fakeSync(id: string): Promise<void> {
 /**
  * What main would find in a folder: a drive root is protected, a folder in or
  * around another project's is used (with that project's label), a name ending
- * in «data» stands for a folder that already has a `data` the app did not make
+ * in «data» stands for a folder that already has a `data` the app did not make;
+ * the project's own folder, or one with «Listino 2026», names its On Page project
  */
 function inspect(path: string, projectId?: string): FolderInfo {
   const network = path.startsWith('\\\\')
@@ -427,8 +462,13 @@ function inspect(path: string, projectId?: string): FolderInfo {
   const other = projects.find(p => p.id != projectId && near(p.folder, path))
   if (other) return folder(path, kind, { problems: ['used_by_other_project'], problem_detail: other.label })
   if (/data\\?$/i.test(path)) return folder(path, kind, { problems: ['foreign_data'], foreign_entries: 1 })
-  if (kind == 'removable') return folder(path, kind)
-  return folder(path, kind, network ? { hardlinks: false, free_bytes: 1.2 * TB, foreign_entries: 214 } : {})
+  const own = projects.find(p => p.id == projectId && near(p.folder, path))
+  const onpage_project = /listino 2026/i.test(path) ? LISTINO : own?.folder_info?.onpage_project
+  if (kind == 'removable') return folder(path, kind, { onpage_project })
+  return folder(path, kind, {
+    onpage_project,
+    ...(network ? { hardlinks: false, free_bytes: 1.2 * TB, foreign_entries: 214 } : {}),
+  })
 }
 
 const desktop: DesktopApi = {
@@ -469,7 +509,14 @@ const desktop: DesktopApi = {
     onChanged: listener => projectsChanged.add(listener),
   },
   sync: {
-    sync: id => command(async () => void fakeSync(id)),
+    sync: (id, options) =>
+      command(async () => {
+        // «Usa questa cartella»: the folder becomes the project's
+        const p = find(id)
+        if (options?.take_over_folder && p.folder_info)
+          p.folder_info = { ...p.folder_info, onpage_project: p.onpage_project }
+        void fakeSync(id)
+      }),
     syncAll: () =>
       command(async () => {
         for (const p of projects) if (p.runtime.phase == 'idle') void fakeSync(p.id)
@@ -535,11 +582,25 @@ const desktop: DesktopApi = {
     async verify(token) {
       await later(700)
       if (token.length < 8 || token.includes('errato')) return { ok: false, error: 'token_invalid' }
-      return { ok: true, project_label: 'Vasi e accessori', collections_with_files: 3, langs: ['it', 'en'] }
+      const project = /listino/i.test(token) ? LISTINO : ONPAGE.vasi
+      return {
+        ok: true,
+        project_id: project.id,
+        project_label: project.label,
+        collections_with_files: 3,
+        langs: ['it', 'en'],
+      }
     },
-    async verifyProject() {
+    async verifyProject(id) {
       await later(700)
-      return { ok: true, project_label: 'Vasi e accessori', collections_with_files: 3, langs: ['it', 'en'] }
+      const project = find(id).onpage_project ?? ONPAGE.vasi
+      return {
+        ok: true,
+        project_id: project.id,
+        project_label: project.label,
+        collections_with_files: 3,
+        langs: ['it', 'en'],
+      }
     },
   },
   settings: {

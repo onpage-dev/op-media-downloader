@@ -43,6 +43,8 @@ export type StatusKey =
   | 'error_folder'
   /** Errore: cartella in uso da un altro computer */
   | 'error_locked'
+  /** Errore: cartella sincronizzata con un altro progetto On Page */
+  | 'error_other_project'
   /** Errore: disco pieno */
   | 'error_disk'
   /** Errore: elenco dei file non letto */
@@ -66,7 +68,8 @@ export interface ProjectStatus {
 const ERROR_KEYS: [IssueCode[], StatusKey][] = [
   [['token_invalid', 'project_unavailable'], 'error_token'],
   [['folder_locked'], 'error_locked'],
-  [['folder_unreachable', 'folder_not_writable', 'folder_protected', 'folder_other_project'], 'error_folder'],
+  [['folder_other_project'], 'error_other_project'],
+  [['folder_unreachable', 'folder_not_writable', 'folder_protected'], 'error_folder'],
   [['disk_full'], 'error_disk'],
   [['listing_failed'], 'error_listing'],
   [['unexpected'], 'error_unexpected'],

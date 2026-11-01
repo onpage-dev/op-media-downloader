@@ -83,6 +83,7 @@
     "error_token": "Неверный токен",
     "error_folder": "Папка недоступна",
     "error_locked": "Папка занята другим компьютером",
+    "error_other_project": "Папка другого проекта",
     "error_disk": "Диск заполнен",
     "error_listing": "Список файлов не получен",
     "error_unexpected": "Неожиданная ошибка",

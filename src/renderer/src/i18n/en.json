@@ -83,6 +83,7 @@
     "error_token": "Invalid token",
     "error_folder": "Folder unreachable",
     "error_locked": "Folder in use by another computer",
+    "error_other_project": "Folder of another project",
     "error_disk": "Disk full",
     "error_listing": "File list not read",
     "error_unexpected": "Unexpected error",

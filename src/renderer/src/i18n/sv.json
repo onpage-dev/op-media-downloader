@@ -83,6 +83,7 @@
     "error_token": "Ogiltig token",
     "error_folder": "Mappen kan inte nås",
     "error_locked": "Mappen används av en annan dator",
+    "error_other_project": "Mapp för ett annat projekt",
     "error_disk": "Disken är full",
     "error_listing": "Fillistan kunde inte läsas",
     "error_unexpected": "Oväntat fel",

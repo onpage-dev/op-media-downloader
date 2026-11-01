@@ -83,6 +83,7 @@
     "error_token": "Jeton non valide",
     "error_folder": "Dossier inaccessible",
     "error_locked": "Dossier utilisé par un autre ordinateur",
+    "error_other_project": "Dossier d’un autre projet",
     "error_disk": "Disque plein",
     "error_listing": "Liste des fichiers non lue",
     "error_unexpected": "Erreur inattendue",

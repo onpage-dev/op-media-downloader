@@ -83,6 +83,7 @@
     "error_token": "Token non valido",
     "error_folder": "Cartella non raggiungibile",
     "error_locked": "Cartella in uso da un altro computer",
+    "error_other_project": "Cartella di un altro progetto",
     "error_disk": "Disco pieno",
     "error_listing": "Elenco dei file non letto",
     "error_unexpected": "Errore imprevisto",

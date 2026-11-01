@@ -83,6 +83,7 @@
     "error_token": "Ungültiges Token",
     "error_folder": "Ordner nicht erreichbar",
     "error_locked": "Ordner von anderem Computer belegt",
+    "error_other_project": "Ordner eines anderen Projekts",
     "error_disk": "Datenträger voll",
     "error_listing": "Dateiliste nicht abgerufen",
     "error_unexpected": "Unerwarteter Fehler",

@@ -83,6 +83,7 @@
     "error_token": "Token no válido",
     "error_folder": "Carpeta inaccesible",
     "error_locked": "Carpeta en uso por otro ordenador",
+    "error_other_project": "Carpeta de otro proyecto",
     "error_disk": "Disco lleno",
     "error_listing": "Lista de archivos no leída",
     "error_unexpected": "Error inesperado",
