@@ -119,6 +119,8 @@ const ONPAGE: Record<string, OnPageProject> = {
 /** Another On Page project, synced by another computer */
 const LISTINO: OnPageProject = { id: 120, label: 'Listino 2026' }
 const taken = params.has('taken')
+/** `cleanup`: Catalogo Piante 2026 waits for the confirmation of a large removal */
+const cleanup = params.has('cleanup')
 
 let created = 0
 function project(
@@ -213,9 +215,15 @@ let projects: ProjectView[] = params.has('empty')
         'D:\\Media\\Catalogo piante',
         folder('D:\\Media\\Catalogo piante', 'local', { free_bytes: 612 * GB }),
         idle({
-          plan: plan(48225, 31.8 * GB, 0, params.has('duplicates') ? { duplicates: 3 } : {}),
+          plan: plan(48225, 31.8 * GB, 0, {
+            ...(params.has('duplicates') ? { duplicates: 3 } : {}),
+            ...(cleanup ? { to_remove: 184 } : {}),
+          }),
           last_result: result(minutesAgo(5), 48225, 4, { downloaded: 128, already_present: 48097, bytes: 82 * MB }),
-          issues: params.has('duplicates') ? [issue('duplicates', 'warning', 3)] : [],
+          issues: [
+            ...(params.has('duplicates') ? [issue('duplicates', 'warning', 3)] : []),
+            ...(cleanup ? [issue('cleanup_needs_confirmation', 'warning', 184)] : []),
+          ],
         }),
       ),
       project(
