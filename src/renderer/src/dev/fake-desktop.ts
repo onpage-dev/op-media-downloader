@@ -3,7 +3,7 @@
  * renderer runs alone in a browser (dev server, captures). It is installed only
  * when the preload did not expose the real API: never inside Electron.
  * URL parameters: `empty` (no projects), `duplicates` (Catalogo Piante 2026 with
- * names with different files), `freeze` (no live progress), `fail=<code>` (the
+ * names with different files; `duplicates=many`: 3,000 of them), `freeze` (no live progress), `fail=<code>` (the
  * commands reject with that code, as main does: `project_busy`, `engine_timeout`…),
  * `taken` (another computer synced the folder of Schede tecniche with another On
  * Page project). A folder with «Listino 2026» in its path is that other
@@ -389,6 +389,22 @@ const duplicates: Record<string, DuplicateGroup[]> = {
       ],
     },
   ],
+}
+/** `duplicates=many`: thousands of names, as a big real project has (the tab under load) */
+if (params.get('duplicates') == 'many') {
+  duplicates.piante = Array.from({ length: 3000 }, (_, g): DuplicateGroup => ({
+    name: `pianta-${g + 1}.jpg`,
+    variants: Array.from({ length: 2 + (g % 2) }, (_, v) => ({
+      token: `many-${g}-${v}`,
+      size: 200_000 + g * 37 + v,
+      width: 1200,
+      height: 900,
+      chosen: v == 0,
+      uses: Array.from({ length: 4 + ((g + v) % 17) }, (_, u) =>
+        use('Prodotti', u % 2 ? 'Galleria' : 'Foto principale', `Pianta ${g + 1}`, 100_000 + g * 20 + u),
+      ),
+    })),
+  }))
 }
 
 /* ------------------------------------------------------------------ Events */

@@ -359,7 +359,8 @@ watch(
   },
 )
 
-async function loadTab(id: ProjectId, tab: InspectorTab): Promise<void> {
+/** `entering`: the tab (or the project) was just chosen, else the project's data changed */
+async function loadTab(id: ProjectId, tab: InspectorTab, entering: boolean): Promise<void> {
   if (tab == 'activity') {
     try {
       app.activity[id] = (await desktop().sync.getActivity(id, ACTIVITY_KEPT)).sort((a, b) => b.id - a.id)
@@ -367,7 +368,12 @@ async function loadTab(id: ProjectId, tab: InspectorTab): Promise<void> {
       fail('load activity', error)
     }
   }
-  if (tab == 'failed' || tab == 'duplicates') await loadPage(tab, id, true)
+  if (tab == 'failed' || tab == 'duplicates') {
+    // The tab shows at once, waiting for its first page: never first all the pages scrolled before
+    // (hundreds of rows drawn in the click would hold the window)
+    if (entering) pagedList<FailedEntry | DuplicateGroup>(app[tab], id).items = markRaw([])
+    await loadPage(tab, id, true)
+  }
 }
 
 function pagedList<T>(lists: Record<ProjectId, PagedList<T>>, id: ProjectId): PagedList<T> {
@@ -416,8 +422,8 @@ watch(
     () => selected.value?.runtime.last_result?.ended_at,
     () => selected.value?.runtime.plan?.created_at,
   ],
-  ([id, tab]) => {
-    if (id) void loadTab(id, tab)
+  ([id, tab], [previous_id, previous_tab]) => {
+    if (id) void loadTab(id, tab, id != previous_id || tab != previous_tab)
   },
 )
 

@@ -6,7 +6,7 @@
  * words for an empty list. It takes the list itself, not the project: the
  * states main pushes during a sync do not draw the rows again.
  */
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInfiniteScroll } from '../../composables/useInfiniteScroll'
 import * as icons from '../../lib/icons'
@@ -19,6 +19,17 @@ const emit = defineEmits<{ more: []; retry: [] }>()
 defineSlots<{ default(props: { items: T[] }): unknown }>()
 const { t } = useI18n()
 
+/**
+ * The rows come once the tab itself is on screen: a click on the tab never
+ * waits for them. A window that draws no frame (hidden) gets them shortly anyway
+ */
+const painted = ref(false)
+onMounted(() => {
+  const show = (): void => void (painted.value = true)
+  requestAnimationFrame(() => setTimeout(show))
+  setTimeout(show, 100)
+})
+
 const end = ref<HTMLElement>()
 useInfiniteScroll(
   end,
@@ -28,10 +39,14 @@ useInfiniteScroll(
 </script>
 
 <template>
-  <ul v-if="list?.items.length" class="overflow-hidden rounded-md border border-line bg-box">
+  <ul v-if="painted && list?.items.length" class="overflow-hidden rounded-md border border-line bg-box">
     <slot :items="list.items" />
   </ul>
-  <div v-if="!list || list.loading" class="flex items-center justify-center gap-sm py-lg text-secondary" role="status">
+  <div
+    v-if="!painted || !list || list.loading"
+    class="flex items-center justify-center gap-sm py-lg text-secondary"
+    role="status"
+  >
     <UiSpinner />
     {{ t('common.loading') }}
   </div>
