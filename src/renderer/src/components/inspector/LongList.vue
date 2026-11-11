@@ -42,8 +42,9 @@ useInfiniteScroll(
   <ul v-if="painted && list?.items.length" class="overflow-hidden rounded-md border border-line bg-box">
     <slot :items="list.items" />
   </ul>
+  <!-- Rows already loaded (back on the tab) leave no wait in the frame before them: it would flicker -->
   <div
-    v-if="!painted || !list || list.loading"
+    v-if="!list || list.loading || (!painted && !list.items.length)"
     class="flex items-center justify-center gap-sm py-lg text-secondary"
     role="status"
   >

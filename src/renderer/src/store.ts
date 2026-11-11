@@ -59,6 +59,8 @@ export interface PagedList<T> {
   query: string
   /** Bumped by every new search or reload: the answers of an older one are dropped */
   version: number
+  /** The project's data changed while the tab was not on screen: it loads again when it comes back */
+  stale?: boolean
   /** Duplicates only: names that are one field in different languages */
   language_variants?: number
 }
@@ -369,10 +371,28 @@ async function loadTab(id: ProjectId, tab: InspectorTab, entering: boolean): Pro
     }
   }
   if (tab == 'failed' || tab == 'duplicates') {
-    // The tab shows at once, waiting for its first page: never first all the pages scrolled before
-    // (hundreds of rows drawn in the click would hold the window)
-    if (entering) pagedList<FailedEntry | DuplicateGroup>(app[tab], id).items = markRaw([])
+    // Back on the tab, what it showed is still right (a run marks it stale) and shows at once: its
+    // first page only, the tab starts at the top anyway (hundreds of rows drawn in the click would
+    // hold the window), the next ones come back from the service as the end comes near
+    const list: PagedList<FailedEntry | DuplicateGroup> | undefined = app[tab][id]
+    if (entering && list?.items.length && !list.stale && !list.error) {
+      if (list.items.length > PAGE_SIZE || list.loading) {
+        // A page still on its way was asked for the longer list: dropped
+        list.version++
+        list.loading = false
+        list.items = markRaw(list.items.slice(0, PAGE_SIZE))
+      }
+      return
+    }
     await loadPage(tab, id, true)
+  }
+}
+
+/** The project's data changed: the long lists not on screen load again when their tab comes back */
+function markStale(id: ProjectId, shown: InspectorTab): void {
+  for (const kind of ['failed', 'duplicates'] as const) {
+    const list = app[kind][id]
+    if (list && kind != shown) list.stale = true
   }
 }
 
@@ -389,6 +409,7 @@ async function loadPage(kind: PagedKind, id: ProjectId, reset: boolean): Promise
   const version = reset ? ++list.version : list.version
   list.loading = true
   list.error = false
+  if (reset) list.stale = false
   try {
     const query = { offset: reset ? 0 : list.items.length, limit: PAGE_SIZE, query: list.query || undefined }
     const page =
@@ -423,7 +444,10 @@ watch(
     () => selected.value?.runtime.plan?.created_at,
   ],
   ([id, tab], [previous_id, previous_tab]) => {
-    if (id) void loadTab(id, tab, id != previous_id || tab != previous_tab)
+    if (!id) return
+    const entering = id != previous_id || tab != previous_tab
+    if (!entering) markStale(id, tab)
+    void loadTab(id, tab, entering)
   },
 )
 
