@@ -64,18 +64,31 @@ impl FolderSession {
         let project = &job.project;
         let folder = normalize(&project.folder);
         if is_protected_path(&folder) {
-            return Err(JobError::with_detail(IssueCode::FolderProtected, "This folder cannot be used", path_text(&folder)).into());
+            return Err(JobError::with_detail(
+                IssueCode::FolderProtected,
+                "This folder cannot be used",
+                path_text(&folder),
+            )
+            .into());
         }
-        if let Some(other) = options
-            .project_folders
-            .iter()
-            .find(|f| f.id != project.id && (is_inside(&folder, Path::new(&f.folder)) || is_inside(Path::new(&f.folder), &folder)))
-        {
-            return Err(JobError::with_detail(IssueCode::FolderProtected, "The folder is used by another project", other.id.clone()).into());
+        if let Some(other) = options.project_folders.iter().find(|f| {
+            f.id != project.id && (is_inside(&folder, Path::new(&f.folder)) || is_inside(Path::new(&f.folder), &folder))
+        }) {
+            return Err(JobError::with_detail(
+                IssueCode::FolderProtected,
+                "The folder is used by another project",
+                other.id.clone(),
+            )
+            .into());
         }
         let root = root_of(&folder);
         if !reachable(&root, options.reach_timeout, Some(job.signal())).await? {
-            return Err(JobError::with_detail(IssueCode::FolderUnreachable, "The folder cannot be reached", path_text(&root)).into());
+            return Err(JobError::with_detail(
+                IssueCode::FolderUnreachable,
+                "The folder cannot be reached",
+                path_text(&root),
+            )
+            .into());
         }
         job.check()?;
         let data_dir = folder.join(DATA_DIR);
@@ -148,15 +161,16 @@ impl FolderSession {
     /// unless the user chose the folder for this token (a new project, another
     /// token or folder): then the folder becomes this project's.
     pub fn bind(&self, project: &OnPageProject, take_over: bool) -> Result<()> {
-        if let Some(bound) = self.manifest.onpage_project() {
-            if bound.id != project.id && !take_over {
-                return Err(JobError::with_detail(
-                    IssueCode::FolderOtherProject,
-                    "The folder is synced with another On Page project",
-                    bound.label,
-                )
-                .into());
-            }
+        if let Some(bound) = self.manifest.onpage_project()
+            && bound.id != project.id
+            && !take_over
+        {
+            return Err(JobError::with_detail(
+                IssueCode::FolderOtherProject,
+                "The folder is synced with another On Page project",
+                bound.label,
+            )
+            .into());
         }
         self.manifest.bind(project);
         Ok(())
@@ -189,9 +203,10 @@ impl FolderSession {
                 }
                 if stat.name_size.is_some() && scan.data_tokens.contains(&candidate.token) {
                     let blob = self.data_dir.join(&candidate.token);
-                    stat.same_file = tokio::task::spawn_blocking(move || same_file::is_same_file(name, blob).unwrap_or(false))
-                        .await
-                        .unwrap_or(false);
+                    stat.same_file =
+                        tokio::task::spawn_blocking(move || same_file::is_same_file(name, blob).unwrap_or(false))
+                            .await
+                            .unwrap_or(false);
                 }
                 adoption.lock().insert(candidate.key.clone(), stat);
                 Ok(())
@@ -231,10 +246,16 @@ impl FolderSession {
             0
         };
         let needed = contents + copied;
-        if let Some(free) = free_space(&self.folder).await {
-            if free > 0 && free < needed {
-                return Err(JobError::with_detail(IssueCode::DiskFull, "Not enough free space", format!("{needed} bytes needed, {free} free")).into());
-            }
+        if let Some(free) = free_space(&self.folder).await
+            && free > 0
+            && free < needed
+        {
+            return Err(JobError::with_detail(
+                IssueCode::DiskFull,
+                "Not enough free space",
+                format!("{needed} bytes needed, {free} free"),
+            )
+            .into());
         }
         Ok(())
     }

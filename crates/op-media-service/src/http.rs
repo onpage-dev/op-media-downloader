@@ -139,22 +139,33 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn retries_retryable_errors_only() {
         let mut calls = 0;
-        let result: Result<()> = with_retry(&API_RETRY, None, |_, _, _| {}, |_| {
-            calls += 1;
-            async { Err(Error::Http { status: 404, retry_after: None }) }
-        })
+        let result: Result<()> = with_retry(
+            &API_RETRY,
+            None,
+            |_, _, _| {},
+            |_| {
+                calls += 1;
+                async { Err(Error::Http { status: 404, retry_after: None }) }
+            },
+        )
         .await;
         assert!(matches!(result, Err(Error::Http { status: 404, .. })));
         assert_eq!(calls, 1);
 
         let mut calls = 0;
-        let result = with_retry(&API_RETRY, None, |_, _, _| {}, |attempt| {
-            calls += 1;
-            async move {
-                if attempt < 3 { Err(Error::Http { status: 503, retry_after: None }) } else { Ok(attempt) }
-            }
-        })
-        .await;
+        let result =
+            with_retry(
+                &API_RETRY,
+                None,
+                |_, _, _| {},
+                |attempt| {
+                    calls += 1;
+                    async move {
+                        if attempt < 3 { Err(Error::Http { status: 503, retry_after: None }) } else { Ok(attempt) }
+                    }
+                },
+            )
+            .await;
         assert_eq!(result.unwrap(), 3);
         assert_eq!(calls, 3);
     }

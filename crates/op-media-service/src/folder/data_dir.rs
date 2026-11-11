@@ -49,7 +49,9 @@ async fn names(dir: &Path) -> std::io::Result<Vec<String>> {
 pub async fn data_dir_owner(data_dir: &Path) -> Result<DataDirOwner> {
     let entries = match names(data_dir).await {
         Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(DataDirOwner::Missing),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(DataDirOwner::Missing);
+        }
         Err(error) => return Err(error.into()),
     };
     if entries.iter().any(|n| n == MANIFEST_FILE || n == LINK_JSON_FILE) {
@@ -62,7 +64,9 @@ pub async fn data_dir_owner(data_dir: &Path) -> Result<DataDirOwner> {
 /// call slowly), and data/ itself when nothing else is left. The lock is not
 /// removed: its holder releases it last, once data/ is empty.
 pub async fn remove_own_data_entries(data_dir: &Path) -> (u64, u64) {
-    let Ok(entries) = names(data_dir).await else { return (0, 0) };
+    let Ok(entries) = names(data_dir).await else {
+        return (0, 0);
+    };
     let removed = AtomicU64::new(0);
     let kept = AtomicU64::new(0);
     let entries: Vec<String> = entries.into_iter().filter(|n| n != LOCK_FILE).collect();
@@ -81,7 +85,11 @@ pub async fn remove_own_data_entries(data_dir: &Path) -> (u64, u64) {
                 // Never a whole folder: only what the app wrote
                 Err(_) => false,
             };
-            if gone { removed.fetch_add(1, Ordering::Relaxed) } else { kept.fetch_add(1, Ordering::Relaxed) };
+            if gone {
+                removed.fetch_add(1, Ordering::Relaxed)
+            } else {
+                kept.fetch_add(1, Ordering::Relaxed)
+            };
             Ok(())
         }
     })

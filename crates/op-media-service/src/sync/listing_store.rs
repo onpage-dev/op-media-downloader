@@ -61,7 +61,8 @@ impl ListingStore {
     }
 
     pub fn cache_file(&self, id: &str) -> PathBuf {
-        let safe: String = id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
+        let safe: String =
+            id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
         self.cache_dir.join(format!("{safe}.json.gz"))
     }
 
@@ -111,10 +112,10 @@ impl ListingStore {
     pub async fn resolved(&self, id: &str, token: &str) -> Option<Arc<ResolvedNames>> {
         {
             let kept = self.kept.lock();
-            if let Some(kept) = kept.get(id).filter(|k| k.token == token && k.at.elapsed() < self.max_age) {
-                if let Some(resolved) = &kept.resolved {
-                    return Some(resolved.clone());
-                }
+            if let Some(kept) = kept.get(id).filter(|k| k.token == token && k.at.elapsed() < self.max_age)
+                && let Some(resolved) = &kept.resolved
+            {
+                return Some(resolved.clone());
             }
         }
         let cache = self.read_cache(id).await?;
@@ -154,17 +155,22 @@ impl ListingStore {
         self.kept.lock().remove(id);
     }
 
-    fn put(&self, id: &str, token: &str, listing: Option<Arc<ListingResult>>, resolved: Option<Arc<ResolvedNames>>) -> Instant {
+    fn put(
+        &self,
+        id: &str,
+        token: &str,
+        listing: Option<Arc<ListingResult>>,
+        resolved: Option<Arc<ResolvedNames>>,
+    ) -> Instant {
         let generation = {
             let mut generation = self.generation.lock();
             *generation += 1;
             *generation
         };
         let at = Instant::now();
-        self.kept.lock().insert(
-            id.to_string(),
-            Kept { token: token.to_string(), listing, resolved, schema: None, at, generation },
-        );
+        self.kept
+            .lock()
+            .insert(id.to_string(), Kept { token: token.to_string(), listing, resolved, schema: None, at, generation });
         // Dropped after max_age, unless something newer replaced it
         let kept = Arc::downgrade(&self.kept);
         let id = id.to_string();

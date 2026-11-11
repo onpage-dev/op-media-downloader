@@ -65,10 +65,7 @@ pub fn failed_labels(failed: &[FailedResource]) -> String {
 
 /// On Page compares dates as text: UTC, `YYYY-MM-DD HH:mm:ss`
 pub fn format_server_date(ms: i64) -> String {
-    chrono::DateTime::from_timestamp_millis(ms)
-        .unwrap_or_default()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
+    chrono::DateTime::from_timestamp_millis(ms).unwrap_or_default().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 /// Errors that stop the whole listing instead of one resource: stop, token refused, no network
@@ -137,10 +134,7 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
     let since = checkpoint.filter(|_| incremental).map(|at| format_server_date(at - options.margin.as_millis() as i64));
 
     let media = schema.media_resources();
-    let progress = Mutex::new(ListingProgress {
-        resources_total: media.len() as u64,
-        ..ListingProgress::default()
-    });
+    let progress = Mutex::new(ListingProgress { resources_total: media.len() as u64, ..ListingProgress::default() });
     let report = || (options.on_progress)(progress.lock().clone());
     let lang = schema.lang().to_string();
     let mut work: Vec<ResourceWork> = Vec::new();
@@ -153,12 +147,22 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
         let label = schema.resource_label(item.resource, &lang);
         progress.lock().resource_label = Some(label.clone());
         report();
-        let mut entry =
-            ResourceWork { resource_index, label: label.clone(), things: BTreeMap::new(), to_read: Vec::new(), pages_left: 0, failed: None };
+        let mut entry = ResourceWork {
+            resource_index,
+            label: label.clone(),
+            things: BTreeMap::new(),
+            to_read: Vec::new(),
+            pages_left: 0,
+            failed: None,
+        };
         let filter = not_empty_filter(&item.fields);
         let found: Result<()> = async {
             let ids = api.ids(&schema, item.resource, vec![filter.clone()]).await?;
-            let cached = if incremental { cache.and_then(|c| c.resources.iter().find(|r| r.id == item.resource.id)) } else { None };
+            let cached = if incremental {
+                cache.and_then(|c| c.resources.iter().find(|r| r.id == item.resource.id))
+            } else {
+                None
+            };
             match (cached, &since) {
                 (Some(cached), Some(since)) => {
                     let current: HashSet<i64> = ids.iter().copied().collect();
@@ -172,7 +176,8 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
                         .await?
                         .into_iter()
                         .collect();
-                    entry.to_read = ids.into_iter().filter(|id| !cached.things.contains_key(id) || updated.contains(id)).collect();
+                    entry.to_read =
+                        ids.into_iter().filter(|id| !cached.things.contains_key(id) || updated.contains(id)).collect();
                 }
                 _ => entry.to_read = ids,
             }
@@ -227,7 +232,10 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
                     let mut entry = work_ref[page.work].lock();
                     let mut seen = HashSet::new();
                     for thing in &things {
-                        let Some(id) = thing.get("id").and_then(|v| v.as_i64().or_else(|| v.as_str()?.parse().ok())) else { continue };
+                        let Some(id) = thing.get("id").and_then(|v| v.as_i64().or_else(|| v.as_str()?.parse().ok()))
+                        else {
+                            continue;
+                        };
                         seen.insert(id);
                         let files = thing_files(thing, &item.fields, &schema_ref.langs);
                         if files.is_empty() {

@@ -222,7 +222,10 @@ impl Schema {
     pub fn media_resources(&self) -> Vec<MediaResource<'_>> {
         self.resources
             .iter()
-            .map(|resource| MediaResource { resource, fields: resource.fields.iter().filter(|f| f.is_media()).collect() })
+            .map(|resource| MediaResource {
+                resource,
+                fields: resource.fields.iter().filter(|f| f.is_media()).collect(),
+            })
             .filter(|r| !r.fields.is_empty())
             .collect()
     }
@@ -233,7 +236,12 @@ impl Schema {
         let resources: Vec<Value> = self
             .media_resources()
             .iter()
-            .map(|m| json!([m.resource.id, m.fields.iter().map(|f| json!([f.id, f.kind, f.is_translatable])).collect::<Vec<_>>()]))
+            .map(|m| {
+                json!([
+                    m.resource.id,
+                    m.fields.iter().map(|f| json!([f.id, f.kind, f.is_translatable])).collect::<Vec<_>>()
+                ])
+            })
             .collect();
         // The keys in this order, as 2.0 wrote them
         let shape = format!(
@@ -263,7 +271,9 @@ pub fn thing_files(thing: &Value, fields: &[&Field], langs: &[String]) -> Vec<Re
                 Some(lang) => field.identifier(lang),
                 None => field.name.clone(),
             };
-            let Some(files) = values.get(&key).and_then(Value::as_array) else { continue };
+            let Some(files) = values.get(&key).and_then(Value::as_array) else {
+                continue;
+            };
             let files = if field.is_multiple { &files[..] } else { &files[..files.len().min(1)] };
             for file in files {
                 let token = match &file["token"] {
@@ -350,7 +360,8 @@ impl Api {
             let attempt = async move {
                 let response = request.send().await?;
                 let status = response.status();
-                let retry_after = parse_retry_after(response.headers().get("retry-after").and_then(|v| v.to_str().ok()));
+                let retry_after =
+                    parse_retry_after(response.headers().get("retry-after").and_then(|v| v.to_str().ok()));
                 let date = response
                     .headers()
                     .get("date")
@@ -417,7 +428,13 @@ impl Api {
     }
 
     /// The things with these ids, only the fields named
-    pub async fn things(&self, schema: &Schema, resource: &Resource, fields: &[&str], ids: &[i64]) -> Result<Vec<Value>> {
+    pub async fn things(
+        &self,
+        schema: &Schema,
+        resource: &Resource,
+        fields: &[&str],
+        ids: &[i64],
+    ) -> Result<Vec<Value>> {
         let filters = vec![id_in(schema, resource, ids)];
         let fields = fields.iter().map(|f| json!(f)).collect();
         let body = Self::things_body(schema, resource, filters, fields, "list");
@@ -527,7 +544,8 @@ pub fn storage_link(domain: &str, token: &str, name: &str) -> String {
     url
 }
 
-const IMAGE_FORMATS: &[&str] = &["png", "jpg", "jpeg", "webp", "gif", "eps", "dwg", "svg", "tif", "tiff", "pdf", "psd", "ai"];
+const IMAGE_FORMATS: &[&str] =
+    &["png", "jpg", "jpeg", "webp", "gif", "eps", "dwg", "svg", "tif", "tiff", "pdf", "psd", "ai"];
 
 /// A 100×100 preview, for images
 pub fn thumbnail_link(domain: &str, token: &str, name: &str) -> Option<String> {

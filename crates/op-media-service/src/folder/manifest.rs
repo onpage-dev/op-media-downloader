@@ -159,7 +159,9 @@ impl Manifest {
                 return Err(Error::Job(JobError::with_detail(
                     IssueCode::FolderProtected,
                     "The folder was synced by a newer version of the app",
-                    format!("The folder was synced by a newer version of the app (data/{MANIFEST_FILE} version {version})"),
+                    format!(
+                        "The folder was synced by a newer version of the app (data/{MANIFEST_FILE} version {version})"
+                    ),
                 )));
             }
             let files = json.as_ref().and_then(|j| j.get("files")).and_then(Value::as_object);
@@ -170,7 +172,9 @@ impl Manifest {
                     state.onpage_project = json.get("onpage_project").and_then(onpage_project);
                     state.written_project = state.onpage_project.clone();
                     for (name, entry) in files {
-                        let Some(token) = entry.get("token").and_then(Value::as_str) else { continue };
+                        let Some(token) = entry.get("token").and_then(Value::as_str) else {
+                            continue;
+                        };
                         if !valid_name(name) || !is_safe_token(token) {
                             continue;
                         }
@@ -194,26 +198,28 @@ impl Manifest {
             recovered = true;
         }
         // 1.x: { "<name>": "<token>" }
-        if let Some(text) = read_text(&data_dir.join(LINK_JSON_FILE)).await? {
-            if let Some(Value::Object(links)) = serde_json::from_str::<Value>(&text).ok() {
-                {
-                    let mut state = manifest.state.lock();
-                    for (name, token) in links {
-                        let Some(token) = token.as_str() else { continue };
-                        if valid_name(&name) && is_safe_token(token) {
-                            let entry = ManifestEntry {
-                                token: token.to_string(),
-                                size: None,
-                                mode: ManifestMode::Unknown,
-                                remote_name: Some(name.clone()),
-                            };
-                            state.put(name, entry);
-                        }
+        if let Some(text) = read_text(&data_dir.join(LINK_JSON_FILE)).await?
+            && let Ok(Value::Object(links)) = serde_json::from_str::<Value>(&text)
+        {
+            {
+                let mut state = manifest.state.lock();
+                for (name, token) in links {
+                    let Some(token) = token.as_str() else {
+                        continue;
+                    };
+                    if valid_name(&name) && is_safe_token(token) {
+                        let entry = ManifestEntry {
+                            token: token.to_string(),
+                            size: None,
+                            mode: ManifestMode::Unknown,
+                            remote_name: Some(name.clone()),
+                        };
+                        state.put(name, entry);
                     }
-                    state.changes = state.files.len() as u64;
                 }
-                return Ok(ManifestLoad { manifest, source: ManifestSource::LinkJson, recovered });
+                state.changes = state.files.len() as u64;
             }
+            return Ok(ManifestLoad { manifest, source: ManifestSource::LinkJson, recovered });
         }
         Ok(ManifestLoad { manifest, source: ManifestSource::Empty, recovered })
     }
@@ -249,10 +255,10 @@ impl Manifest {
     pub fn set(&self, name: &str, entry: ManifestEntry) {
         let mut state = self.state.lock();
         let key = name_key(name);
-        if let Some(previous) = state.keys.get(&key).cloned() {
-            if previous != name {
-                state.files.remove(&previous);
-            }
+        if let Some(previous) = state.keys.get(&key).cloned()
+            && previous != name
+        {
+            state.files.remove(&previous);
         }
         state.files.insert(name.to_string(), entry);
         state.keys.insert(key, name.to_string());

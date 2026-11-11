@@ -111,19 +111,19 @@ impl ActivityLog {
 
     /// Updates an entry in place (in-flight progress, final outcome)
     pub fn update(&mut self, id: u64, patch: ActivityPatch) {
-        let Some(position) = self.position(id) else { return };
+        let Some(position) = self.position(id) else {
+            return;
+        };
         let entry = &mut self.ring[position];
         let progress_only = patch.outcome.is_none() && patch.reason.is_none() && patch.name.is_none();
-        if progress_only {
-            if let Some(Some(progress)) = patch.progress {
-                let step = (progress - entry.progress.unwrap_or(0.0)).abs();
-                entry.progress = Some(progress);
-                if step < PROGRESS_STEP {
-                    return;
-                }
-                self.changed.insert(id, ());
+        if progress_only && let Some(Some(progress)) = patch.progress {
+            let step = (progress - entry.progress.unwrap_or(0.0)).abs();
+            entry.progress = Some(progress);
+            if step < PROGRESS_STEP {
                 return;
             }
+            self.changed.insert(id, ());
+            return;
         }
         if let Some(outcome) = patch.outcome {
             entry.outcome = outcome;
@@ -234,7 +234,10 @@ mod tests {
         assert!(log.take_changed().is_empty(), "small progress steps wait");
         log.update(id, ActivityPatch { progress: Some(Some(0.5)), ..Default::default() });
         assert_eq!(log.take_changed().len(), 1);
-        log.update(id, ActivityPatch { outcome: Some(ActivityOutcome::Failed), progress: Some(None), ..Default::default() });
+        log.update(
+            id,
+            ActivityPatch { outcome: Some(ActivityOutcome::Failed), progress: Some(None), ..Default::default() },
+        );
         let changed = log.take_changed();
         assert_eq!(changed[0].outcome, ActivityOutcome::Failed);
         assert_eq!(changed[0].progress, None);

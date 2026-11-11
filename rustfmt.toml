@@ -1,0 +1,3 @@
+# As Prettier for the rest of the repository
+max_width = 120
+use_small_heuristics = "Max"

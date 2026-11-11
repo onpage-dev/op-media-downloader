@@ -5,7 +5,9 @@ use std::path::Path;
 
 use super::manifest::TEMP_PREFIX;
 use crate::error::{Error, Result, io_code};
-use crate::fsx::{flush_file, is_transient_lock_error, path_exists, random_hex, rename_with_retry, unlink_quiet, with_lock_retry};
+use crate::fsx::{
+    flush_file, is_transient_lock_error, path_exists, random_hex, rename_with_retry, unlink_quiet, with_lock_retry,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaceMode {
@@ -83,10 +85,11 @@ async fn link_or_copy(blob: &Path, dest: &Path, hardlinks: Option<bool>, exclusi
 
 /// A rename or removal refused by a lock that did not go away: on Windows, the file is open somewhere
 fn in_use(error: Error, name: &str) -> Error {
-    if cfg!(windows) && is_transient_lock_error(&error) {
-        if let Error::Io(source) = error {
-            return Error::InUse { name: name.to_string(), source };
-        }
+    if cfg!(windows)
+        && is_transient_lock_error(&error)
+        && let Error::Io(source) = error
+    {
+        return Error::InUse { name: name.to_string(), source };
     }
     error
 }

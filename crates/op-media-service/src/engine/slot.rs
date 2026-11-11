@@ -121,6 +121,8 @@ pub struct Slot {
     pub withheld: Mutex<Vec<String>>,
     /// Notified when a job or a deletion ends
     pub done: Notify,
+    /// A job has ended and its result is being sent
+    pub ending: AtomicBool,
     /// Bumped by every send: a delayed send of an older state gives way
     sends: AtomicU64,
     sink: EventSink,
@@ -130,7 +132,13 @@ pub struct Slot {
 }
 
 impl Slot {
-    pub fn new(id: &str, sink: EventSink, handle: Handle, state_interval: Duration, activity_interval: Duration) -> Slot {
+    pub fn new(
+        id: &str,
+        sink: EventSink,
+        handle: Handle,
+        state_interval: Duration,
+        activity_interval: Duration,
+    ) -> Slot {
         Slot {
             id: id.to_string(),
             activity: Mutex::new(ActivityLog::new()),
@@ -141,6 +149,7 @@ impl Slot {
             deleting: AtomicBool::new(false),
             withheld: Mutex::new(Vec::new()),
             done: Notify::new(),
+            ending: AtomicBool::new(false),
             sends: AtomicU64::new(0),
             sink,
             handle,
@@ -162,7 +171,7 @@ impl Slot {
     pub async fn wait_idle(&self) {
         loop {
             let notified = self.done.notified();
-            if !self.busy() {
+            if !self.busy() && !self.ending.load(Ordering::SeqCst) {
                 return;
             }
             notified.await;
@@ -343,11 +352,6 @@ impl Slot {
             view.runtime.clone()
         };
         (self.sink)(ServiceEvent::State { project_id: self.id.clone(), runtime });
-    }
-
-    /// The runtime as last built (tests, the first state of a forgotten job)
-    pub fn runtime(&self) -> ProjectRuntime {
-        self.view.lock().runtime.clone()
     }
 }
 

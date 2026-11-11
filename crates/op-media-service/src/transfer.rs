@@ -111,10 +111,10 @@ async fn transfer(options: &Download<'_>, temp: &Path) -> Result<u64> {
     drop(response);
 
     // The network part is over: checking, flushing and renaming are disk work
-    if let Some(expected) = expected {
-        if written != expected {
-            return Err(Error::SizeMismatch { expected, actual: written });
-        }
+    if let Some(expected) = expected
+        && written != expected
+    {
+        return Err(Error::SizeMismatch { expected, actual: written });
     }
     writer.flush().await.map_err(Error::Disk)?;
     let file = writer.into_inner();

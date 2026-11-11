@@ -51,10 +51,10 @@ pub async fn delete_project_files(project: &ServiceProject, options: &DeleteOpti
         let work: Result<()> = async {
             let loaded = Manifest::load(&data_dir, &project.id).await?;
             // Taken over by another On Page project since: the names are that project's now
-            if let (Some(bound), Some(last)) = (loaded.manifest.onpage_project(), project.onpage_project_id) {
-                if bound.id != last {
-                    return Err(Error::Other(format!("folder_other_project: {}", bound.label)));
-                }
+            if let (Some(bound), Some(last)) = (loaded.manifest.onpage_project(), project.onpage_project_id)
+                && bound.id != last
+            {
+                return Err(Error::Other(format!("folder_other_project: {}", bound.label)));
             }
             let scan = scan_folder(&folder).await?;
             let entries = loaded.manifest.names();
@@ -62,7 +62,9 @@ pub async fn delete_project_files(project: &ServiceProject, options: &DeleteOpti
                 let (scan, folder, removed) = (&scan, &folder, &removed);
                 async move {
                     // Exactly our name, as the disk gives it back (decomposed on macOS), and a plain file
-                    let Some(entry) = scan.entries.get(&name_key(name)) else { return Ok(()) };
+                    let Some(entry) = scan.entries.get(&name_key(name)) else {
+                        return Ok(());
+                    };
                     if entry.kind != EntryType::File || !same_name(&entry.name, name) {
                         return Ok(());
                     }

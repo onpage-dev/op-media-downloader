@@ -48,16 +48,25 @@ impl fmt::Display for JobError {
 #[derive(Debug)]
 pub enum Error {
     /// A non-2xx answer from On Page or from the storage
-    Http { status: u16, retry_after: Option<Duration> },
+    Http {
+        status: u16,
+        retry_after: Option<Duration>,
+    },
     /// No answer in time
     Timeout(TimeoutStage),
-    SizeMismatch { expected: u64, actual: u64 },
+    SizeMismatch {
+        expected: u64,
+        actual: u64,
+    },
     /// The user (or the job) stopped the work
     Aborted,
     /// A name in the folder that the app did not create blocks a remote file
     Conflict(String),
     /// Windows: the file is open in another program, it cannot be replaced or removed now
-    InUse { name: String, source: io::Error },
+    InUse {
+        name: String,
+        source: io::Error,
+    },
     /// A file system error of a download (the temporary file, a write, the
     /// flush, the rename): the folder's problem. A share that hiccups gives
     /// socket codes (ECONNRESET, ETIMEDOUT, EPIPE) that must not pass for
@@ -86,7 +95,9 @@ impl fmt::Display for Error {
                     TimeoutStage::Request => "request",
                 }
             ),
-            Error::SizeMismatch { expected, actual } => write!(f, "Expected {expected} bytes, got {actual}"),
+            Error::SizeMismatch { expected, actual } => {
+                write!(f, "Expected {expected} bytes, got {actual}")
+            }
             Error::Aborted => f.write_str("Aborted"),
             Error::Conflict(name) => write!(f, "\"{name}\" already exists and was not created by the app"),
             Error::InUse { name, .. } => write!(f, "\"{name}\" is open in another program"),
@@ -142,10 +153,10 @@ fn describe_chain(error: &dyn std::error::Error) -> String {
 
 /// The POSIX name of a file system or socket error, as libuv gives it
 pub fn io_code(error: &io::Error) -> Option<&'static str> {
-    if let Some(raw) = error.raw_os_error() {
-        if let Some(code) = os_code(raw) {
-            return Some(code);
-        }
+    if let Some(raw) = error.raw_os_error()
+        && let Some(code) = os_code(raw)
+    {
+        return Some(code);
     }
     use io::ErrorKind::*;
     Some(match error.kind() {
@@ -228,32 +239,32 @@ fn os_code(raw: i32) -> Option<&'static str> {
 fn os_code(raw: i32) -> Option<&'static str> {
     Some(match raw as u32 {
         2 | 3 | 15 | 53 | 67 | 161 | 1392 => "ENOENT", // FILE_NOT_FOUND, PATH_NOT_FOUND, INVALID_DRIVE, BAD_NETPATH, BAD_NET_NAME, BAD_PATHNAME, FILE_CORRUPT
-        5 => "EPERM",                                 // ACCESS_DENIED
-        6 => "EBADF",                                 // INVALID_HANDLE
-        19 => "EROFS",                                // WRITE_PROTECT
-        21 => "EAGAIN",                               // NOT_READY
-        23 | 1117 => "EIO",                           // CRC, IO_DEVICE
-        32 | 33 => "EBUSY",                           // SHARING_VIOLATION, LOCK_VIOLATION
-        39 | 112 => "ENOSPC",                         // HANDLE_DISK_FULL, DISK_FULL
-        50 => "ENOTSUP",                              // NOT_SUPPORTED
-        51 | 1231 => "ENETUNREACH",                   // REM_NOT_LIST, NETWORK_UNREACHABLE
-        55 => "ENODEV",                               // DEV_NOT_EXIST
-        59 | 64 => "ECONNRESET",                      // UNEXP_NET_ERR, NETNAME_DELETED
-        1 => "EISDIR",                                // INVALID_FUNCTION (FAT/exFAT links)
-        17 => "EXDEV",                                // NOT_SAME_DEVICE
-        80 | 183 => "EEXIST",                         // FILE_EXISTS, ALREADY_EXISTS
-        87 => "EINVAL",                               // INVALID_PARAMETER
-        111 | 206 => "ENAMETOOLONG",                  // BUFFER_OVERFLOW, FILENAME_EXCED_RANGE
-        121 => "ETIMEDOUT",                           // SEM_TIMEOUT
-        123 => "EINVAL",                              // INVALID_NAME
-        142 | 170 => "EBUSY",                         // BUSY_DRIVE, BUSY
-        145 => "ENOTEMPTY",                           // DIR_NOT_EMPTY
-        267 => "ENOTDIR",                             // DIRECTORY
-        1142 => "EMLINK",                             // TOO_MANY_LINKS
-        1224 => "EBUSY",                              // USER_MAPPED_FILE
-        1236 => "ECONNABORTED",                       // CONNECTION_ABORTED
-        1450 | 1453 => "ENOSPC",                      // NO_SYSTEM_RESOURCES, WORKING_SET_QUOTA
-        4390 => "EINVAL",                             // NOT_A_REPARSE_POINT
+        5 => "EPERM",                                  // ACCESS_DENIED
+        6 => "EBADF",                                  // INVALID_HANDLE
+        19 => "EROFS",                                 // WRITE_PROTECT
+        21 => "EAGAIN",                                // NOT_READY
+        23 | 1117 => "EIO",                            // CRC, IO_DEVICE
+        32 | 33 => "EBUSY",                            // SHARING_VIOLATION, LOCK_VIOLATION
+        39 | 112 => "ENOSPC",                          // HANDLE_DISK_FULL, DISK_FULL
+        50 => "ENOTSUP",                               // NOT_SUPPORTED
+        51 | 1231 => "ENETUNREACH",                    // REM_NOT_LIST, NETWORK_UNREACHABLE
+        55 => "ENODEV",                                // DEV_NOT_EXIST
+        59 | 64 => "ECONNRESET",                       // UNEXP_NET_ERR, NETNAME_DELETED
+        1 => "EISDIR",                                 // INVALID_FUNCTION (FAT/exFAT links)
+        17 => "EXDEV",                                 // NOT_SAME_DEVICE
+        80 | 183 => "EEXIST",                          // FILE_EXISTS, ALREADY_EXISTS
+        87 => "EINVAL",                                // INVALID_PARAMETER
+        111 | 206 => "ENAMETOOLONG",                   // BUFFER_OVERFLOW, FILENAME_EXCED_RANGE
+        121 => "ETIMEDOUT",                            // SEM_TIMEOUT
+        123 => "EINVAL",                               // INVALID_NAME
+        142 | 170 => "EBUSY",                          // BUSY_DRIVE, BUSY
+        145 => "ENOTEMPTY",                            // DIR_NOT_EMPTY
+        267 => "ENOTDIR",                              // DIRECTORY
+        1142 => "EMLINK",                              // TOO_MANY_LINKS
+        1224 => "EBUSY",                               // USER_MAPPED_FILE
+        1236 => "ECONNABORTED",                        // CONNECTION_ABORTED
+        1450 | 1453 => "ENOSPC",                       // NO_SYSTEM_RESOURCES, WORKING_SET_QUOTA
+        4390 => "EINVAL",                              // NOT_A_REPARSE_POINT
         10054 => "ECONNRESET",
         10053 => "ECONNABORTED",
         10060 => "ETIMEDOUT",

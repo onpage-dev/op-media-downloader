@@ -69,7 +69,9 @@ pub fn is_inside(a: &Path, b: &Path) -> bool {
 }
 
 fn is_share_root(text: &str) -> bool {
-    let Some(rest) = text.strip_prefix(r"\\") else { return false };
+    let Some(rest) = text.strip_prefix(r"\\") else {
+        return false;
+    };
     let parts: Vec<&str> = rest.trim_end_matches('\\').split('\\').collect();
     parts.len() == 2 && parts.iter().all(|p| !p.is_empty())
 }
@@ -106,11 +108,24 @@ pub fn is_protected_path(path: &Path) -> bool {
         return home.and_then(|h| h.parent().map(Path::to_path_buf)).is_some_and(|users| same_path(&resolved, &users));
     }
     let system: &[&str] = if cfg!(target_os = "macos") {
-        &["/System", "/Library", "/Applications", "/Users", "/usr", "/bin", "/sbin", "/etc", "/var", "/private", "/opt", "/Volumes"]
+        &[
+            "/System",
+            "/Library",
+            "/Applications",
+            "/Users",
+            "/usr",
+            "/bin",
+            "/sbin",
+            "/etc",
+            "/var",
+            "/private",
+            "/opt",
+            "/Volumes",
+        ]
     } else {
         &[
-            "/usr", "/bin", "/sbin", "/etc", "/var", "/proc", "/sys", "/dev", "/boot", "/root", "/home", "/opt", "/lib", "/media",
-            "/mnt", "/run",
+            "/usr", "/bin", "/sbin", "/etc", "/var", "/proc", "/sys", "/dev", "/boot", "/root", "/home", "/opt",
+            "/lib", "/media", "/mnt", "/run",
         ]
     };
     system.iter().any(|dir| same_path(&resolved, Path::new(dir)))
@@ -140,13 +155,26 @@ fn drive_kind(root: &Path) -> DestinationKind {
 fn network_fs(kind: &str) -> bool {
     matches!(
         kind.to_lowercase().as_str(),
-        "smbfs" | "cifs" | "smb3" | "smb2" | "afpfs" | "nfs" | "nfs4" | "webdav" | "davfs" | "fuse.sshfs" | "9p" | "ncpfs"
+        "smbfs"
+            | "cifs"
+            | "smb3"
+            | "smb2"
+            | "afpfs"
+            | "nfs"
+            | "nfs4"
+            | "webdav"
+            | "davfs"
+            | "fuse.sshfs"
+            | "9p"
+            | "ncpfs"
     )
 }
 
 #[cfg(target_os = "linux")]
 fn unix_kind(path: &Path) -> DestinationKind {
-    let Ok(mounts) = std::fs::read_to_string("/proc/mounts") else { return DestinationKind::Unknown };
+    let Ok(mounts) = std::fs::read_to_string("/proc/mounts") else {
+        return DestinationKind::Unknown;
+    };
     let best = mounts
         .lines()
         .filter_map(|line| {
@@ -155,7 +183,9 @@ fn unix_kind(path: &Path) -> DestinationKind {
         })
         .filter(|(mount, _)| is_inside(path, Path::new(mount)))
         .max_by_key(|(mount, _)| mount.len());
-    let Some((mount, fs)) = best else { return DestinationKind::Unknown };
+    let Some((mount, fs)) = best else {
+        return DestinationKind::Unknown;
+    };
     if network_fs(&fs) {
         return DestinationKind::Network;
     }
@@ -170,8 +200,12 @@ fn unix_kind(path: &Path) -> DestinationKind {
 fn unix_kind(path: &Path) -> DestinationKind {
     use std::ffi::{CStr, CString};
     use std::os::unix::ffi::OsStrExt;
-    let Some(existing) = path.ancestors().find(|p| p.exists()) else { return DestinationKind::Unknown };
-    let Ok(c_path) = CString::new(existing.as_os_str().as_bytes()) else { return DestinationKind::Unknown };
+    let Some(existing) = path.ancestors().find(|p| p.exists()) else {
+        return DestinationKind::Unknown;
+    };
+    let Ok(c_path) = CString::new(existing.as_os_str().as_bytes()) else {
+        return DestinationKind::Unknown;
+    };
     let mut stats: libc::statfs = unsafe { std::mem::zeroed() };
     // SAFETY: a NUL-terminated path and a valid out pointer
     if unsafe { libc::statfs(c_path.as_ptr(), &mut stats) } != 0 {
@@ -337,13 +371,12 @@ pub async fn inspect_folder(folder: &str, ctx: InspectContext<'_>) -> FolderInfo
                 own.extend(loaded.manifest.names().iter().map(|n| name_key(n)));
                 info.onpage_project = loaded.manifest.onpage_project();
             }
-            if let Some(lock) = read_lock(&data_dir).await {
-                if Some(lock.instance_id.as_str()) != ctx.instance_id
-                    && !is_stale(&lock, chrono::Utc::now().timestamp_millis(), super::lock::LOCK_STALE)
-                {
-                    problems.push(FolderProblem::Locked);
-                    problem_detail.get_or_insert(lock.host);
-                }
+            if let Some(lock) = read_lock(&data_dir).await
+                && Some(lock.instance_id.as_str()) != ctx.instance_id
+                && !is_stale(&lock, chrono::Utc::now().timestamp_millis(), super::lock::LOCK_STALE)
+            {
+                problems.push(FolderProblem::Locked);
+                problem_detail.get_or_insert(lock.host);
             }
         }
         if let Ok(entries) = read_entries(&resolved).await {
@@ -414,7 +447,12 @@ mod tests {
     async fn inspects_a_new_and_an_existing_folder() {
         let dir = tempfile::tempdir().unwrap();
         let folders = vec![ProjectFolder { id: "other".into(), folder: path_text(&dir.path().join("taken")) }];
-        let ctx = || InspectContext { project_id: None, project_folders: &folders, instance_id: None, reach_timeout: REACH_TIMEOUT };
+        let ctx = || InspectContext {
+            project_id: None,
+            project_folders: &folders,
+            instance_id: None,
+            reach_timeout: REACH_TIMEOUT,
+        };
         let info = inspect_folder(&path_text(&dir.path().join("new")), ctx()).await;
         assert!(!info.exists && info.writable, "{info:?}");
         assert!(info.problems.is_empty(), "{:?}", info.problems);

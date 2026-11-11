@@ -14,9 +14,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::Engine;
 use super::session::{FolderSession, PlanRequest, SessionOptions};
 use super::slot::{Job, Slot};
-use super::Engine;
 use crate::error::{Error, JobError, Result};
 use crate::models::*;
 use crate::onpage::storage_link;
@@ -62,10 +62,8 @@ async fn open_folder(ctx: &JobContext) -> Result<FolderSession> {
 async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
     let engine = &ctx.engine;
     let (id, token) = (&ctx.job.project.id, &ctx.job.project.token);
-    if reuse {
-        if let Some(fresh) = engine.listings.fresh(id, token) {
-            return Ok(fresh);
-        }
+    if reuse && let Some(fresh) = engine.listings.fresh(id, token) {
+        return Ok(fresh);
     }
     ctx.slot.set_phase(JobPhase::Listing);
     engine.listings.begin(id);
@@ -106,10 +104,10 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
             log: &log,
         })
         .await?;
-        if listing.complete {
-            if let Err(error) = engine.listings.write_cache(id, &listing.index).await {
-                ctx.log(LogLevel::Warn, format!("Listing cache not written: {}", error.detail()));
-            }
+        if listing.complete
+            && let Err(error) = engine.listings.write_cache(id, &listing.index).await
+        {
+            ctx.log(LogLevel::Warn, format!("Listing cache not written: {}", error.detail()));
         }
         for failed in &listing.failed_resources {
             ctx.log(LogLevel::Warn, format!("Collection {} not read: {}", failed.label, failed.error));
@@ -144,7 +142,12 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
 
 /// Scan and plan. What the plan holds back is what the user sees, and what
 /// a confirmation will cover; `confirmed` lets the names of one through.
-async fn compare(ctx: &JobContext, session: &FolderSession, listed: &Listed, confirmed: Option<&HashSet<String>>) -> Result<Plan> {
+async fn compare(
+    ctx: &JobContext,
+    session: &FolderSession,
+    listed: &Listed,
+    confirmed: Option<&HashSet<String>>,
+) -> Result<Plan> {
     let schema = &listed.listing.schema;
     // Before anything is linked or removed: the folder must be this On Page project's
     session.bind(&OnPageProject { id: schema.id, label: schema.label.clone() }, ctx.job.project.take_over_folder)?;
@@ -174,7 +177,10 @@ async fn compare(ctx: &JobContext, session: &FolderSession, listed: &Listed, con
 async fn execute(ctx: &JobContext, session: &FolderSession, plan: &Plan, reset_failed: bool) -> Result<ExecuteResult> {
     let engine = &ctx.engine;
     let slot = &ctx.slot;
-    let total = plan.renames.len() + plan.links.len() + plan.downloads.iter().map(|t| t.names.len()).sum::<usize>() + plan.remove_names.len();
+    let total = plan.renames.len()
+        + plan.links.len()
+        + plan.downloads.iter().map(|t| t.names.len()).sum::<usize>()
+        + plan.remove_names.len();
     let bytes_total: u64 = plan.downloads.iter().map(|t| t.size.unwrap_or(0)).sum();
     let concurrency = engine.concurrency();
     let progress = slot.set_progress(ProgressTracker::new(total as u64, bytes_total, concurrency as u64));
@@ -185,7 +191,9 @@ async fn execute(ctx: &JobContext, session: &FolderSession, plan: &Plan, reset_f
     let domain = engine.api_domain.clone();
     let storage_url = move |token: &str, name: &str| storage_link(&domain, token, name);
     let on_change = || slot.emit(false);
-    let on_stage = |stage: Stage| slot.set_phase(if stage == Stage::Downloads { JobPhase::Downloading } else { JobPhase::Finishing });
+    let on_stage = |stage: Stage| {
+        slot.set_phase(if stage == Stage::Downloads { JobPhase::Downloading } else { JobPhase::Finishing })
+    };
     let on_rate_limited = |_delay: Duration| {
         slot.set_rate_limited();
         slot.emit(false);
@@ -225,10 +233,10 @@ async fn execute(ctx: &JobContext, session: &FolderSession, plan: &Plan, reset_f
     let save_error = session.save().await;
     // The registry on the disk names this job's On Page project: the choice of the folder is done
     let (written, bound) = (session.manifest.written_project(), session.manifest.onpage_project());
-    if let (Some(written), Some(bound)) = (written, bound) {
-        if written.id == bound.id {
-            *ctx.job.folder_project.lock() = Some(written);
-        }
+    if let (Some(written), Some(bound)) = (written, bound)
+        && written.id == bound.id
+    {
+        *ctx.job.folder_project.lock() = Some(written);
     }
     if let Some(error) = &save_error {
         ctx.log(LogLevel::Error, format!("data/manifest.json not written: {}", error.detail()));
@@ -280,15 +288,20 @@ pub fn result_of_error(ctx: &JobContext, error: Error) -> SyncResult {
     if failure.is_none() && (error.is_aborted() || ctx.job.stopped()) {
         return SyncResult { total, ..result_of(ctx, SyncOutcome::Stopped) };
     }
-    let job_error = failure.clone().or_else(|| error.folder_job_error()).unwrap_or_else(|| {
-        JobError::with_detail(IssueCode::Unexpected, "Unexpected error", error.detail())
-    });
+    let job_error = failure
+        .clone()
+        .or_else(|| error.folder_job_error())
+        .unwrap_or_else(|| JobError::with_detail(IssueCode::Unexpected, "Unexpected error", error.detail()));
     if failure.is_none() && !matches!(error, Error::Job(_)) {
         ctx.log(LogLevel::Error, format!("Job {} failed: {}", ctx.job.kind.as_str(), error.detail()));
     }
     let issue = Issue {
         code: job_error.issue,
-        severity: if matches!(job_error.issue, IssueCode::Offline | IssueCode::RateLimited) { Severity::Warning } else { Severity::Error },
+        severity: if matches!(job_error.issue, IssueCode::Offline | IssueCode::RateLimited) {
+            Severity::Warning
+        } else {
+            Severity::Error
+        },
         count: None,
         detail: Some(job_error.detail.clone().unwrap_or(job_error.message.clone())),
         at: now_iso(),

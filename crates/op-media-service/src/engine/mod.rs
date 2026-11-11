@@ -36,6 +36,7 @@ use crate::sync::listing_store::ListingStore;
 /// batches while a job runs, `Result` once a job ended (after its last state).
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)] // moved once to the sink, never stored in bulk
 pub enum ServiceEvent {
     State { project_id: ProjectId, runtime: ProjectRuntime },
     Activity { project_id: ProjectId, entries: Vec<ActivityEntry> },
@@ -147,7 +148,13 @@ impl Engine {
             .lock()
             .entry(id.to_string())
             .or_insert_with(|| {
-                Arc::new(Slot::new(id, self.sink.clone(), self.handle.clone(), self.timings.state_interval, self.timings.activity_interval))
+                Arc::new(Slot::new(
+                    id,
+                    self.sink.clone(),
+                    self.handle.clone(),
+                    self.timings.state_interval,
+                    self.timings.activity_interval,
+                ))
             })
             .clone()
     }
@@ -243,8 +250,11 @@ impl MediaService {
     /// Apply the removals above the safety threshold the user confirmed: the
     /// ones the last plan held back, and only those
     pub fn confirm_cleanup(&self, project: ServiceProject) {
-        let confirmed: HashSet<String> =
-            self.engine.existing_slot(&project.id).map(|s| s.withheld.lock().iter().cloned().collect()).unwrap_or_default();
+        let confirmed: HashSet<String> = self
+            .engine
+            .existing_slot(&project.id)
+            .map(|s| s.withheld.lock().iter().cloned().collect())
+            .unwrap_or_default();
         self.start(project, JobKind::Cleanup, Box::new(move |ctx| run_cleanup(ctx, confirmed).boxed()));
     }
 
@@ -289,16 +299,23 @@ impl MediaService {
                     result_of_error(&ctx, Error::Other(format!("The job stopped unexpectedly: {what}")))
                 }
             };
+            // No job any more when the result goes out: whoever gets it may start the next one
+            ctx.slot.ending.store(true, Ordering::SeqCst);
             *ctx.slot.job.lock() = None;
             ctx.slot.end(result);
+            ctx.slot.ending.store(false, Ordering::SeqCst);
             ctx.slot.done.notify_waiters();
         });
     }
 
     /// The user's stop: what is in flight aborts, what is done stays
     pub fn stop(&self, project_id: &str) {
-        let Some(slot) = self.engine.existing_slot(project_id) else { return };
-        let Some(job) = slot.current_job() else { return };
+        let Some(slot) = self.engine.existing_slot(project_id) else {
+            return;
+        };
+        let Some(job) = slot.current_job() else {
+            return;
+        };
         if job.stopped() {
             return;
         }
@@ -357,16 +374,24 @@ impl MediaService {
         let engine = self.engine.clone();
         let task = self.engine.handle.spawn(async move {
             let mut ctx = engine.onpage_context(None);
-            ctx.policy = RetryPolicy { attempts: 2, max_retry_after: Duration::from_secs(5), ..engine.timings.api_policy };
+            ctx.policy =
+                RetryPolicy { attempts: 2, max_retry_after: Duration::from_secs(5), ..engine.timings.api_policy };
             ctx.timeout = Duration::from_secs(20);
             verify_token(&token, ctx).await
         });
-        task.await.unwrap_or(TokenCheck { ok: false, error: Some(TokenError::ProjectUnavailable), ..TokenCheck::default() })
+        task.await.unwrap_or(TokenCheck {
+            ok: false,
+            error: Some(TokenError::ProjectUnavailable),
+            ..TokenCheck::default()
+        })
     }
 
     /// The last events of a project (at most 1,000), oldest first
     pub fn activity(&self, project_id: &str, limit: Option<usize>) -> Vec<ActivityEntry> {
-        self.engine.existing_slot(project_id).map(|s| s.activity.lock().recent(limit.unwrap_or(1000))).unwrap_or_default()
+        self.engine
+            .existing_slot(project_id)
+            .map(|s| s.activity.lock().recent(limit.unwrap_or(1000)))
+            .unwrap_or_default()
     }
 
     /// A page of the files that failed in the last run

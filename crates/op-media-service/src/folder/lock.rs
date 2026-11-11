@@ -98,7 +98,9 @@ async fn read_lock_file(file: &Path) -> (bool, Option<LockInfo>) {
 
 #[cfg(unix)]
 fn process_alive(pid: i64) -> bool {
-    let Ok(pid) = libc::pid_t::try_from(pid) else { return false };
+    let Ok(pid) = libc::pid_t::try_from(pid) else {
+        return false;
+    };
     if pid <= 0 {
         return false;
     }
@@ -113,7 +115,9 @@ fn process_alive(pid: i64) -> bool {
 fn process_alive(pid: i64) -> bool {
     use windows_sys::Win32::Foundation::{CloseHandle, ERROR_ACCESS_DENIED, GetLastError, STILL_ACTIVE};
     use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
-    let Ok(pid) = u32::try_from(pid) else { return false };
+    let Ok(pid) = u32::try_from(pid) else {
+        return false;
+    };
     // SAFETY: plain Win32 calls; the handle is closed
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
@@ -231,7 +235,8 @@ impl Inner {
         .await;
         // A missed beat is not fatal, the next one retries; but after most of
         // the stale time without one, another computer may take the folder
-        if result.is_err() && (self.opts.now)() - *self.last_beat.lock() > (self.opts.stale.as_millis() as i64) * 3 / 4 {
+        if result.is_err() && (self.opts.now)() - *self.last_beat.lock() > (self.opts.stale.as_millis() as i64) * 3 / 4
+        {
             self.lose();
         }
     }

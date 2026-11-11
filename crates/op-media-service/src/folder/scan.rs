@@ -45,7 +45,9 @@ pub async fn read_entries(dir: &Path) -> Result<Vec<(String, EntryType)>> {
         let mut out = Vec::new();
         for entry in iter {
             let entry = entry?;
-            let Ok(name) = entry.file_name().into_string() else { continue };
+            let Ok(name) = entry.file_name().into_string() else {
+                continue;
+            };
             let kind = match entry.file_type() {
                 Ok(t) if t.is_file() => EntryType::File,
                 Ok(t) if t.is_dir() => EntryType::Dir,

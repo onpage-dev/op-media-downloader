@@ -20,7 +20,9 @@ pub async fn duplicates_page(
     domain: &str,
     log: impl Fn(String),
 ) -> Result<DuplicatePage, Error> {
-    let Some(resolved) = resolved.filter(|r| !r.duplicates.is_empty()) else { return Ok(DuplicatePage::default()) };
+    let Some(resolved) = resolved.filter(|r| !r.duplicates.is_empty()) else {
+        return Ok(DuplicatePage::default());
+    };
     let query = page.query.as_deref().map(|q| nfc(q.trim()).to_lowercase()).filter(|q| !q.is_empty());
     let matching: Vec<_> = match &query {
         Some(q) => resolved.duplicates.iter().filter(|g| g.key.contains(q.as_str())).collect(),
@@ -46,15 +48,23 @@ pub async fn duplicates_page(
     }
     let mut labels: HashMap<i64, String> = HashMap::new();
     for (resource_id, ids) in by_resource {
-        let Some(resource) = schema.resource(resource_id) else { continue };
-        let Some(label_field) = resource.fields.iter().find(|f| f.is_textual) else { continue };
+        let Some(resource) = schema.resource(resource_id) else {
+            continue;
+        };
+        let Some(label_field) = resource.fields.iter().find(|f| f.is_textual) else {
+            continue;
+        };
         let ids: Vec<i64> = ids.into_iter().collect();
         for chunk in ids.chunks(1000) {
             match api.things(&schema, resource, &[label_field.name.as_str()], chunk).await {
                 Ok(things) => {
                     for thing in things {
-                        let Some(id) = thing.get("id").and_then(Value::as_i64) else { continue };
-                        let value = thing["fields"].get(label_field.identifier(&lang)).and_then(|v| v.as_array()?.first().cloned());
+                        let Some(id) = thing.get("id").and_then(Value::as_i64) else {
+                            continue;
+                        };
+                        let value = thing["fields"]
+                            .get(label_field.identifier(&lang))
+                            .and_then(|v| v.as_array()?.first().cloned());
                         match value {
                             Some(Value::Null) | None => {}
                             Some(Value::String(s)) => {
@@ -79,7 +89,10 @@ pub async fn duplicates_page(
             .resource(use_.resource_id)
             .map(|r| schema.resource_label(r, &lang))
             .unwrap_or_else(|| use_.resource_id.to_string()),
-        field_label: schema.field(use_.field_id).map(|f| schema.field_label(f, &lang)).unwrap_or_else(|| use_.field_id.to_string()),
+        field_label: schema
+            .field(use_.field_id)
+            .map(|f| schema.field_label(f, &lang))
+            .unwrap_or_else(|| use_.field_id.to_string()),
         thing_id: use_.thing_id,
         thing_label: labels.get(&use_.thing_id).cloned(),
         lang: use_.lang.clone(),
@@ -109,4 +122,3 @@ pub async fn duplicates_page(
             .collect(),
     })
 }
-

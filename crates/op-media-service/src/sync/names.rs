@@ -177,7 +177,8 @@ pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
         // BTreeMap: things by id
         for (&thing_id, files) in &resource.things {
             for file in files {
-                let use_ = FileUse { resource_id: resource.id, thing_id, field_id: file.field_id, lang: file.lang.clone() };
+                let use_ =
+                    FileUse { resource_id: resource.id, thing_id, field_id: file.field_id, lang: file.lang.clone() };
                 if !is_safe_token(&file.token) {
                     invalid.push(InvalidFile { remote_name: file.name.clone(), token: file.token.clone(), use_ });
                     continue;
@@ -211,7 +212,11 @@ pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
                         uses: vec![winner.use_.clone()],
                     };
                     groups.push(GroupWork {
-                        group: DuplicateRaw { key: key.clone(), name: winner.local_name.clone(), variants: vec![chosen] },
+                        group: DuplicateRaw {
+                            key: key.clone(),
+                            name: winner.local_name.clone(),
+                            variants: vec![chosen],
+                        },
                         variants: HashMap::from([(winner.token.clone(), 0)]),
                         chosen_uses: HashSet::from([winner.use_.clone()]),
                     });
@@ -249,7 +254,9 @@ pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
                     if !chosen_tokens.contains(&file.token) {
                         continue;
                     }
-                    let Some(&work_index) = group_of.get(&name_key(&sanitize_name(&file.name))) else { continue };
+                    let Some(&work_index) = group_of.get(&name_key(&sanitize_name(&file.name))) else {
+                        continue;
+                    };
                     let work = &mut groups[work_index];
                     let chosen = &mut work.group.variants[0];
                     if chosen.token != file.token {
@@ -261,8 +268,12 @@ pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
                     if file.height.is_some() {
                         chosen.height = file.height;
                     }
-                    let use_ =
-                        FileUse { resource_id: resource.id, thing_id, field_id: file.field_id, lang: file.lang.clone() };
+                    let use_ = FileUse {
+                        resource_id: resource.id,
+                        thing_id,
+                        field_id: file.field_id,
+                        lang: file.lang.clone(),
+                    };
                     if work.chosen_uses.insert(use_.clone()) {
                         chosen.uses.push(use_);
                     }
@@ -276,9 +287,12 @@ pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
     ResolvedNames { desired, duplicates, invalid, language_variants }
 }
 
+/// resource, thing, field
+type FieldOfThing = (i64, i64, i64);
+
 /// The files of the group are one field of one item in different languages
 fn language_variant(group: &DuplicateRaw) -> bool {
-    let mut at: HashMap<(i64, i64, i64), Vec<(usize, Option<&str>)>> = HashMap::new();
+    let mut at: HashMap<FieldOfThing, Vec<(usize, Option<&str>)>> = HashMap::new();
     for (index, variant) in group.variants.iter().enumerate() {
         for use_ in &variant.uses {
             let others = at.entry((use_.resource_id, use_.thing_id, use_.field_id)).or_default();
@@ -309,7 +323,9 @@ mod tests {
         }
     }
 
-    fn index(resources: Vec<(i64, Vec<(i64, Vec<RemoteFile>)>)>) -> RemoteIndex {
+    type Things = Vec<(i64, Vec<RemoteFile>)>;
+
+    fn index(resources: Vec<(i64, Things)>) -> RemoteIndex {
         RemoteIndex {
             schema_id: 1,
             signature: "s".into(),

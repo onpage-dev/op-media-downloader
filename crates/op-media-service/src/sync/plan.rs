@@ -354,7 +354,10 @@ pub fn only_names(plan: &Plan, names: &HashSet<String>) -> Plan {
         downloads: plan
             .downloads
             .iter()
-            .map(|t| DownloadTask { names: t.names.iter().filter(|n| names.contains(&n.name)).cloned().collect(), ..t.clone() })
+            .map(|t| DownloadTask {
+                names: t.names.iter().filter(|n| names.contains(&n.name)).cloned().collect(),
+                ..t.clone()
+            })
             .filter(|t| !t.names.is_empty())
             .collect(),
         links: plan.links.iter().filter(|l| names.contains(&l.target.name)).cloned().collect(),
@@ -441,7 +444,10 @@ mod tests {
     fn manifest(files: &[(&str, &str)]) -> Manifest {
         let manifest = Manifest::new(Path::new("data"), "p");
         for (name, token) in files {
-            manifest.set(name, ManifestEntry { token: token.to_string(), size: None, mode: ManifestMode::Link, remote_name: None });
+            manifest.set(
+                name,
+                ManifestEntry { token: token.to_string(), size: None, mode: ManifestMode::Link, remote_name: None },
+            );
         }
         manifest
     }
@@ -492,7 +498,9 @@ mod tests {
     fn an_up_to_date_folder_has_nothing_to_do() {
         let p = plan(&[want("a.jpg", "t1")], &manifest(&[("a.jpg", "t1")]), &scan(&["a.jpg"], &["t1"]));
         assert_eq!(p.up_to_date, 1);
-        assert!(p.downloads.is_empty() && p.links.is_empty() && p.remove_names.is_empty() && p.remove_tokens.is_empty());
+        assert!(
+            p.downloads.is_empty() && p.links.is_empty() && p.remove_names.is_empty() && p.remove_tokens.is_empty()
+        );
     }
 
     #[test]
@@ -607,11 +615,15 @@ mod tests {
     #[test]
     fn plans_100_000_files_quickly() {
         let n = 100_000;
-        let desired: Vec<DesiredFile> = (0..n).map(|i| want(&format!("Prodotto-{i}-vista.jpg"), &format!("tok{i}"))).collect();
+        let desired: Vec<DesiredFile> =
+            (0..n).map(|i| want(&format!("Prodotto-{i}-vista.jpg"), &format!("tok{i}"))).collect();
         let m = Manifest::new(Path::new("data"), "p");
         let mut s = FolderScan::default();
         let mut add = |name: String, token: String| {
-            m.set(&name, ManifestEntry { token: token.clone(), size: None, mode: ManifestMode::Link, remote_name: None });
+            m.set(
+                &name,
+                ManifestEntry { token: token.clone(), size: None, mode: ManifestMode::Link, remote_name: None },
+            );
             s.entries.insert(name_key(&name), FolderEntry { name, kind: EntryType::File });
             s.data_tokens.insert(token);
         };

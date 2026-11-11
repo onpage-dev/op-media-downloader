@@ -17,7 +17,7 @@ use super::plan::{DownloadTask, LinkTask, Plan};
 use super::progress::{Counter, ProgressTracker};
 use super::queue::run_queue;
 use crate::error::{Error, FOLDER_GONE_CODES, JobError, NOT_WRITABLE_CODES, Result};
-use crate::folder::link::{PlaceMode, Place, place_name, probe_hard_links, remove_name, rename_name};
+use crate::folder::link::{Place, PlaceMode, place_name, probe_hard_links, remove_name, rename_name};
 use crate::folder::manifest::{Manifest, ManifestEntry, ManifestMode};
 use crate::fsx::{can_write, free_space, reachable};
 use crate::http::{RetryPolicy, with_retry};
@@ -119,7 +119,15 @@ impl<'a> Run<'a> {
         self.ctx.activity.lock().update(id, patch)
     }
 
-    fn record(&self, name: &str, token: &str, reason: FailureCode, detail: Option<String>, size: Option<u64>, attempts: u32) {
+    fn record(
+        &self,
+        name: &str,
+        token: &str,
+        reason: FailureCode,
+        detail: Option<String>,
+        size: Option<u64>,
+        attempts: u32,
+    ) {
         self.ctx.failed.lock().set(FailedEntry {
             name: name.to_string(),
             token: token.to_string(),
@@ -256,7 +264,10 @@ impl<'a> Run<'a> {
             Ok(()) => {
                 self.counts.linked.fetch_add(1, Ordering::Relaxed);
                 self.ctx.progress.count(Counter::Linked, 1);
-                self.add(NewActivity::new(&task.to, &task.token, task.entry.size, ActivityOutcome::Linked).same_as(&task.from));
+                self.add(
+                    NewActivity::new(&task.to, &task.token, task.entry.size, ActivityOutcome::Linked)
+                        .same_as(&task.from),
+                );
             }
             Err(error) => {
                 if let Some(reason) = self.handle(&error, task.entry.size).await? {
@@ -281,7 +292,9 @@ impl<'a> Run<'a> {
             Err(error) => {
                 if let Some(reason) = self.handle(&error, task.target.size).await? {
                     let code = link_failure(reason);
-                    self.add(NewActivity::new(name, &task.token, task.target.size, ActivityOutcome::Failed).reason(code));
+                    self.add(
+                        NewActivity::new(name, &task.token, task.target.size, ActivityOutcome::Failed).reason(code),
+                    );
                     self.record(name, &task.token, code, Some(error.detail()), task.target.size, 1);
                 }
             }
@@ -295,7 +308,8 @@ impl<'a> Run<'a> {
         self.guard()?;
         let ctx = self.ctx;
         let first = &task.names[0];
-        let entry = self.add(NewActivity::new(&first.name, &task.token, task.size, ActivityOutcome::Downloading).progress(0.0));
+        let entry =
+            self.add(NewActivity::new(&first.name, &task.token, task.size, ActivityOutcome::Downloading).progress(0.0));
         ctx.progress.in_flight(1);
         self.changed();
         let attempt_bytes = AtomicI64::new(0);
@@ -306,11 +320,11 @@ impl<'a> Run<'a> {
         let on_bytes = |delta: u64| {
             let done = attempt_bytes.fetch_add(delta as i64, Ordering::Relaxed) + delta as i64;
             ctx.progress.add_bytes(delta as i64);
-            if let Some(size) = *known_size.lock() {
-                if size > 0 {
-                    let ratio = (done as f64 / size as f64).min(1.0);
-                    self.update(entry, ActivityPatch { progress: Some(Some(ratio)), ..Default::default() });
-                }
+            if let Some(size) = *known_size.lock()
+                && size > 0
+            {
+                let ratio = (done as f64 / size as f64).min(1.0);
+                self.update(entry, ActivityPatch { progress: Some(Some(ratio)), ..Default::default() });
             }
         };
         let on_length = |length: u64| {
@@ -329,7 +343,10 @@ impl<'a> Run<'a> {
                 if matches!(error, Error::Http { status: 429, .. }) {
                     (ctx.on_rate_limited)(delay);
                 }
-                (ctx.log)(LogLevel::Debug, format!("Retry {attempt} for {} in {} ms: {}", task.token, delay.as_millis(), error.detail()));
+                (ctx.log)(
+                    LogLevel::Debug,
+                    format!("Retry {attempt} for {} in {} ms: {}", task.token, delay.as_millis(), error.detail()),
+                );
                 self.changed();
             },
             |_| {
@@ -366,10 +383,17 @@ impl<'a> Run<'a> {
                     self.changed();
                     return Ok(());
                 }
-                let Some(reason) = self.handle(&error, task.size).await? else { return Ok(()) };
+                let Some(reason) = self.handle(&error, task.size).await? else {
+                    return Ok(());
+                };
                 self.update(
                     entry,
-                    ActivityPatch { outcome: Some(ActivityOutcome::Failed), reason: Some(reason), progress: Some(None), ..Default::default() },
+                    ActivityPatch {
+                        outcome: Some(ActivityOutcome::Failed),
+                        reason: Some(reason),
+                        progress: Some(None),
+                        ..Default::default()
+                    },
                 );
                 let attempts = attempts.load(Ordering::Relaxed);
                 for target in &task.names {
@@ -403,7 +427,10 @@ impl<'a> Run<'a> {
                             },
                         );
                     } else {
-                        self.add(NewActivity::new(&target.name, &task.token, task.size, ActivityOutcome::Linked).same_as(&first.name));
+                        self.add(
+                            NewActivity::new(&target.name, &task.token, task.size, ActivityOutcome::Linked)
+                                .same_as(&first.name),
+                        );
                     }
                 }
                 Err(Error::Conflict(_)) => self.conflict(&target.name, &task.token, task.size),
@@ -414,7 +441,9 @@ impl<'a> Run<'a> {
                         break;
                     };
                     let code = link_failure(reason);
-                    self.add(NewActivity::new(&target.name, &task.token, task.size, ActivityOutcome::Failed).reason(code));
+                    self.add(
+                        NewActivity::new(&target.name, &task.token, task.size, ActivityOutcome::Failed).reason(code),
+                    );
                     self.record(&target.name, &task.token, code, Some(error.detail()), task.size, 1);
                 }
             }
@@ -456,7 +485,10 @@ impl<'a> Run<'a> {
                 // Not removed: it stays in the manifest and the next run tries again
                 if let Some(reason) = self.handle(&error, size).await? {
                     let reason = if reason == FailureCode::InUse { reason } else { FailureCode::WriteError };
-                    self.add(NewActivity { token, ..NewActivity::new(name, "", size, ActivityOutcome::Failed).reason(reason) });
+                    self.add(NewActivity {
+                        token,
+                        ..NewActivity::new(name, "", size, ActivityOutcome::Failed).reason(reason)
+                    });
                     (self.ctx.log)(LogLevel::Warn, format!("Cannot remove {name}: {}", error.detail()));
                 }
             }
@@ -472,10 +504,10 @@ impl<'a> Run<'a> {
             remove_name(self.ctx.data_dir, token).await
         }
         .await;
-        if let Err(error) = done {
-            if self.handle(&error, None).await?.is_some() {
-                (self.ctx.log)(LogLevel::Warn, format!("Cannot remove data/{token}: {}", error.detail()));
-            }
+        if let Err(error) = done
+            && self.handle(&error, None).await?.is_some()
+        {
+            (self.ctx.log)(LogLevel::Warn, format!("Cannot remove data/{token}: {}", error.detail()));
         }
         Ok(())
     }

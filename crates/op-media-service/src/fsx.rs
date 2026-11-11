@@ -20,11 +20,8 @@ use crate::http::sleep;
 /// client holding a new file for a moment. On Windows they show up as EBUSY,
 /// EPERM or EACCES; elsewhere EPERM and EACCES are real permissions, never retried.
 pub fn is_transient_lock(error: &io::Error) -> bool {
-    match io_code(error) {
-        Some("EBUSY") => true,
-        Some("EPERM" | "EACCES") => cfg!(windows),
-        _ => false,
-    }
+    let code = io_code(error);
+    code == Some("EBUSY") || (cfg!(windows) && matches!(code, Some("EPERM" | "EACCES")))
 }
 
 /// The same, for a service error
