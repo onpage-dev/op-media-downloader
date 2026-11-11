@@ -3,6 +3,10 @@
     "name": "On Page Media Downloader",
     "short": "Media Downloader"
   },
+  "window": {
+    "minimize": "最小化",
+    "maximize": "最大化"
+  },
   "common": {
     "cancel": "取消",
     "close": "关闭",

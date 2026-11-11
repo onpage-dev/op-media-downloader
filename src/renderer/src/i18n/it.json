@@ -3,6 +3,10 @@
     "name": "On Page Media Downloader",
     "short": "Media Downloader"
   },
+  "window": {
+    "minimize": "Riduci a icona",
+    "maximize": "Ingrandisci"
+  },
   "common": {
     "cancel": "Annulla",
     "close": "Chiudi",

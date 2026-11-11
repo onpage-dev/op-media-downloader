@@ -10,10 +10,12 @@ import { computed, markRaw, reactive, watch } from 'vue'
 import type {
   AppCommand,
   DesktopApi,
+  FolderDrag,
   InspectorTab,
   NewProjectInput,
   ProjectPatch,
   SettingsSection,
+  Unsubscribe,
 } from '@shared/desktop-api'
 import {
   DEFAULT_SETTINGS,
@@ -471,13 +473,11 @@ export const openWizard = (folder?: string): void => {
   app.wizard = { folder }
 }
 /** A folder dropped on the window: the new project with it */
-export function openDroppedFolder(file: File): void {
-  try {
-    openWizard(desktop().folders.pathForDroppedFile(file))
-  } catch (error) {
-    fail('dropped folder', error)
-  }
+export function openDroppedFolder(path: string): void {
+  openWizard(path)
 }
+/** Files and folders dragged over the window, as the system reports them */
+export const watchDrag = (listener: (drag: FolderDrag) => void): Unsubscribe => desktop().folders.onDrag(listener)
 export const openSettings = (section: SettingsSection = 'general'): void => {
   app.settings_open = section
 }
@@ -502,6 +502,8 @@ export const openLicenses = (): void => void run('open licenses', () => desktop(
 export const showMainWindow = (command?: AppCommand): void => desktop().app.showMainWindow(command)
 export const quit = (): void => desktop().app.quit()
 export const closeWindow = (): void => desktop().app.window.close()
+export const minimizeWindow = (): void => desktop().app.window.minimize()
+export const toggleMaximizeWindow = (): void => desktop().app.window.toggleMaximize()
 
 /* ------------------------------------------------------------------ What a form asks */
 

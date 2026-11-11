@@ -584,7 +584,32 @@ const desktop: DesktopApi = {
       return inspect(path, projectId)
     },
     openProject: () => command(async () => undefined),
-    pathForDroppedFile: file => `D:\\Media\\${file.name}`,
+    // The browser's own drag and drop, with a made-up path for the name of what was dropped
+    onDrag: listener => {
+      const files = (event: DragEvent): boolean => !!event.dataTransfer?.types.includes('Files')
+      const over = (event: DragEvent): void => {
+        if (!files(event)) return
+        event.preventDefault()
+        listener({ type: 'enter' })
+      }
+      const leave = (event: DragEvent): void => {
+        if (!event.relatedTarget) listener({ type: 'leave' })
+      }
+      const drop = (event: DragEvent): void => {
+        if (!files(event)) return
+        event.preventDefault()
+        const names = Array.from(event.dataTransfer?.files ?? [], file => `D:\\Media\\${file.name}`)
+        listener({ type: 'drop', paths: names })
+      }
+      window.addEventListener('dragover', over)
+      window.addEventListener('dragleave', leave)
+      window.addEventListener('drop', drop)
+      return () => {
+        window.removeEventListener('dragover', over)
+        window.removeEventListener('dragleave', leave)
+        window.removeEventListener('drop', drop)
+      }
+    },
   },
   tokens: {
     async verify(token) {

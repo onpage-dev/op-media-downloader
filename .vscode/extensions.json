@@ -4,6 +4,8 @@
     "esbenp.prettier-vscode",
     "Vue.volar",
     "bradlc.vscode-tailwindcss",
-    "EditorConfig.EditorConfig"
+    "EditorConfig.EditorConfig",
+    "rust-lang.rust-analyzer",
+    "tauri-apps.tauri-vscode"
   ]
 }

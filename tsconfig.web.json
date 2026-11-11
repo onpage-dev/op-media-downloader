@@ -1,5 +1,5 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
+  "extends": "./tsconfig.base.json",
   "include": [
     "src/renderer/**/*.json",
     "src/renderer/**/*.d.ts",
@@ -10,7 +10,7 @@
   "exclude": ["src/renderer/**/*.test.ts"],
   "compilerOptions": {
     "composite": true,
-    "noImplicitAny": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "paths": {
       "#icons": ["./src/renderer/src/lib/icons/free.ts"],
       "@renderer/*": ["./src/renderer/src/*"],
