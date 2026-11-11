@@ -300,7 +300,10 @@ export interface DuplicateVariant {
 export interface DuplicateGroup {
   /** The name as shown (case of the chosen variant) */
   name: string
+  /** The chosen one first; at most a few of them (generated files can share a name by the thousands) */
   variants: DuplicateVariant[]
+  /** The variants of the name not in `variants` */
+  more_variants?: number
 }
 
 /** Long lists (tens of thousands of entries) travel a page at a time */
@@ -315,6 +318,24 @@ export interface PageQuery {
    * them from On Page first
    */
   labels?: boolean
+}
+
+/** More files of one duplicate name (it can have thousands), after those shown */
+export interface VariantsQuery {
+  /** The name as the page gave it */
+  name: string
+  /** The files already shown */
+  offset: number
+  limit: number
+  /** As in `PageQuery` */
+  labels?: boolean
+}
+
+export interface DuplicateVariants {
+  variants: DuplicateVariant[]
+  /** The files of the name after these */
+  more_variants: number
+  labels_pending?: boolean
 }
 
 export interface DuplicatePage {

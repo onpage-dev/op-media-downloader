@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use op_media_service::{PageQuery, ProjectId};
+use op_media_service::{PageQuery, ProjectId, VariantsQuery};
 use regex::Regex;
 use serde_json::{Map, Value};
 
@@ -101,6 +101,21 @@ pub fn page_query(value: &Value) -> PageQuery {
         query: page.get("query").and_then(Value::as_str).map(|q| q.chars().take(limits::QUERY).collect()),
         labels: page.get("labels").and_then(Value::as_bool).unwrap_or(true),
     }
+}
+
+/// More files of one duplicate name: the name (as long as a path at most), at most 200 files
+pub fn variants_query(value: &Value) -> Checked<VariantsQuery> {
+    let Some(query) = record(value) else { return invalid() };
+    let name = match query.get("name").and_then(Value::as_str) {
+        Some(name) if !name.is_empty() && name.chars().count() <= limits::PATH => name.to_string(),
+        _ => return invalid(),
+    };
+    Ok(VariantsQuery {
+        name,
+        offset: whole(query.get("offset")).unwrap_or(0).clamp(0, 1_000_000_000) as usize,
+        limit: whole(query.get("limit")).unwrap_or(50).clamp(1, 200) as usize,
+        labels: query.get("labels").and_then(Value::as_bool).unwrap_or(true),
+    })
 }
 
 /// How many activity entries to read: the service keeps the last 1,000

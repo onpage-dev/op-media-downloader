@@ -377,8 +377,11 @@ async function loadTab(id: ProjectId, tab: InspectorTab, entering: boolean): Pro
     // hold the window), the next ones come back from the service as the end comes near
     const list: PagedList<FailedEntry | DuplicateGroup> | undefined = app[tab][id]
     if (entering && list?.items.length && !list.stale && !list.error) {
-      // A page still on its way for the longer list is dropped when it comes (loadPage)
-      if (list.items.length > PAGE_SIZE) list.items = markRaw(list.items.slice(0, PAGE_SIZE))
+      // A page still on its way for the longer list is dropped when it comes (loadPage); the names
+      // opened with «Mostra altri» close again
+      const first = list.items.slice(0, PAGE_SIZE)
+      const closed = tab == 'duplicates' ? (first as DuplicateGroup[]).map(closeGroup) : first
+      if (list.items.length > PAGE_SIZE || closed.some((item, n) => item != first[n])) list.items = markRaw(closed)
       return
     }
     await loadPage(tab, id, true)
@@ -443,13 +446,70 @@ async function fillLabels(id: ProjectId, query: PageQuery, version: number): Pro
     const shown = list.items.slice(offset, offset + page.groups.length)
     // Rows cut away since (back on the tab): their labels come with them when they are asked again
     if (shown.length != page.groups.length || shown.some((group, n) => group.name != page.groups[n].name)) return
-    list.items = markRaw([
-      ...list.items.slice(0, offset),
-      ...page.groups,
-      ...list.items.slice(offset + page.groups.length),
-    ])
+    // By file: a name opened with «Mostra altri» meanwhile keeps its other files
+    const labelled = shown.map((group, n) => withVariants(group, page.groups[n].variants))
+    list.items = markRaw([...list.items.slice(0, offset), ...labelled, ...list.items.slice(offset + labelled.length)])
   } catch (error) {
     logError('load duplicate labels', error, 'warn')
+  }
+}
+
+/** Files of a name the service gives at a time: as many as a page shows of each name, more with «Mostra altri» */
+const VARIANTS_SHOWN = 10
+const VARIANTS_STEP = 100
+
+/** «Mostra altri» on a name of «Duplicati»: its next files drawn at once, the labels of their things after */
+export async function showMoreVariants(id: ProjectId, name: string): Promise<void> {
+  const list = app.duplicates[id]
+  const group = list?.items.find(g => g.name == name)
+  if (!list || !group?.more_variants) return
+  const version = list.version
+  const query = { name, offset: group.variants.length, limit: VARIANTS_STEP }
+  try {
+    const more = await desktop().sync.getDuplicateVariants(id, { ...query, labels: false })
+    const added = changeGroup(id, version, name, current =>
+      // Asked twice (two clicks): once only
+      current.variants.length == query.offset
+        ? { ...current, variants: [...current.variants, ...more.variants], more_variants: more.more_variants }
+        : undefined,
+    )
+    if (!added || !more.labels_pending) return
+    const labelled = await desktop().sync.getDuplicateVariants(id, { ...query, labels: true })
+    changeGroup(id, version, name, current => withVariants(current, labelled.variants))
+  } catch (error) {
+    logError('load duplicate files', error, 'warn')
+  }
+}
+
+/** A name of the list in a new object (its rows alone draw again); false when the list or the name went */
+function changeGroup(
+  id: ProjectId,
+  version: number,
+  name: string,
+  change: (group: DuplicateGroup) => DuplicateGroup | undefined,
+): boolean {
+  const list = app.duplicates[id]
+  const at = list && list.version == version ? list.items.findIndex(g => g.name == name) : -1
+  const changed = at >= 0 ? change(list.items[at]) : undefined
+  if (!changed) return false
+  list.items = markRaw(list.items.map((group, n) => (n == at ? changed : group)))
+  return true
+}
+
+/** The same files of the name, those in `variants` (by token) as they come now */
+function withVariants(group: DuplicateGroup, variants: DuplicateGroup['variants']): DuplicateGroup {
+  const fresh = new Map(variants.map(variant => [variant.token, variant]))
+  return { ...group, variants: group.variants.map(variant => fresh.get(variant.token) ?? variant) }
+}
+
+/** A name opened with «Mostra altri» back to the files a page shows of it */
+function closeGroup(group: DuplicateGroup): DuplicateGroup {
+  const extra = group.variants.length - VARIANTS_SHOWN
+  if (extra <= 0) return group
+  return {
+    ...group,
+    variants: group.variants.slice(0, VARIANTS_SHOWN),
+    more_variants: (group.more_variants ?? 0) + extra,
   }
 }
 

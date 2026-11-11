@@ -283,6 +283,8 @@
     "variants": "{count} 个不同文件",
     "chosen": "已下载",
     "skipped": "未下载",
+    "more": "以及另外 {count} 个同名文件",
+    "show_more": "再显示 {count} 个",
     "empty": "没有重名文件",
     "search": "搜索名称…",
     "no_results": "未找到匹配的名称",

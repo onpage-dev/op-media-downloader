@@ -58,6 +58,7 @@ fn main() {
             commands::sync_get_activity,
             commands::sync_get_failed,
             commands::sync_get_duplicates,
+            commands::sync_get_duplicate_variants,
             commands::folders_pick,
             commands::folders_inspect,
             commands::folders_open_project,

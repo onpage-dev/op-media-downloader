@@ -283,6 +283,8 @@
     "variants": "{count} fichiers différents",
     "chosen": "Téléchargé",
     "skipped": "Non téléchargé",
+    "more": "et {count} autre fichier du même nom | et {count} autres fichiers du même nom",
+    "show_more": "Afficher {count} de plus | Afficher {count} de plus",
     "empty": "Aucun nom en double",
     "search": "Rechercher un nom…",
     "no_results": "Aucun nom trouvé",

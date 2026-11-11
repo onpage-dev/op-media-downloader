@@ -641,9 +641,11 @@ pub fn sample_project(things: usize, duplicates: usize, seed: &str) -> FakeProje
             updated_at: STAMP.into(),
         });
     }
+    // After the products' ids, also in a project of more than 4,000 of them
+    let sheets_from = 5000.max(1000 + things as i64);
     for i in 1..=((things as f64 / 5.0).round() as usize).max(1) {
         list.push(FakeThing {
-            id: 5000 + i as i64,
+            id: sheets_from + i as i64,
             resource_id: 2,
             label: Some(format!("Scheda {i}")),
             files: BTreeMap::from([(

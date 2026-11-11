@@ -5,7 +5,9 @@
 //! unknown until checked. Errors are codes (`project_busy`, `open_failed`…)
 //! or `code: detail`, as the page expects.
 
-use op_media_service::{ActivityEntry, DuplicatePage, FailedPage, FolderInfo, JobKind, LogLevel, TokenCheck};
+use op_media_service::{
+    ActivityEntry, DuplicatePage, DuplicateVariants, FailedPage, FolderInfo, JobKind, LogLevel, TokenCheck,
+};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, State, WebviewWindow};
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -101,6 +103,16 @@ pub fn sync_get_failed(shell: State<'_, Shell>, id: Value, page: Option<Value>) 
 pub async fn sync_get_duplicates(shell: State<'_, Shell>, id: Value, page: Option<Value>) -> Answer<DuplicatePage> {
     let page = validate::page_query(page.as_ref().unwrap_or(&Value::Null));
     shell.projects.duplicates(&validate::project_id(&id)?, page).await
+}
+
+#[tauri::command]
+pub async fn sync_get_duplicate_variants(
+    shell: State<'_, Shell>,
+    id: Value,
+    query: Option<Value>,
+) -> Answer<DuplicateVariants> {
+    let query = validate::variants_query(query.as_ref().unwrap_or(&Value::Null))?;
+    shell.projects.duplicate_variants(&validate::project_id(&id)?, query).await
 }
 
 /* ------------------------------------------------------------------ folders */

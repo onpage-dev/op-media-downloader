@@ -468,7 +468,11 @@ pub struct DuplicateVariant {
 pub struct DuplicateGroup {
     /// The name as shown (case of the chosen variant)
     pub name: String,
+    /// The chosen one first; at most a few of them (generated files can share a name by the thousands)
     pub variants: Vec<DuplicateVariant>,
+    /// The variants of the name not in `variants`
+    #[serde(default)]
+    pub more_variants: u64,
 }
 
 /// Long lists (tens of thousands of entries) travel a page at a time
@@ -493,6 +497,30 @@ fn default_limit() -> usize {
 
 fn yes() -> bool {
     true
+}
+
+/// More files of one duplicate name (it can have thousands), after those shown
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct VariantsQuery {
+    /// The name as the page gave it
+    pub name: String,
+    /// The files already shown
+    #[serde(default)]
+    pub offset: usize,
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+    /// As in `PageQuery`
+    #[serde(default = "yes")]
+    pub labels: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DuplicateVariants {
+    pub variants: Vec<DuplicateVariant>,
+    /// The files of the name after these
+    pub more_variants: u64,
+    #[serde(default)]
+    pub labels_pending: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

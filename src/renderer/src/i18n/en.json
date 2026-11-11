@@ -283,6 +283,8 @@
     "variants": "{count} different files",
     "chosen": "Downloaded",
     "skipped": "Not downloaded",
+    "more": "and 1 more file with the same name | and {count} more files with the same name",
+    "show_more": "Show 1 more | Show {count} more",
     "empty": "No name with different files",
     "search": "Search a name…",
     "no_results": "No name found",

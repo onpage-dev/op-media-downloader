@@ -15,6 +15,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use futures::FutureExt;
+use futures::future::BoxFuture;
 use parking_lot::Mutex;
 use serde::Serialize;
 use tokio::runtime::{Handle, Runtime};
@@ -29,8 +30,11 @@ use crate::folder::manifest::KeptRegistries;
 use crate::http::{API_RETRY, DOWNLOAD_RETRY, RetryPolicy};
 use crate::models::*;
 use crate::onpage::{Api, DEFAULT_DOMAIN, OnPageContext, http_client, verify_token};
-use crate::sync::duplicates::duplicates_page;
+use crate::sync::duplicates::{Duplicates, duplicate_variants, duplicates_page};
 use crate::sync::listing_store::ListingStore;
+
+/// Where the duplicates tab logs (labels On Page did not give)
+type DuplicatesLog = dyn Fn(String) + Send + Sync;
 
 /// What the service tells its user. `State` is throttled (at most every
 /// `state_interval` per project, a new phase at once), `Activity` comes in
@@ -415,24 +419,50 @@ impl MediaService {
     /// and only when `page.labels` (else the page answers at once, see
     /// `labels_pending`). Errors are codes (`code` or `code: detail`)
     pub async fn duplicates(&self, project: ServiceProject, page: PageQuery) -> Result<DuplicatePage, String> {
+        self.on_duplicates(project, |duplicates, api, domain, log| {
+            Box::pin(async move { duplicates_page(duplicates, &page, api, domain, log).await })
+        })
+        .await
+    }
+
+    /// More files of one duplicate name, after those its page showed (as `duplicates`)
+    pub async fn duplicate_variants(
+        &self,
+        project: ServiceProject,
+        query: VariantsQuery,
+    ) -> Result<DuplicateVariants, String> {
+        self.on_duplicates(project, |duplicates, api, domain, log| {
+            Box::pin(async move { duplicate_variants(duplicates, &query, api, domain, log).await })
+        })
+        .await
+    }
+
+    /// `answer` on the project's duplicates, with an API for the labels of
+    /// the things; the default answer before a complete listing
+    async fn on_duplicates<T, F>(&self, project: ServiceProject, answer: F) -> Result<T, String>
+    where
+        T: Default + Send + 'static,
+        F: for<'a> FnOnce(&'a Duplicates, &'a Api, &'a str, &'a DuplicatesLog) -> BoxFuture<'a, T> + Send + 'static,
+    {
         let engine = self.engine.clone();
         let task = self.engine.handle.spawn(async move {
             // No slot for a project the service does not run: the store keeps the duplicates
             let (id, token) = (project.id.as_str(), project.token.as_str());
             let load = || async { Api::new(token, engine.onpage_context(None)).load_schema().await };
             let Some(duplicates) = engine.listings.duplicates(id, token, load).await? else {
-                return Ok(DuplicatePage::default());
+                return Ok(T::default());
             };
             // The labels are a courtesy: a slow On Page leaves the page without them, quickly
             let mut labels = engine.onpage_context(None);
             labels.policy = RetryPolicy { attempts: 2, ..engine.timings.api_policy };
             labels.timeout = Duration::from_secs(15);
             let api = Api::for_schema(token, labels, &duplicates.schema);
-            let log = |message: String| engine.log(LogLevel::Warn, message, Some(id));
-            Ok::<_, Error>(duplicates_page(&duplicates, &page, &api, &engine.api_domain, &log).await)
+            let (log_engine, log_id) = (engine.clone(), id.to_string());
+            let log = move |message: String| log_engine.log(LogLevel::Warn, message, Some(&log_id));
+            Ok::<_, Error>(answer(&duplicates, &api, &engine.api_domain, &log).await)
         });
         match task.await {
-            Ok(Ok(page)) => Ok(page),
+            Ok(Ok(answer)) => Ok(answer),
             Ok(Err(error)) => Err(error_code(&error)),
             Err(_) => Err("unexpected".into()),
         }

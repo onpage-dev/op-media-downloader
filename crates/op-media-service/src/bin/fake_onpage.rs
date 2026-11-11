@@ -2,6 +2,9 @@
 //!
 //!   cargo run -p op-media-service --features fake-server --bin fake-onpage -- --port 4310 --things 3000
 //!
+//! Also `--duplicates N` (names with several files) and `--api-delay-ms N` (a
+//! slow On Page: each API request waits that long).
+//!
 //! then start a debug build of the app with OPMD_API_DOMAIN=http://127.0.0.1:4310
 //! and the token printed on the console.
 
@@ -21,10 +24,13 @@ async fn main() -> std::io::Result<()> {
     let things: usize = arg("things", "3000").parse().unwrap_or(3000);
     let duplicates: usize = arg("duplicates", "3").parse().unwrap_or(3);
     let token = arg("token", "fake-token");
+    // A slow On Page: every API request waits this long (the files do not)
+    let api_delay: u64 = arg("api-delay-ms", "0").parse().unwrap_or(0);
     let project = sample_project(things, duplicates, "opmd");
     let files: usize = project.things.iter().flat_map(|t| t.files.values()).map(|v| v.all().len()).sum();
     let things = project.things.len();
     let fake = FakeOnPage::start(project, &token, port).await?;
+    fake.with(|state| state.api.delay = std::time::Duration::from_millis(api_delay));
     println!("Fake On Page on {}", fake.url);
     println!("  token:  {}", fake.token);
     println!("  things: {things}, files: {files}");

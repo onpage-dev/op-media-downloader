@@ -283,6 +283,8 @@
     "variants": "{count} olika filer",
     "chosen": "Nedladdad",
     "skipped": "Inte nedladdad",
+    "more": "och {count} fil till med samma namn | och {count} filer till med samma namn",
+    "show_more": "Visa {count} till | Visa {count} till",
     "empty": "Inga namn med olika filer",
     "search": "Sök namn…",
     "no_results": "Inga namn hittades",

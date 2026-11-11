@@ -22,12 +22,18 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::names::{DuplicateRaw, FileUse, ResolvedNames, nfc};
+use super::names::{DuplicateRaw, DuplicateVariantRaw, FileUse, ResolvedNames, nfc};
 use crate::error::{Error, Result};
 use crate::fsx::replace_file;
-use crate::models::{DuplicateGroup, DuplicatePage, DuplicateUse, DuplicateVariant, PageQuery};
+use crate::models::{
+    DuplicateGroup, DuplicatePage, DuplicateUse, DuplicateVariant, DuplicateVariants, PageQuery, VariantsQuery,
+};
 use crate::onpage::{Api, Schema, thing_edit_url, thumbnail_link};
 
+/// Variants shown per name (the chosen one first): generated files (a catalog
+/// a day) can share a name by the thousands, and a page of them would weigh
+/// megabytes and draw for seconds
+const MAX_VARIANTS: usize = 10;
 /// Uses shown per variant
 const MAX_USES: usize = 20;
 /// Things per request, and requests at a time, for the labels
@@ -187,56 +193,111 @@ pub async fn duplicates_page(
     let total = matching.len() as u64;
     let groups: Vec<&DuplicateRaw> = matching.into_iter().skip(page.offset).take(page.limit.max(1)).collect();
     let language_variants = duplicates.language_variants;
-    if groups.is_empty() {
-        return DuplicatePage { total, language_variants, groups: Vec::new(), labels_pending: false };
-    }
-    let uses: Vec<&FileUse> =
-        groups.iter().flat_map(|g| &g.variants).flat_map(|v| v.uses.iter().take(MAX_USES)).collect();
-    if page.labels {
-        duplicates.read_labels(&uses, api, log).await;
-    }
-
-    let schema = &duplicates.schema;
-    let lang = schema.lang();
-    let labels = duplicates.labels.lock();
-    // Only without `labels`: after a read, what On Page did not answer stays without
-    let labels_pending = !page.labels && uses.iter().any(|use_| !labels.contains_key(&use_.thing_id));
-    let describe_use = |use_: &FileUse| DuplicateUse {
-        resource_label: schema
-            .resource(use_.resource_id)
-            .map(|r| schema.resource_label(r, lang))
-            .unwrap_or_else(|| use_.resource_id.to_string()),
-        field_label: schema
-            .field(use_.field_id)
-            .map(|f| schema.field_label(f, lang))
-            .unwrap_or_else(|| use_.field_id.to_string()),
-        thing_id: use_.thing_id,
-        thing_label: labels.get(&use_.thing_id).cloned().flatten(),
-        lang: use_.lang.clone(),
-        edit_url: thing_edit_url(schema.id, use_.resource_id, use_.thing_id, use_.field_id),
-    };
+    let shown: Vec<&[DuplicateVariantRaw]> =
+        groups.iter().map(|g| &g.variants[..g.variants.len().min(MAX_VARIANTS)]).collect();
+    let (variants, labels_pending) = describe_variants(duplicates, &shown, page.labels, api, domain, log).await;
     DuplicatePage {
         total,
         language_variants,
         labels_pending,
         groups: groups
             .into_iter()
-            .map(|group| DuplicateGroup {
+            .zip(variants)
+            .map(|(group, variants)| DuplicateGroup {
                 name: group.name.clone(),
-                variants: group
-                    .variants
-                    .iter()
-                    .map(|variant| DuplicateVariant {
-                        token: variant.token.clone(),
-                        size: variant.size,
-                        width: variant.width,
-                        height: variant.height,
-                        thumb_url: thumbnail_link(domain, &variant.token, &variant.remote_name),
-                        chosen: variant.chosen,
-                        uses: variant.uses.iter().take(MAX_USES).map(describe_use).collect(),
-                    })
-                    .collect(),
+                more_variants: (group.variants.len() - variants.len()) as u64,
+                variants,
             })
             .collect(),
     }
+}
+
+/// The next files of one name («show more»); none for a name the listing no longer has
+pub async fn duplicate_variants(
+    duplicates: &Duplicates,
+    query: &VariantsQuery,
+    api: &Api,
+    domain: &str,
+    log: &(dyn Fn(String) + Send + Sync),
+) -> DuplicateVariants {
+    let Some(group) = duplicates.groups.iter().find(|g| g.name == query.name) else {
+        return DuplicateVariants::default();
+    };
+    let start = query.offset.min(group.variants.len());
+    let end = start.saturating_add(query.limit.max(1)).min(group.variants.len());
+    let (mut variants, labels_pending) =
+        describe_variants(duplicates, &[&group.variants[start..end]], query.labels, api, domain, log).await;
+    DuplicateVariants {
+        variants: variants.pop().unwrap_or_default(),
+        more_variants: (group.variants.len() - end) as u64,
+        labels_pending,
+    }
+}
+
+/// These files (a list per name) as the tab shows them, at most `MAX_USES`
+/// uses each; the labels of their things read from On Page first when
+/// `read_labels`, and whether some are still to read
+async fn describe_variants(
+    duplicates: &Duplicates,
+    shown: &[&[DuplicateVariantRaw]],
+    read_labels: bool,
+    api: &Api,
+    domain: &str,
+    log: &(dyn Fn(String) + Send + Sync),
+) -> (Vec<Vec<DuplicateVariant>>, bool) {
+    let uses: Vec<&FileUse> =
+        shown.iter().flat_map(|variants| variants.iter()).flat_map(|v| v.uses.iter().take(MAX_USES)).collect();
+    if read_labels && !uses.is_empty() {
+        duplicates.read_labels(&uses, api, log).await;
+    }
+
+    let schema = &duplicates.schema;
+    let lang = schema.lang();
+    // The labels of the collections and fields of the page, each looked up once in the schema
+    // (hundreds of fields in a big project; a page has thousands of uses of a few of them)
+    let mut resource_labels: HashMap<i64, String> = HashMap::new();
+    let mut field_labels: HashMap<i64, String> = HashMap::new();
+    for use_ in &uses {
+        resource_labels.entry(use_.resource_id).or_insert_with(|| {
+            schema
+                .resource(use_.resource_id)
+                .map(|r| schema.resource_label(r, lang))
+                .unwrap_or_else(|| use_.resource_id.to_string())
+        });
+        field_labels.entry(use_.field_id).or_insert_with(|| {
+            schema
+                .field(use_.field_id)
+                .map(|f| schema.field_label(f, lang))
+                .unwrap_or_else(|| use_.field_id.to_string())
+        });
+    }
+    let labels = duplicates.labels.lock();
+    // Only without `labels`: after a read, what On Page did not answer stays without
+    let labels_pending = !read_labels && uses.iter().any(|use_| !labels.contains_key(&use_.thing_id));
+    let describe_use = |use_: &FileUse| DuplicateUse {
+        resource_label: resource_labels[&use_.resource_id].clone(),
+        field_label: field_labels[&use_.field_id].clone(),
+        thing_id: use_.thing_id,
+        thing_label: labels.get(&use_.thing_id).cloned().flatten(),
+        lang: use_.lang.clone(),
+        edit_url: thing_edit_url(schema.id, use_.resource_id, use_.thing_id, use_.field_id),
+    };
+    let described = shown
+        .iter()
+        .map(|variants| {
+            variants
+                .iter()
+                .map(|variant| DuplicateVariant {
+                    token: variant.token.clone(),
+                    size: variant.size,
+                    width: variant.width,
+                    height: variant.height,
+                    thumb_url: thumbnail_link(domain, &variant.token, &variant.remote_name),
+                    chosen: variant.chosen,
+                    uses: variant.uses.iter().take(MAX_USES).map(describe_use).collect(),
+                })
+                .collect()
+        })
+        .collect();
+    (described, labels_pending)
 }

@@ -17,6 +17,7 @@ permissions = [
   "allow-sync-get-activity",
   "allow-sync-get-failed",
   "allow-sync-get-duplicates",
+  "allow-sync-get-duplicate-variants",
   "allow-folders-pick",
   "allow-folders-inspect",
   "allow-folders-open-project",

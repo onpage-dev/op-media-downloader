@@ -656,6 +656,49 @@ async fn large_project_duplicates_timings() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn duplicates_show_a_few_files_of_a_name_shared_by_many() {
+    // A catalog generated for each of 15 products, all with the same name
+    let h = Harness::new(15, 0).await;
+    h.fake.with(|state| {
+        for thing in state.project.things.iter_mut().filter(|t| t.resource_id == 1) {
+            let catalog = FakeFile {
+                token: format!("catalogo-{}", thing.id),
+                name: "catalogo.pdf".into(),
+                size: None,
+                width: None,
+                height: None,
+                content: None,
+            };
+            thing.files.insert("galleria".into(), FakeValue::Files(vec![catalog]));
+        }
+    });
+    let folder = h.folder("Cataloghi");
+    let project = h.project(&folder);
+    h.run(|s| s.sync(project.clone(), false)).await;
+    let quick = PageQuery { offset: 0, limit: 50, query: None, labels: false };
+    let page = h.service.duplicates(project.clone(), quick).await.unwrap();
+    assert_eq!(page.total, 1);
+    let group = &page.groups[0];
+    assert_eq!((group.name.as_str(), group.variants.len(), group.more_variants), ("catalogo.pdf", 10, 5));
+    assert!(group.variants[0].chosen && group.variants[1..].iter().all(|v| !v.chosen));
+    // «Show more»: the next files of the name, a part at a time, then none
+    let more = |offset, limit| VariantsQuery { name: "catalogo.pdf".into(), offset, limit, labels: false };
+    let next = h.service.duplicate_variants(project.clone(), more(10, 3)).await.unwrap();
+    assert_eq!((next.variants.len(), next.more_variants), (3, 2));
+    let shown: HashSet<String> = group.variants.iter().map(|v| v.token.clone()).collect();
+    assert!(next.variants.iter().all(|v| !v.chosen && !shown.contains(&v.token)));
+    let last = h.service.duplicate_variants(project.clone(), more(13, 100)).await.unwrap();
+    assert_eq!((last.variants.len(), last.more_variants), (2, 0));
+    let gone = VariantsQuery { name: "altro.pdf".into(), ..more(0, 10) };
+    assert!(h.service.duplicate_variants(project.clone(), gone).await.unwrap().variants.is_empty());
+    // The labels read are those of the files shown
+    let hits = h.fake.with(|state| state.hits.api);
+    let page = h.service.duplicates(project.clone(), PageQuery { labels: true, ..PageQuery::default() }).await.unwrap();
+    assert_eq!(h.fake.with(|state| state.hits.api), hits + 1);
+    assert!(page.groups[0].variants.iter().all(|v| v.uses[0].thing_label.is_some()));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn duplicates_open_from_their_own_file_and_remember_labels() {
     let h = Harness::new(20, 2).await;
     let folder = h.folder("Doppi");

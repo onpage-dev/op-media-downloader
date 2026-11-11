@@ -390,11 +390,14 @@ const duplicates: Record<string, DuplicateGroup[]> = {
     },
   ],
 }
-/** `duplicates=many`: thousands of names, as a big real project has (the tab under load) */
+/**
+ * `duplicates=many`: thousands of names, as a big real project has (the tab under load), the
+ * first one with 15,000 files (generated catalogs that all have the same name)
+ */
 if (params.get('duplicates') == 'many') {
   duplicates.piante = Array.from({ length: 3000 }, (_, g): DuplicateGroup => ({
     name: `pianta-${g + 1}.jpg`,
-    variants: Array.from({ length: 2 + (g % 2) }, (_, v) => ({
+    variants: Array.from({ length: g ? 2 + (g % 2) : 15_000 }, (_, v) => ({
       token: `many-${g}-${v}`,
       size: 200_000 + g * 37 + v,
       width: 1200,
@@ -587,9 +590,23 @@ const desktop: DesktopApi = {
       await later(labels ? 1500 : 30)
       const query = page.query?.toLowerCase()
       const all = (duplicates[id] ?? []).filter(g => !query || g.name.toLowerCase().includes(query))
-      const groups = clone(all.slice(page.offset, page.offset + page.limit))
+      // As the service: the first 10 files of a name, and how many more it has
+      const groups = clone(
+        all
+          .slice(page.offset, page.offset + page.limit)
+          .map(g => ({ ...g, variants: g.variants.slice(0, 10), more_variants: Math.max(0, g.variants.length - 10) })),
+      )
       if (!labels) for (const use of groups.flatMap(g => g.variants).flatMap(v => v.uses)) delete use.thing_label
       return { total: all.length, language_variants: 0, groups, labels_pending: !labels && groups.length > 0 }
+    },
+    getDuplicateVariants: async (id, query) => {
+      const labels = query.labels ?? true
+      await later(labels ? 1500 : 30)
+      const all = (duplicates[id] ?? []).find(g => g.name == query.name)?.variants ?? []
+      const end = Math.min(all.length, query.offset + query.limit)
+      const variants = clone(all.slice(query.offset, end))
+      if (!labels) for (const use of variants.flatMap(v => v.uses)) delete use.thing_label
+      return { variants, more_variants: all.length - end, labels_pending: !labels && variants.length > 0 }
     },
   },
   folders: {

@@ -18,6 +18,7 @@ const COMMANDS: &[&str] = &[
     "sync_get_activity",
     "sync_get_failed",
     "sync_get_duplicates",
+    "sync_get_duplicate_variants",
     "folders_pick",
     "folders_inspect",
     "folders_open_project",

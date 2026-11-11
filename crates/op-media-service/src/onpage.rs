@@ -521,6 +521,11 @@ fn extension(name: &str) -> Option<&str> {
     parts.next().map(|_| last)
 }
 
+/// Compiled once: a page of the duplicates tab builds a link per file (a
+/// regex compiled each time cost ~0.3 ms per link)
+static NAME_EXTENSION: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\.\w+$").expect("valid"));
+
 /// The storage link of a file, as onpage-js `storageLink` builds it
 pub fn storage_link(domain: &str, token: &str, name: &str) -> String {
     let mut name = name.to_string();
@@ -529,8 +534,7 @@ pub fn storage_link(domain: &str, token: &str, name: &str) -> String {
         if name_ext.as_deref() != Some(token_ext) {
             match name_ext.filter(|e| !e.is_empty()) {
                 Some(_) if !name.is_empty() => {
-                    let re = regex::Regex::new(r"(?i)\.\w+$").expect("valid");
-                    name = re.replace(&name, format!(".{token_ext}")).into_owned();
+                    name = NAME_EXTENSION.replace(&name, format!(".{token_ext}")).into_owned();
                 }
                 _ => name = format!("{name}.{token_ext}"),
             }

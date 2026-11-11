@@ -11,9 +11,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use op_media_service::{
-    ActivityEntry, DuplicatePage, FailedPage, FolderInfo, FolderProblem, Issue, IssueCode, JobKind, JobPhase,
-    MediaService, PageQuery, ProjectFolder, ProjectId, ProjectRuntime, ServiceEvent, ServiceProject, SyncOutcome,
-    SyncResult, TokenCheck, TokenError,
+    ActivityEntry, DuplicatePage, DuplicateVariants, FailedPage, FolderInfo, FolderProblem, Issue, IssueCode, JobKind,
+    JobPhase, MediaService, PageQuery, ProjectFolder, ProjectId, ProjectRuntime, ServiceEvent, ServiceProject,
+    SyncOutcome, SyncResult, TokenCheck, TokenError, VariantsQuery,
 };
 use parking_lot::Mutex;
 
@@ -384,6 +384,11 @@ impl ProjectService {
     pub async fn duplicates(&self, id: &str, page: PageQuery) -> Result<DuplicatePage, String> {
         let project = self.require(id)?;
         self.service.duplicates(self.service_project(&project), page).await
+    }
+
+    pub async fn duplicate_variants(&self, id: &str, query: VariantsQuery) -> Result<DuplicateVariants, String> {
+        let project = self.require(id)?;
+        self.service.duplicate_variants(self.service_project(&project), query).await
     }
 
     pub async fn verify_token(&self, token: &str) -> TokenCheck {

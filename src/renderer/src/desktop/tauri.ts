@@ -116,6 +116,7 @@ export const tauriDesktop: DesktopApi = {
       ),
     getFailed: (id, page) => call('sync_get_failed', { id, page }),
     getDuplicates: (id, page) => call('sync_get_duplicates', { id, page }),
+    getDuplicateVariants: (id, query) => call('sync_get_duplicate_variants', { id, query }),
   },
 
   folders: {

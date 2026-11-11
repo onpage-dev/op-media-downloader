@@ -283,6 +283,8 @@
     "variants": "{count} verschiedene Dateien",
     "chosen": "Heruntergeladen",
     "skipped": "Nicht heruntergeladen",
+    "more": "und {count} weitere Datei mit demselben Namen | und {count} weitere Dateien mit demselben Namen",
+    "show_more": "{count} weitere anzeigen | {count} weitere anzeigen",
     "empty": "Keine Namen mit verschiedenen Dateien",
     "search": "Namen suchen…",
     "no_results": "Kein Name gefunden",

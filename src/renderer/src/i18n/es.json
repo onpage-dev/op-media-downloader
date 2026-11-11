@@ -283,6 +283,8 @@
     "variants": "{count} archivos distintos",
     "chosen": "Descargado",
     "skipped": "No descargado",
+    "more": "y {count} archivo más con el mismo nombre | y {count} archivos más con el mismo nombre",
+    "show_more": "Mostrar {count} más | Mostrar {count} más",
     "empty": "No hay nombres repetidos",
     "search": "Buscar un nombre…",
     "no_results": "No se ha encontrado ningún nombre",

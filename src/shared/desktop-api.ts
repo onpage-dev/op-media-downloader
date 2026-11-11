@@ -12,12 +12,14 @@ import {
   AppSettings,
   AppStatus,
   DuplicatePage,
+  DuplicateVariants,
   FailedPage,
   FolderInfo,
   PageQuery,
   ProjectId,
   ProjectView,
   TokenCheck,
+  VariantsQuery,
   VersionInfo,
 } from './models'
 
@@ -90,6 +92,8 @@ export interface DesktopApi {
     onActivity(listener: (id: ProjectId, entries: ActivityEntry[]) => void): Unsubscribe
     getFailed(id: ProjectId, page: PageQuery): Promise<FailedPage>
     getDuplicates(id: ProjectId, page: PageQuery): Promise<DuplicatePage>
+    /** «Mostra altri»: the next files of one name of «Duplicati» */
+    getDuplicateVariants(id: ProjectId, query: VariantsQuery): Promise<DuplicateVariants>
   }
 
   folders: {
