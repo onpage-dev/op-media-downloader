@@ -12,7 +12,7 @@
 
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::Engine;
 use super::session::{FolderSession, PlanRequest, SessionOptions};
@@ -68,7 +68,9 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
     ctx.slot.set_phase(JobPhase::Listing);
     engine.listings.begin(id);
     let listed = async {
+        let started = Instant::now();
         let cache = if full { None } else { engine.listings.read_cache(id).await };
+        let cache_read = started.elapsed();
         let tracker = ctx.slot.set_progress(ProgressTracker::new(0, 0, engine.concurrency() as u64));
         let slot = ctx.slot.clone();
         let on_retry_engine = engine.clone();
@@ -104,20 +106,18 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
             log: &log,
         })
         .await?;
-        if listing.complete
-            && let Err(error) = engine.listings.write_cache(id, &listing.index).await
-        {
-            ctx.log(LogLevel::Warn, format!("Listing cache not written: {}", error.detail()));
-        }
+        let listed_in = started.elapsed();
+        let local = Instant::now();
+        let index = listing.index.clone();
+        let resolved = tokio::task::spawn_blocking(move || resolve_names(&index))
+            .await
+            .map_err(|e| Error::Other(e.to_string()))?;
+        let names_resolved = local.elapsed();
         for failed in &listing.failed_resources {
             ctx.log(LogLevel::Warn, format!("Collection {} not read: {}", failed.label, failed.error));
         }
         // Until a complete listing: what was not read keeps what the cache knew, nothing is removed
         ctx.slot.set_incomplete((!listing.complete).then(|| failed_labels(&listing.failed_resources)));
-        let index = listing.index.clone();
-        let resolved = tokio::task::spawn_blocking(move || resolve_names(&index))
-            .await
-            .map_err(|e| Error::Other(e.to_string()))?;
         {
             let mut failed = ctx.slot.failed.lock();
             failed.retain(|e| e.reason != FailureCode::InvalidName);
@@ -133,13 +133,32 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
                 });
             }
         }
-        // What the duplicates tab needs, small, for the next start of the app
-        if listing.complete
-            && let Err(error) = engine.listings.write_duplicates(id, &listing.schema, &resolved).await
-        {
-            ctx.log(LogLevel::Warn, format!("Duplicates cache not written: {}", error.detail()));
+        ctx.log(
+            LogLevel::Info,
+            format!(
+                "Listing ({:?}{}): {} files in {:.1?} (cache read {:.1?}); names {:.1?}",
+                listing.mode,
+                if listing.changed { "" } else { ", unchanged" },
+                listing.index.file_count(),
+                listed_in,
+                cache_read,
+                names_resolved
+            ),
+        );
+        let (complete, changed) = (listing.complete, listing.changed);
+        let listed = engine.listings.keep(id, token, listing, resolved);
+        // The caches for the next listing and the next start, in the background: nobody waits for them
+        if complete {
+            let duplicates = (Arc::new(listed.listing.schema.clone()), listed.resolved.clone());
+            let (log_engine, log_id) = (engine.clone(), id.clone());
+            engine
+                .listings
+                .save_in_background(id, listed.listing.index.clone(), duplicates, changed, move |message| {
+                    log_engine.log(LogLevel::Warn, message, Some(&log_id))
+                })
+                .await;
         }
-        Ok(engine.listings.keep(id, token, listing, resolved))
+        Ok(listed)
     }
     .await;
     engine.listings.end(id);
@@ -158,17 +177,19 @@ async fn compare(
     // Before anything is linked or removed: the folder must be this On Page project's
     session.bind(&OnPageProject { id: schema.id, label: schema.label.clone() }, ctx.job.project.take_over_folder)?;
     ctx.slot.set_phase(JobPhase::Comparing);
+    let log = |level: LogLevel, message: String| ctx.log(level, message);
     let plan = session
         .plan(
             PlanRequest {
-                desired: &listed.resolved.desired,
+                resolved: listed.resolved.clone(),
                 keep_old_files: ctx.job.project.keep_old_files,
                 listing_complete: listed.listing.complete,
                 listing: listed.listing.mode,
-                confirmed,
+                confirmed: confirmed.cloned(),
                 duplicates: listed.resolved.duplicates.len() as u64,
             },
             &ctx.job,
+            &log,
         )
         .await?;
     *ctx.slot.withheld.lock() = plan.withheld.clone();
@@ -209,6 +230,7 @@ async fn execute(ctx: &JobContext, session: &FolderSession, plan: &Plan, reset_f
     let log = |level: LogLevel, message: String| ctx.log(level, message);
     let guard = || session.guard();
     let fail = |error: JobError| ctx.job.fail(error);
+    let started = Instant::now();
     let run = execute_plan(&ExecuteContext {
         folder: &session.folder,
         data_dir: &session.data_dir,
@@ -235,8 +257,22 @@ async fn execute(ctx: &JobContext, session: &FolderSession, plan: &Plan, reset_f
         reach_timeout: engine.timings.reach_timeout,
     })
     .await;
+    let ran = started.elapsed();
     // What was placed is registered, whatever ended the run
     let save_error = session.save().await;
+    if let Ok(result) = &run {
+        ctx.log(
+            LogLevel::Info,
+            format!(
+                "Run: {} downloaded, {} linked, {} removed in {ran:.1?}; registry of {} names saved in {:.1?}",
+                result.downloaded,
+                result.linked,
+                result.removed,
+                session.manifest.len(),
+                started.elapsed() - ran
+            ),
+        );
+    }
     // The registry on the disk names this job's On Page project: the choice of the folder is done
     let (written, bound) = (session.manifest.written_project(), session.manifest.onpage_project());
     if let (Some(written), Some(bound)) = (written, bound)

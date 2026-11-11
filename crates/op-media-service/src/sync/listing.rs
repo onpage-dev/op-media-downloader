@@ -50,11 +50,14 @@ pub struct FailedResource {
 #[derive(Debug, Clone)]
 pub struct ListingResult {
     pub schema: Schema,
-    pub index: RemoteIndex,
+    /// Shared: the cache is written and the names resolved from it at the same time
+    pub index: std::sync::Arc<RemoteIndex>,
     /// Every resource was read: removals are allowed
     pub complete: bool,
     pub mode: ListingMode,
     pub failed_resources: Vec<FailedResource>,
+    /// Something differs from the cache: a thing read again, gone, a collection not read, or a full listing
+    pub changed: bool,
 }
 
 /// The collections not read, for the detail of `listing_incomplete`: three names, then +N
@@ -126,10 +129,11 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
     // Changes made while we read are caught by the next listing
     let started_at = server_now.lock().unwrap_or(now);
     let signature = schema.signature(options.token);
-    let cache = options.cache.as_ref();
-    let checkpoint = cache.and_then(|c| parse_iso_ms(&c.checkpoint));
+    // Owned: the files of the things that did not change move to the new index, uncopied
+    let mut cache = options.cache;
+    let checkpoint = cache.as_ref().and_then(|c| parse_iso_ms(&c.checkpoint));
     let incremental = !options.full
-        && cache.is_some_and(|c| c.signature == signature && c.schema_id == schema.id)
+        && cache.as_ref().is_some_and(|c| c.signature == signature && c.schema_id == schema.id)
         && checkpoint.is_some_and(|at| now - at < options.max_cache_age.as_millis() as i64);
     let since = checkpoint.filter(|_| incremental).map(|at| format_server_date(at - options.margin.as_millis() as i64));
 
@@ -138,6 +142,8 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
     let report = || (options.on_progress)(progress.lock().clone());
     let lang = schema.lang().to_string();
     let mut work: Vec<ResourceWork> = Vec::new();
+    // Things the cache knew that are gone from On Page (or from the token's View)
+    let mut dropped = 0usize;
 
     // Phase 1: which things to read
     for (resource_index, item) in media.iter().enumerate() {
@@ -156,45 +162,50 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
             failed: None,
         };
         let filter = not_empty_filter(&item.fields);
-        let found: Result<()> = async {
+        let cached_here =
+            incremental && cache.as_ref().is_some_and(|c| c.resources.iter().any(|r| r.id == item.resource.id));
+        let found: Result<(Vec<i64>, Option<HashSet<i64>>)> = async {
             let ids = api.ids(&schema, item.resource, vec![filter.clone()]).await?;
-            let cached = if incremental {
-                cache.and_then(|c| c.resources.iter().find(|r| r.id == item.resource.id))
-            } else {
-                None
-            };
-            match (cached, &since) {
-                (Some(cached), Some(since)) => {
-                    let current: HashSet<i64> = ids.iter().copied().collect();
-                    for (id, files) in &cached.things {
-                        if current.contains(id) {
-                            entry.things.insert(*id, files.clone());
-                        }
-                    }
-                    let updated: HashSet<i64> = api
-                        .ids(&schema, item.resource, vec![filter.clone(), updated_since_filter(since)])
+            let updated = match (&since, cached_here) {
+                (Some(since), true) => Some(
+                    api.ids(&schema, item.resource, vec![filter.clone(), updated_since_filter(since)])
                         .await?
                         .into_iter()
-                        .collect();
-                    entry.to_read =
-                        ids.into_iter().filter(|id| !cached.things.contains_key(id) || updated.contains(id)).collect();
-                }
-                _ => entry.to_read = ids,
-            }
-            Ok(())
+                        .collect(),
+                ),
+                _ => None,
+            };
+            Ok((ids, updated))
         }
         .await;
-        if let Err(error) = found {
-            if is_fatal(&error) {
-                return Err(fatal(error));
+        match found {
+            Ok((ids, Some(updated))) => {
+                // Both answers are in: the cached files of what did not change move over
+                let cached = cache
+                    .as_mut()
+                    .and_then(|c| c.resources.iter_mut().find(|r| r.id == item.resource.id))
+                    .map(|r| std::mem::take(&mut r.things))
+                    .unwrap_or_default();
+                let current: HashSet<i64> = ids.iter().copied().collect();
+                entry.to_read = ids.into_iter().filter(|id| !cached.contains_key(id) || updated.contains(id)).collect();
+                let before = cached.len();
+                entry.things.extend(cached.into_iter().filter(|(id, _)| current.contains(id)));
+                dropped += before - entry.things.len();
             }
-            let text = describe(&error);
-            (options.log)(LogLevel::Warn, format!("Listing of {label} failed: {text}"));
-            entry.failed = Some(text);
+            Ok((ids, None)) => entry.to_read = ids,
+            Err(error) => {
+                if is_fatal(&error) {
+                    return Err(fatal(error));
+                }
+                let text = describe(&error);
+                (options.log)(LogLevel::Warn, format!("Listing of {label} failed: {text}"));
+                entry.failed = Some(text);
+            }
         }
         work.push(entry);
     }
-    progress.lock().things_total = Some(work.iter().map(|w| w.to_read.len() as u64).sum());
+    let work_read: usize = work.iter().map(|w| w.to_read.len()).sum();
+    progress.lock().things_total = Some(work_read as u64);
     report();
 
     // Phase 2: read the things, page by page
@@ -309,17 +320,20 @@ pub async fn list_remote(options: ListingOptions<'_>) -> Result<ListingResult> {
             if w.failed.is_none() {
                 return RemoteResource { id, things: w.things };
             }
-            let cached = cache.and_then(|c| c.resources.iter().find(|r| r.id == id));
-            RemoteResource { id, things: cached.map(|c| c.things.clone()).unwrap_or_default() }
+            let cached = cache.as_mut().and_then(|c| c.resources.iter_mut().find(|r| r.id == id));
+            RemoteResource { id, things: cached.map(|c| std::mem::take(&mut c.things)).unwrap_or_default() }
         })
         .collect();
     let complete = failed_resources.is_empty();
+    let read: usize = work_read;
+    let changed = !incremental || !complete || read > 0 || dropped > 0;
     let schema_id = schema.id;
     Ok(ListingResult {
-        index: RemoteIndex { schema_id, signature, checkpoint: iso_ms(started_at), resources },
+        index: std::sync::Arc::new(RemoteIndex { schema_id, signature, checkpoint: iso_ms(started_at), resources }),
         schema,
         complete,
         mode: if incremental { ListingMode::Incremental } else { ListingMode::Full },
         failed_resources,
+        changed,
     })
 }

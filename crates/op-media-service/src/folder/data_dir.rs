@@ -47,6 +47,12 @@ async fn names(dir: &Path) -> std::io::Result<Vec<String>> {
 /// and service files (a 1.x first download interrupted before link.json was
 /// written); `Foreign` when it holds anything else.
 pub async fn data_dir_owner(data_dir: &Path) -> Result<DataDirOwner> {
+    // The registry is there: no need to list tens of thousands of contents
+    for own in [MANIFEST_FILE, LINK_JSON_FILE] {
+        if tokio::fs::metadata(data_dir.join(own)).await.is_ok_and(|m| m.is_file()) {
+            return Ok(DataDirOwner::Ours);
+        }
+    }
     let entries = match names(data_dir).await {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {

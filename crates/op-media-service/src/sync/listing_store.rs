@@ -20,7 +20,7 @@ use super::listing::ListingResult;
 use super::names::{ResolvedNames, resolve_names};
 use super::remote_index::{RemoteIndex, read_index_cache, write_index_cache};
 use crate::error::Result;
-use crate::fsx::unlink_quiet;
+use crate::fsx::{path_exists, unlink_quiet};
 use crate::models::ProjectId;
 use crate::onpage::Schema;
 
@@ -45,6 +45,9 @@ struct Kept {
 
 pub struct ListingStore {
     kept: Arc<Mutex<HashMap<ProjectId, Kept>>>,
+    /// One per project: the caches on disk are written in the background, and
+    /// read or removed only once the write in flight is done
+    files: Mutex<HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>,
     listing: Mutex<HashSet<ProjectId>>,
     cache_dir: PathBuf,
     max_age: Duration,
@@ -55,6 +58,7 @@ impl ListingStore {
     pub fn new(cache_dir: PathBuf, max_age: Duration) -> ListingStore {
         ListingStore {
             kept: Arc::new(Mutex::new(HashMap::new())),
+            files: Mutex::new(HashMap::new()),
             listing: Mutex::new(HashSet::new()),
             cache_dir,
             max_age,
@@ -76,20 +80,63 @@ impl ListingStore {
         self.file(id, ".duplicates.json.gz")
     }
 
+    fn files_lock(&self, id: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.files.lock().entry(id.to_string()).or_default().clone()
+    }
+
+    /// Temporary files of caches whose write an exit cut: they go at start-up
+    pub fn clear_leftovers(&self) {
+        let Ok(entries) = std::fs::read_dir(&self.cache_dir) else { return };
+        for entry in entries.flatten() {
+            if entry.file_name().to_string_lossy().ends_with(".tmp") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+
     pub async fn read_cache(&self, id: &str) -> Option<RemoteIndex> {
+        let lock = self.files_lock(id);
+        let _writes_done = lock.lock().await;
         read_index_cache(&self.cache_file(id)).await
     }
 
-    pub async fn write_cache(&self, id: &str, index: &RemoteIndex) -> Result<()> {
-        write_index_cache(&self.cache_file(id), index).await
+    /// After a complete listing: the index (always, its checkpoint moves on)
+    /// and what the duplicates tab needs (when the listing changed, or its file
+    /// is missing). Written in the background: the job goes on at once;
+    /// whoever reads the caches next waits for the write
+    pub async fn save_in_background(
+        &self,
+        id: &str,
+        index: Arc<RemoteIndex>,
+        duplicates: (Arc<Schema>, Arc<ResolvedNames>),
+        changed: bool,
+        failed: impl Fn(String) + Send + 'static,
+    ) {
+        let writing = self.files_lock(id).lock_owned().await;
+        let (cache_file, duplicates_file) = (self.cache_file(id), self.duplicates_file(id));
+        tokio::spawn(async move {
+            let _writing = writing;
+            if let Err(error) = write_index_cache(&cache_file, index).await {
+                failed(format!("Listing cache not written: {}", error.detail()));
+            }
+            let (schema, resolved) = duplicates;
+            if (changed || !path_exists(&duplicates_file).await)
+                && let Err(error) = Duplicates::write(&duplicates_file, schema, &resolved).await
+            {
+                failed(format!("Duplicates cache not written: {}", error.detail()));
+            }
+        });
     }
 
-    /// What the duplicates tab needs, after a complete listing
-    pub async fn write_duplicates(&self, id: &str, schema: &Schema, resolved: &ResolvedNames) -> Result<()> {
-        Duplicates::write(&self.duplicates_file(id), Arc::new(schema.clone()), resolved).await
+    /// Until the caches being written for this project are on the disk
+    pub async fn writes_done(&self, id: &str) {
+        let lock = self.files_lock(id);
+        let _done = lock.lock().await;
     }
 
     pub async fn remove_cache(&self, id: &str) {
+        let lock = self.files_lock(id);
+        let _writes_done = lock.lock().await;
         let _ = unlink_quiet(&self.cache_file(id)).await;
         let _ = unlink_quiet(&self.duplicates_file(id)).await;
     }
@@ -164,11 +211,24 @@ impl ListingStore {
                 }
             }
         }
-        let duplicates = match Duplicates::read(&self.duplicates_file(id)).await {
+        let from_file = {
+            let lock = self.files_lock(id);
+            let _writes_done = lock.lock().await;
+            Duplicates::read(&self.duplicates_file(id)).await
+        };
+        let duplicates = match from_file {
             Some(duplicates) => Arc::new(duplicates),
             None => {
                 let Some(resolved) = self.resolved(id, token).await else { return Ok(None) };
-                Arc::new(Duplicates::new(Arc::new(load().await?), &resolved))
+                let schema = Arc::new(load().await?);
+                // Its own file from now on: the next start opens the tab at once
+                let writing = self.files_lock(id).lock_owned().await;
+                let (file, written_schema, written) = (self.duplicates_file(id), schema.clone(), resolved.clone());
+                tokio::spawn(async move {
+                    let _writing = writing;
+                    let _ = Duplicates::write(&file, written_schema, &written).await;
+                });
+                Arc::new(Duplicates::new(schema, &resolved))
             }
         };
         if !self.listing.lock().contains(id) {

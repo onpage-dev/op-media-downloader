@@ -2,20 +2,21 @@
 //! (`<cache_dir>/<project>.json.gz`) for incremental listings.
 
 use std::collections::BTreeMap;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::Path;
+use std::sync::Arc;
 
 use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::error::Result;
-use crate::fsx::atomic_write;
+use crate::fsx::replace_file;
 
 /// A file of a thing, in field, lang and value order
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(from = "FileTuple", into = "FileTuple")]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(from = "FileTuple")]
 pub struct RemoteFile {
     pub field_id: i64,
     pub lang: Option<String>,
@@ -37,9 +38,10 @@ impl From<FileTuple> for RemoteFile {
     }
 }
 
-impl From<RemoteFile> for FileTuple {
-    fn from(f: RemoteFile) -> Self {
-        (f.field_id, f.lang, f.name, f.token, f.size, f.width, f.height)
+/// Written as the tuple, without copying the strings (200k files make a cache)
+impl Serialize for RemoteFile {
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        (self.field_id, &self.lang, &self.name, &self.token, self.size, self.width, self.height).serialize(serializer)
     }
 }
 
@@ -66,20 +68,18 @@ impl RemoteIndex {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct CacheResource {
     id: i64,
     things: Vec<(i64, Vec<RemoteFile>)>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct CacheJson {
     version: u32,
     schema_id: i64,
     signature: String,
     checkpoint: String,
-    #[serde(default)]
-    written_at: String,
     resources: Vec<CacheResource>,
 }
 
@@ -109,28 +109,49 @@ pub async fn read_index_cache(file: &Path) -> Option<RemoteIndex> {
     .flatten()
 }
 
-pub async fn write_index_cache(file: &Path, index: &RemoteIndex) -> Result<()> {
-    let json = CacheJson {
-        version: 1,
-        schema_id: index.schema_id,
-        signature: index.signature.clone(),
-        checkpoint: index.checkpoint.clone(),
-        written_at: crate::models::now_iso(),
-        resources: index
-            .resources
-            .iter()
-            .map(|r| CacheResource { id: r.id, things: r.things.iter().map(|(id, f)| (*id, f.clone())).collect() })
-            .collect(),
-    };
+/// The things of a resource as `[[id, [files…]], …]`, straight from the index
+struct ThingsOut<'a>(&'a BTreeMap<i64, Vec<RemoteFile>>);
+
+impl Serialize for ThingsOut<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.0.iter())
+    }
+}
+
+#[derive(Serialize)]
+struct ResourceOut<'a> {
+    id: i64,
+    things: ThingsOut<'a>,
+}
+
+#[derive(Serialize)]
+struct CacheOut<'a> {
+    version: u32,
+    schema_id: i64,
+    signature: &'a str,
+    checkpoint: &'a str,
+    written_at: String,
+    resources: Vec<ResourceOut<'a>>,
+}
+
+/// Written on a blocking thread, from the index as it is (no copy), quickly compressed
+pub async fn write_index_cache(file: &Path, index: Arc<RemoteIndex>) -> Result<()> {
     let data = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<u8>> {
-        let text = serde_json::to_vec(&json)?;
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(&text)?;
+        let json = CacheOut {
+            version: 1,
+            schema_id: index.schema_id,
+            signature: &index.signature,
+            checkpoint: &index.checkpoint,
+            written_at: crate::models::now_iso(),
+            resources: index.resources.iter().map(|r| ResourceOut { id: r.id, things: ThingsOut(&r.things) }).collect(),
+        };
+        let mut encoder = GzEncoder::new(Vec::with_capacity(1 << 20), Compression::fast());
+        serde_json::to_writer(&mut encoder, &json)?;
         encoder.finish()
     })
     .await
     .map_err(|e| crate::error::Error::Other(e.to_string()))??;
-    atomic_write(file, &data, None).await
+    replace_file(file, &data).await
 }
 
 #[cfg(test)]
@@ -161,7 +182,7 @@ mod tests {
                 )]),
             }],
         };
-        write_index_cache(&file, &index).await.unwrap();
+        write_index_cache(&file, Arc::new(index.clone())).await.unwrap();
         let back = read_index_cache(&file).await.unwrap();
         assert_eq!(back.schema_id, 7);
         assert_eq!(back.resources[0].things[&3], index.resources[0].things[&3]);

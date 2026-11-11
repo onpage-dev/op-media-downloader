@@ -32,6 +32,8 @@ unicode-normalization = "0.1"
 same-file = "1"
 gethostname = "1"
 regex = "1"
+# A fast hash for the maps of hundreds of thousands of names (local data, no hostile keys)
+rustc-hash = "2"
 axum = { version = "0.8", optional = true }
 
 [target.'cfg(unix)'.dependencies]

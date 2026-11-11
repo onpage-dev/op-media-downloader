@@ -3,6 +3,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use rustc_hash::{FxHashMap, FxHashSet};
+
 use unicode_normalization::UnicodeNormalization;
 
 use super::remote_index::RemoteIndex;
@@ -37,6 +39,9 @@ fn trim_dots_and_spaces(name: &str) -> &str {
 /// keeping the extension. Network shares are often Windows-backed, so the
 /// Windows rules apply everywhere.
 pub fn sanitize_name(raw: &str) -> String {
+    if is_plain(raw) {
+        return raw.to_string();
+    }
     let replaced: String = raw.nfc().map(|c| if forbidden(c) { '_' } else { c }).collect();
     let mut name = trim_dots_and_spaces(&replaced).to_string();
     if name.is_empty() || name == "." || name == ".." {
@@ -75,10 +80,38 @@ fn truncate(name: String) -> String {
 
 /// Case-insensitive identity of a name (Windows and macOS folders ignore case)
 pub fn name_key(name: &str) -> String {
+    if name.is_ascii() {
+        return name.to_ascii_lowercase();
+    }
     name.nfc().collect::<String>().to_lowercase()
 }
 
+/// An ASCII name that is already safe as it is, checked without building
+/// anything: most names of a project, and the bulk of 200k
+fn is_plain(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    if bytes.is_empty() || bytes.len() > MAX_NAME_BYTES || !name.is_ascii() {
+        return false;
+    }
+    if bytes.iter().any(|&b| b < 0x20 || b == 0x7f || b"<>:\"/\\|?*".contains(&b)) {
+        return false;
+    }
+    if matches!(bytes[bytes.len() - 1], b'.' | b' ') || name.eq_ignore_ascii_case("data") {
+        return false;
+    }
+    let stem = match name.rfind('.') {
+        Some(dot) if dot > 0 => &name[..dot],
+        _ => name,
+    };
+    let first = stem.split('.').next().unwrap_or("").trim();
+    // Device names are 3 or 4 letters: only those need the full check
+    !(first.len() == 3 || first.len() == 4) || !reserved(first)
+}
+
 pub fn nfc(name: &str) -> String {
+    if name.is_ascii() {
+        return name.to_string();
+    }
     name.nfc().collect()
 }
 
@@ -164,28 +197,54 @@ struct GroupWork {
     chosen_uses: HashSet<FileUse>,
 }
 
+/// The safe name and the key of every file, in the index's order. Each file's
+/// stands alone: computed on all the cores (200k names would take a third
+/// of a second on one)
+fn names_of(index: &RemoteIndex) -> Vec<(String, String)> {
+    let files: Vec<&str> =
+        index.resources.iter().flat_map(|r| r.things.values()).flatten().map(|f| f.name.as_str()).collect();
+    let name_and_key = |name: &&str| {
+        let local = sanitize_name(name);
+        let key = name_key(&local);
+        (local, key)
+    };
+    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).min(8);
+    if threads < 2 || files.len() < 20_000 {
+        return files.iter().map(name_and_key).collect();
+    }
+    let chunk = files.len().div_ceil(threads);
+    std::thread::scope(|scope| {
+        let parts: Vec<_> = files
+            .chunks(chunk)
+            .map(|part| scope.spawn(move || part.iter().map(name_and_key).collect::<Vec<_>>()))
+            .collect();
+        parts.into_iter().flat_map(|part| part.join().unwrap_or_default()).collect()
+    })
+}
+
 /// Walks the index in a fixed order (resources and fields as in the schema,
 /// things by id, langs as in the schema, files as in the value) so the same
 /// remote content always gives the same winner for a name.
 pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
-    let mut by_key: HashMap<String, usize> = HashMap::new();
+    let names = names_of(index);
+    let mut by_key: FxHashMap<String, usize> = FxHashMap::with_capacity_and_hasher(names.len(), Default::default());
     let mut groups: Vec<GroupWork> = Vec::new();
-    let mut group_of: HashMap<String, usize> = HashMap::new();
-    let mut desired: Vec<DesiredFile> = Vec::new();
+    let mut group_of: FxHashMap<String, usize> = FxHashMap::default();
+    let mut desired: Vec<DesiredFile> = Vec::with_capacity(names.len());
     let mut invalid = Vec::new();
+    let mut names = names.into_iter();
 
     for resource in &index.resources {
         // BTreeMap: things by id
         for (&thing_id, files) in &resource.things {
             for file in files {
+                let (local_name, key) = names.next().unwrap_or_default();
                 let use_ =
                     FileUse { resource_id: resource.id, thing_id, field_id: file.field_id, lang: file.lang.clone() };
                 if !is_safe_token(&file.token) {
                     invalid.push(InvalidFile { remote_name: file.name.clone(), token: file.token.clone(), use_ });
                     continue;
                 }
-                let local_name = sanitize_name(&file.name);
-                let key = name_key(&local_name);
                 let Some(&winner_index) = by_key.get(&key) else {
                     by_key.insert(key.clone(), desired.len());
                     desired.push(DesiredFile {
@@ -248,7 +307,7 @@ pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
 
     // Every use of the winning token, for the duplicates view
     if !groups.is_empty() {
-        let chosen_tokens: HashSet<String> = groups.iter().map(|w| w.group.variants[0].token.clone()).collect();
+        let chosen_tokens: FxHashSet<String> = groups.iter().map(|w| w.group.variants[0].token.clone()).collect();
         for resource in &index.resources {
             for (&thing_id, files) in &resource.things {
                 for file in files {
@@ -387,6 +446,54 @@ mod tests {
         assert!(short.len() <= 200);
         assert!(short.ends_with(".jpeg"));
         assert!(sanitize_name(&format!("{}.pdf", "è".repeat(300))).len() <= 200);
+    }
+
+    #[test]
+    fn the_quick_path_agrees_with_the_full_one() {
+        for name in [
+            "Prodotto 12.jpg",
+            "a.b.c",
+            "CON",
+            "con.txt",
+            "COM1.png",
+            "com10.png",
+            "lpt3",
+            "data",
+            "Data",
+            "data.jpg",
+            "x.",
+            "x ",
+            ".hidden",
+            "a<b",
+            "tab	here",
+            "ok-name_1 (2).PDF",
+            "CON .txt",
+            " con.txt",
+            "aux.tar.gz",
+        ] {
+            let full: String = {
+                let replaced: String = name.chars().map(|c| if forbidden(c) { '_' } else { c }).collect();
+                let mut out = trim_dots_and_spaces(&replaced).to_string();
+                if out.is_empty() || out == "." || out == ".." {
+                    out = "_".into();
+                }
+                let stem = match out.rfind('.') {
+                    Some(dot) if dot > 0 => &out[..dot],
+                    _ => out.as_str(),
+                };
+                if reserved(stem.split('.').next().unwrap_or("").trim()) {
+                    out = format!("_{out}");
+                }
+                if out.to_lowercase() == "data" {
+                    out = format!("_{out}");
+                }
+                truncate(out)
+            };
+            assert_eq!(sanitize_name(name), full, "{name}");
+            assert_eq!(is_plain(name), full == name, "{name}");
+        }
+        assert_eq!(name_key("Foto.JPG"), "foto.jpg");
+        assert_eq!(name_key("CAFÉ.jpg"), "café.jpg");
     }
 
     #[test]

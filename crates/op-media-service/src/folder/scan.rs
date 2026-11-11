@@ -1,6 +1,6 @@
 //! One listing of the project folder and one of data/ per job.
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::Path;
 
 use super::manifest::{DATA_DIR, LINK_JSON_FILE, LOCK_FILE, MANIFEST_FILE, TEMP_PREFIX};
@@ -23,9 +23,9 @@ pub struct FolderEntry {
 #[derive(Debug, Clone, Default)]
 pub struct FolderScan {
     /// Entries of the project folder by case-insensitive key, data/ excluded
-    pub entries: HashMap<String, FolderEntry>,
+    pub entries: FxHashMap<String, FolderEntry>,
     /// Tokens present in data/
-    pub data_tokens: HashSet<String>,
+    pub data_tokens: FxHashSet<String>,
     /// `<token>.download` and other leftovers of interrupted runs, in data/
     pub data_leftovers: Vec<String>,
     /// `.opmd-*` temporary names in the project folder
@@ -64,7 +64,11 @@ pub async fn read_entries(dir: &Path) -> Result<Vec<(String, EntryType)>> {
 
 pub async fn scan_folder(folder: &Path) -> Result<FolderScan> {
     let mut scan = FolderScan::default();
-    for (name, kind) in read_entries(folder).await? {
+    // The two listings at the same time: on a share each one waits for the server
+    let data_dir = folder.join(DATA_DIR);
+    let (names, data) = tokio::join!(read_entries(folder), read_entries(&data_dir));
+    let (names, data) = (names?, data?);
+    for (name, kind) in names {
         let key = name_key(&name);
         if key == DATA_DIR {
             continue;
@@ -76,7 +80,7 @@ pub async fn scan_folder(folder: &Path) -> Result<FolderScan> {
         // Case-sensitive folders can hold two names with one key: keep the first
         scan.entries.entry(key).or_insert(FolderEntry { name, kind });
     }
-    for (name, kind) in read_entries(&folder.join(DATA_DIR)).await? {
+    for (name, kind) in data {
         if kind != EntryType::File || [MANIFEST_FILE, LINK_JSON_FILE, LOCK_FILE].contains(&name.as_str()) {
             continue;
         }

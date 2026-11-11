@@ -19,7 +19,7 @@ use crate::folder::scan::scan_folder;
 use crate::fsx::{free_space, path_exists, reachable, unlink_quiet};
 use crate::http::sleep;
 use crate::models::{IssueCode, ListingMode, LogLevel, OnPageProject, ProjectFolder};
-use crate::sync::names::DesiredFile;
+use crate::sync::names::ResolvedNames;
 use crate::sync::plan::{AdoptionStat, Plan, PlanInput, adoption_candidates, build_plan};
 use crate::sync::queue::run_queue;
 
@@ -48,12 +48,13 @@ pub struct FolderSession {
     watcher: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
-pub struct PlanRequest<'a> {
-    pub desired: &'a [DesiredFile],
+/// What the plan is made of; owned, so that it is computed on a blocking thread
+pub struct PlanRequest {
+    pub resolved: Arc<ResolvedNames>,
     pub keep_old_files: bool,
     pub listing_complete: bool,
     pub listing: ListingMode,
-    pub confirmed: Option<&'a HashSet<String>>,
+    pub confirmed: Option<HashSet<String>>,
     pub duplicates: u64,
 }
 
@@ -61,6 +62,7 @@ impl FolderSession {
     /// Folder checks, the lock and the manifest. A lock lost later fails the
     /// job at once: the transfers in flight stop, nothing more is written.
     pub async fn open(job: &Arc<Job>, options: SessionOptions<'_>) -> Result<FolderSession> {
+        let started = std::time::Instant::now();
         let project = &job.project;
         let folder = normalize(&project.folder);
         if is_protected_path(&folder) {
@@ -109,6 +111,7 @@ impl FolderSession {
             };
             return Err(issue.into());
         }
+        let checked = started.elapsed();
         let lock = FolderLock::acquire(
             &data_dir,
             LockOptions {
@@ -120,6 +123,7 @@ impl FolderSession {
         )
         .await
         .map_err(Error::into_job_error)?;
+        let locked = started.elapsed();
         let opened: Result<Manifest> = async {
             job.check()?;
             let loaded = Manifest::load(&data_dir, &project.id).await.map_err(Error::into_job_error)?;
@@ -129,6 +133,15 @@ impl FolderSession {
             if loaded.recovered {
                 (options.log)(LogLevel::Warn, "data/manifest.json was unreadable: rebuilt".into());
             }
+            (options.log)(
+                LogLevel::Info,
+                format!(
+                    "Open: checked in {checked:.1?}, locked in {:.1?}, registry of {} names read in {:.1?}",
+                    locked - checked,
+                    loaded.manifest.len(),
+                    started.elapsed() - locked
+                ),
+            );
             Ok(loaded.manifest)
         }
         .await;
@@ -177,8 +190,15 @@ impl FolderSession {
     }
 
     /// Scan, adoption checks, plan
-    pub async fn plan(&self, request: PlanRequest<'_>, job: &Job) -> Result<Plan> {
+    pub async fn plan(
+        &self,
+        request: PlanRequest,
+        job: &Job,
+        log: &(dyn Fn(LogLevel, String) + Send + Sync),
+    ) -> Result<Plan> {
+        let started = std::time::Instant::now();
         let scan = scan_folder(&self.folder).await.map_err(Error::into_job_error)?;
+        let scanned = started.elapsed();
         // Leftovers of interrupted runs: ours by name
         let leftovers: Vec<PathBuf> = scan
             .data_leftovers
@@ -191,7 +211,7 @@ impl FolderSession {
             Ok(())
         })
         .await?;
-        let candidates = adoption_candidates(request.desired, &self.manifest, &scan);
+        let candidates = self.manifest.read(|manifest| adoption_candidates(&request.resolved.desired, manifest, &scan));
         let adoption: Mutex<HashMap<String, AdoptionStat>> = Mutex::new(HashMap::new());
         run_queue(&candidates, FS_LANES, Some(job.signal()), |candidate, _| {
             let (adoption, scan) = (&adoption, &scan);
@@ -218,17 +238,38 @@ impl FolderSession {
             return Err(Error::Aborted);
         }
         let adoption = adoption.into_inner();
-        Ok(build_plan(PlanInput {
-            desired: request.desired,
-            manifest: &self.manifest,
-            scan: &scan,
-            keep_old_files: request.keep_old_files,
-            listing_complete: request.listing_complete,
-            listing: request.listing,
-            confirmed: request.confirmed,
-            duplicates: request.duplicates,
-            adoption: Some(&adoption),
-        }))
+        let checked = started.elapsed();
+        let (names_on_disk, checks) = (scan.entries.len(), candidates.len());
+        // Hundreds of thousands of names: computed on a blocking thread, the registry read in place
+        let manifest = self.manifest.clone();
+        let plan = tokio::task::spawn_blocking(move || {
+            manifest.read(|files| {
+                build_plan(PlanInput {
+                    desired: &request.resolved.desired,
+                    manifest: files,
+                    scan: &scan,
+                    keep_old_files: request.keep_old_files,
+                    listing_complete: request.listing_complete,
+                    listing: request.listing,
+                    confirmed: request.confirmed.as_ref(),
+                    duplicates: request.duplicates,
+                    adoption: Some(&adoption),
+                })
+            })
+        })
+        .await
+        .map_err(|e| Error::Other(e.to_string()))?;
+        log(
+            LogLevel::Info,
+            format!(
+                "Compare: {} names on disk scanned in {scanned:.1?}, {} checked in {:.1?}, planned in {:.1?}",
+                names_on_disk,
+                checks,
+                checked - scanned,
+                started.elapsed() - checked
+            ),
+        );
+        Ok(plan)
     }
 
     /// Before downloading: the contents, and the copies where the folder

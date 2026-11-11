@@ -13,8 +13,10 @@
 
 use std::collections::{HashMap, HashSet};
 
+use rustc_hash::{FxHashMap, FxHashSet};
+
 use super::names::{DesiredFile, name_key, same_name};
-use crate::folder::manifest::{Manifest, ManifestEntry, ManifestMode};
+use crate::folder::manifest::{Manifest, ManifestEntry, ManifestFiles, ManifestMode};
 use crate::folder::scan::{EntryType, FolderScan};
 use crate::models::{ListingMode, PlanSummary};
 
@@ -98,7 +100,7 @@ pub struct Plan {
 
 pub struct PlanInput<'a> {
     pub desired: &'a [DesiredFile],
-    pub manifest: &'a Manifest,
+    pub manifest: ManifestFiles<'a>,
     pub scan: &'a FolderScan,
     pub keep_old_files: bool,
     pub listing_complete: bool,
@@ -117,7 +119,11 @@ pub struct AdoptionCandidate {
 }
 
 /// Desired names on disk that the manifest does not know: they need a stat
-pub fn adoption_candidates(desired: &[DesiredFile], manifest: &Manifest, scan: &FolderScan) -> Vec<AdoptionCandidate> {
+pub fn adoption_candidates(
+    desired: &[DesiredFile],
+    manifest: ManifestFiles<'_>,
+    scan: &FolderScan,
+) -> Vec<AdoptionCandidate> {
     desired
         .iter()
         .filter(|file| manifest.by_key(&file.key).is_none())
@@ -135,7 +141,7 @@ pub fn adoption_candidates(desired: &[DesiredFile], manifest: &Manifest, scan: &
 pub fn build_plan(input: PlanInput<'_>) -> Plan {
     let PlanInput { desired, manifest, scan, .. } = input;
     let mut downloads: Vec<DownloadTask> = Vec::new();
-    let mut download_of: HashMap<String, usize> = HashMap::new();
+    let mut download_of: FxHashMap<String, usize> = FxHashMap::default();
     let mut links: Vec<LinkTask> = Vec::new();
     let mut renames: Vec<RenameTask> = Vec::new();
     let mut adoptions: Vec<Adoption> = Vec::new();
@@ -154,16 +160,17 @@ pub fn build_plan(input: PlanInput<'_>) -> Plan {
         downloads[index].names.push(target);
     };
 
-    let mut desired_keys: HashSet<&str> = HashSet::with_capacity(desired.len());
+    let mut desired_keys: FxHashSet<&str> = FxHashSet::with_capacity_and_hasher(desired.len(), Default::default());
     for file in desired {
         desired_keys.insert(&file.key);
         let on_disk = scan.entries.get(&file.key);
         let owned = manifest.by_key(&file.key);
-        let target = NameTarget {
+        // Built only for a name that needs work: most of 200k names are up to date
+        let target = |replace: Option<String>| NameTarget {
             name: file.local_name.clone(),
             remote_name: file.remote_name.clone(),
             size: file.size,
-            replace: None,
+            replace,
         };
         let conflict = || Conflict {
             name: file.local_name.clone(),
@@ -182,8 +189,8 @@ pub fn build_plan(input: PlanInput<'_>) -> Plan {
         if let Some((owned_name, entry)) = owned {
             match on_disk {
                 None => {
-                    let replace = (owned_name != file.local_name).then_some(owned_name);
-                    need(&file.token, NameTarget { replace, ..target });
+                    let replace = (owned_name != file.local_name).then(|| owned_name.to_string());
+                    need(&file.token, target(replace));
                 }
                 Some(disk) if entry.token == file.token => {
                     if same_name(&disk.name, &file.local_name) {
@@ -193,17 +200,17 @@ pub fn build_plan(input: PlanInput<'_>) -> Plan {
                             from: disk.name.clone(),
                             to: file.local_name.clone(),
                             token: file.token.clone(),
-                            entry,
+                            entry: entry.clone(),
                         });
                     }
                 }
-                Some(disk) => need(&file.token, NameTarget { replace: Some(disk.name.clone()), ..target }),
+                Some(disk) => need(&file.token, target(Some(disk.name.clone()))),
             }
             continue;
         }
 
         let Some(disk) = on_disk else {
-            need(&file.token, target);
+            need(&file.token, target(None));
             continue;
         };
 
@@ -246,15 +253,19 @@ pub fn build_plan(input: PlanInput<'_>) -> Plan {
     }
 
     // Removals: rules 1, 3, 4
-    let entries = manifest.entries();
     let mut remove_names: Vec<String> = Vec::new();
     let mut drop_entries: Vec<String> = Vec::new();
-    for (name, _) in &entries {
-        let key = name_key(name);
-        if desired_keys.contains(key.as_str()) {
+    for (name, _) in manifest.iter() {
+        // ASCII names (most) are compared without building their key
+        let key: std::borrow::Cow<'_, str> = if name.bytes().any(|b| b.is_ascii_uppercase() || !b.is_ascii()) {
+            name_key(name).into()
+        } else {
+            name.into()
+        };
+        if desired_keys.contains(key.as_ref()) {
             continue;
         }
-        let Some(disk) = scan.entries.get(&key) else {
+        let Some(disk) = scan.entries.get(key.as_ref()) else {
             drop_entries.push(name.clone());
             continue;
         };
@@ -275,7 +286,7 @@ pub fn build_plan(input: PlanInput<'_>) -> Plan {
         None => remove_names.clone(),
     };
     let mut withheld: Vec<String> = Vec::new();
-    if unconfirmed.len() > CLEANUP_MIN_NAMES && unconfirmed.len() as f64 > CLEANUP_MIN_RATIO * entries.len() as f64 {
+    if unconfirmed.len() > CLEANUP_MIN_NAMES && unconfirmed.len() as f64 > CLEANUP_MIN_RATIO * manifest.len() as f64 {
         withheld = unconfirmed;
         remove_names = match input.confirmed {
             Some(confirmed) => remove_names.into_iter().filter(|n| confirmed.contains(n)).collect(),
@@ -286,9 +297,9 @@ pub fn build_plan(input: PlanInput<'_>) -> Plan {
     // Contents nobody needs any more
     let mut remove_tokens: Vec<String> = Vec::new();
     if input.listing_complete {
-        let mut referenced: HashSet<&str> = desired.iter().map(|f| f.token.as_str()).collect();
-        let leaving: HashSet<&str> = remove_names.iter().chain(&drop_entries).map(String::as_str).collect();
-        for (name, entry) in &entries {
+        let mut referenced: FxHashSet<&str> = desired.iter().map(|f| f.token.as_str()).collect();
+        let leaving: FxHashSet<&str> = remove_names.iter().chain(&drop_entries).map(String::as_str).collect();
+        for (name, entry) in manifest.iter() {
             // Wanted names get the wanted token: their old content is no longer needed
             if !leaving.contains(name.as_str()) && !desired_keys.contains(name_key(name).as_str()) {
                 referenced.insert(&entry.token);
@@ -472,16 +483,18 @@ mod tests {
         confirmed: Option<&HashSet<String>>,
         adoption: Option<&HashMap<String, AdoptionStat>>,
     ) -> Plan {
-        build_plan(PlanInput {
-            desired,
-            manifest,
-            scan,
-            keep_old_files: false,
-            listing_complete: true,
-            listing: ListingMode::Full,
-            confirmed,
-            duplicates: 0,
-            adoption,
+        manifest.read(|manifest| {
+            build_plan(PlanInput {
+                desired,
+                manifest,
+                scan,
+                keep_old_files: false,
+                listing_complete: true,
+                listing: ListingMode::Full,
+                confirmed,
+                duplicates: 0,
+                adoption,
+            })
         })
     }
 
@@ -585,16 +598,18 @@ mod tests {
     fn rule_4_an_incomplete_listing_removes_nothing() {
         let m = manifest(&[("old.jpg", "t1")]);
         let s = scan(&["old.jpg"], &["t1"]);
-        let p = build_plan(PlanInput {
-            desired: &[],
-            manifest: &m,
-            scan: &s,
-            keep_old_files: false,
-            listing_complete: false,
-            listing: ListingMode::Full,
-            confirmed: None,
-            duplicates: 0,
-            adoption: None,
+        let p = m.read(|manifest| {
+            build_plan(PlanInput {
+                desired: &[],
+                manifest,
+                scan: &s,
+                keep_old_files: false,
+                listing_complete: false,
+                listing: ListingMode::Full,
+                confirmed: None,
+                duplicates: 0,
+                adoption: None,
+            })
         });
         assert!(p.remove_names.is_empty() && p.remove_tokens.is_empty());
     }

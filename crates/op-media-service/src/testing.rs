@@ -146,6 +146,22 @@ pub struct FakeState {
     pub storage: HashMap<String, StorageBehaviour>,
     pub api: ApiBehaviour,
     pub hits: Hits,
+    /// token → file, built at the first storage request after a change (a project of 200k files)
+    files: Option<HashMap<String, FakeFile>>,
+}
+
+impl FakeState {
+    fn file(&mut self, token: &str) -> Option<FakeFile> {
+        let project = &self.project;
+        let files = self.files.get_or_insert_with(|| {
+            let mut files = HashMap::new();
+            for file in project.things.iter().flat_map(|t| t.files.values()).flat_map(FakeValue::all) {
+                files.entry(file.token.clone()).or_insert_with(|| file.clone());
+            }
+            files
+        });
+        files.get(token).cloned()
+    }
 }
 
 pub struct FakeOnPage {
@@ -163,6 +179,7 @@ impl FakeOnPage {
             storage: HashMap::new(),
             api: ApiBehaviour { retry_after_s: 1, ..ApiBehaviour::default() },
             hits: Hits::default(),
+            files: None,
         }));
         let shared = Shared { token: token.to_string(), state: state.clone() };
         let router = Router::new().fallback(handle).with_state(shared);
@@ -178,7 +195,10 @@ impl FakeOnPage {
     }
 
     pub fn with<T>(&self, change: impl FnOnce(&mut FakeState) -> T) -> T {
-        change(&mut self.state.lock())
+        let mut state = self.state.lock();
+        // The project may change: the files are indexed again when asked for
+        state.files = None;
+        change(&mut state)
     }
 
     /// Marks a thing as changed now (for `_updated_at` filters)
@@ -476,7 +496,7 @@ async fn storage(shared: &Shared, parts: &[String]) -> Response {
     let (file, behaviour) = {
         let mut state = shared.state.lock();
         *state.hits.storage.entry(token.clone()).or_default() += 1;
-        (state.project.find_file(&token).cloned(), state.storage.get(&token).cloned().unwrap_or_default())
+        (state.file(&token), state.storage.get(&token).cloned().unwrap_or_default())
     };
     if !behaviour.delay.is_zero() {
         tokio::time::sleep(behaviour.delay).await;

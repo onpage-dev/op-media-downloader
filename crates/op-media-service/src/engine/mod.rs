@@ -216,7 +216,10 @@ impl MediaService {
             sink,
             handle,
         };
-        MediaService { engine: Arc::new(engine), _runtime: Arc::new(OwnedRuntime(Mutex::new(runtime))) }
+        let engine = Arc::new(engine);
+        let cleaner = engine.clone();
+        engine.handle.spawn_blocking(move || cleaner.listings.clear_leftovers());
+        MediaService { engine, _runtime: Arc::new(OwnedRuntime(Mutex::new(runtime))) }
     }
 
     /// New concurrency (1..10) and/or project folders

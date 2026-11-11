@@ -119,6 +119,26 @@ pub async fn atomic_write(path: &Path, data: &[u8], cancel: Option<&Cancellation
     written
 }
 
+/// The app's own caches: written to a sibling temporary file, then renamed
+/// over the target, without waiting for the disk to flush. A cache cut by a
+/// power cut is unreadable and costs one full listing; a flush would cost
+/// every write a second on Windows
+pub async fn replace_file(path: &Path, data: &[u8]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).await?;
+    }
+    let temp = with_suffix(path, &format!(".{}-{}.tmp", std::process::id(), random_hex(4)));
+    let written: Result<()> = async {
+        fs::write(&temp, data).await?;
+        rename_with_retry(&temp, path, 10, None).await
+    }
+    .await;
+    if written.is_err() {
+        let _ = unlink_quiet(&temp).await;
+    }
+    written
+}
+
 /// Removes a file; a file that is already gone is fine (false)
 pub async fn unlink_quiet(path: &Path) -> io::Result<bool> {
     match fs::remove_file(path).await {

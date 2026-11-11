@@ -1,7 +1,9 @@
 //! data/manifest.json: the registry of what the app created in a folder.
 //! Only names listed here (and contents in data/) can ever be removed.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+
+use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -72,7 +74,7 @@ struct State {
     /// The registry is a file already: a new On Page project is written at once
     on_disk: bool,
     files: BTreeMap<String, ManifestEntry>,
-    keys: HashMap<String, String>,
+    keys: FxHashMap<String, String>,
     changes: u64,
     last_flush: Instant,
     last_flush_took: Duration,
@@ -100,6 +102,130 @@ pub struct ManifestLoad {
     pub source: ManifestSource,
     /// manifest.json existed but could not be read
     pub recovered: bool,
+}
+
+/// A view of the registry's names, borrowed for as long as one read takes
+#[derive(Clone, Copy)]
+pub struct ManifestFiles<'a> {
+    files: &'a BTreeMap<String, ManifestEntry>,
+    keys: &'a FxHashMap<String, String>,
+}
+
+impl<'a> ManifestFiles<'a> {
+    pub fn len(&self) -> usize {
+        self.files.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.files.is_empty()
+    }
+
+    pub fn get(&self, name: &str) -> Option<&'a ManifestEntry> {
+        self.files.get(name)
+    }
+
+    /// The entry whose name is the same ignoring case
+    pub fn by_key(&self, key: &str) -> Option<(&'a str, &'a ManifestEntry)> {
+        let name = self.keys.get(key)?;
+        self.files.get(name).map(|entry| (name.as_str(), entry))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&'a String, &'a ManifestEntry)> + 'a {
+        self.files.iter()
+    }
+}
+
+enum Parsed {
+    /// Written by a newer version of the app: left as it is
+    Newer(f64),
+    Loaded,
+    /// Cut by a power cut, or not ours: rebuilt by adoption
+    Broken,
+}
+
+/// The file as written, read straight into its types (200k names: a generic
+/// JSON tree would take most of a second); anything else is a broken file
+#[derive(serde::Deserialize)]
+struct ManifestFile {
+    version: Option<f64>,
+    #[serde(default)]
+    onpage_project: Option<Value>,
+    files: Option<BTreeMap<String, EntryFile>>,
+}
+
+#[derive(serde::Deserialize)]
+struct EntryFile {
+    token: Option<String>,
+    #[serde(default)]
+    size: Option<f64>,
+    #[serde(default)]
+    mode: Option<String>,
+    #[serde(default)]
+    remote_name: Option<String>,
+}
+
+/// Only the version: a file of a newer app may have any shape
+#[derive(serde::Deserialize)]
+struct VersionOnly {
+    version: Option<f64>,
+}
+
+fn parse_manifest(state: &mut State, text: &str) -> Parsed {
+    let json: ManifestFile = match serde_json::from_str(text) {
+        Ok(json) => json,
+        Err(_) => {
+            return match serde_json::from_str::<VersionOnly>(text).ok().and_then(|v| v.version) {
+                Some(version) if version > VERSION as f64 => Parsed::Newer(version),
+                _ => Parsed::Broken,
+            };
+        }
+    };
+    if let Some(version) = json.version.filter(|v| *v > VERSION as f64) {
+        return Parsed::Newer(version);
+    }
+    let Some(files) = json.files else { return Parsed::Broken };
+    if json.version != Some(VERSION as f64) {
+        return Parsed::Broken;
+    }
+    state.on_disk = true;
+    state.onpage_project = json.onpage_project.as_ref().and_then(onpage_project);
+    state.written_project = state.onpage_project.clone();
+    for (name, entry) in files {
+        let Some(token) = entry.token else { continue };
+        if !valid_name(&name) || !is_safe_token(&token) {
+            continue;
+        }
+        let mode = match entry.mode.as_deref() {
+            Some("link") => ManifestMode::Link,
+            Some("copy") => ManifestMode::Copy,
+            Some("adopted") => ManifestMode::Adopted,
+            _ => ManifestMode::Unknown,
+        };
+        state.put(
+            name,
+            ManifestEntry { token, size: entry.size.map(|s| s as u64), mode, remote_name: entry.remote_name },
+        );
+    }
+    Parsed::Loaded
+}
+
+/// 1.x's registry: `{ "<name>": "<token>" }`
+fn parse_link_json(state: &mut State, text: &str) -> bool {
+    let Ok(Value::Object(links)) = serde_json::from_str::<Value>(text) else { return false };
+    for (name, token) in links {
+        let Some(token) = token.as_str() else { continue };
+        if valid_name(&name) && is_safe_token(token) {
+            let entry = ManifestEntry {
+                token: token.to_string(),
+                size: None,
+                mode: ManifestMode::Unknown,
+                remote_name: Some(name.clone()),
+            };
+            state.put(name, entry);
+        }
+    }
+    state.changes = state.files.len() as u64;
+    true
 }
 
 /// The On Page project of a registry read from the disk, when it is one
@@ -134,7 +260,7 @@ impl Manifest {
                 written_project: None,
                 on_disk: false,
                 files: BTreeMap::new(),
-                keys: HashMap::new(),
+                keys: FxHashMap::default(),
                 changes: 0,
                 last_flush: Instant::now(),
                 last_flush_took: Duration::ZERO,
@@ -148,80 +274,54 @@ impl Manifest {
     }
 
     /// A manifest written by a newer version of the app is refused, untouched:
-    /// read as broken, it would be rebuilt and overwritten with our format
+    /// read as broken, it would be rebuilt and overwritten with our format.
+    /// The text is parsed on a blocking thread: 200k names take a moment
     pub async fn load(data_dir: &Path, project_id: &str) -> Result<ManifestLoad> {
-        let manifest = Manifest::new(data_dir, project_id);
+        let mut manifest = Manifest::new(data_dir, project_id);
         let mut recovered = false;
         if let Some(text) = read_text(&Manifest::file(data_dir)).await? {
-            let json: Option<Value> = serde_json::from_str(&text).ok();
-            let version = json.as_ref().and_then(|j| j.get("version")).and_then(Value::as_f64);
-            if let Some(version) = version.filter(|v| *v > VERSION as f64) {
-                return Err(Error::Job(JobError::with_detail(
-                    IssueCode::FolderProtected,
-                    "The folder was synced by a newer version of the app",
-                    format!(
-                        "The folder was synced by a newer version of the app (data/{MANIFEST_FILE} version {version})"
-                    ),
-                )));
-            }
-            let files = json.as_ref().and_then(|j| j.get("files")).and_then(Value::as_object);
-            if let (Some(json), Some(files), Some(_)) = (&json, files, version.filter(|v| *v == VERSION as f64)) {
-                {
-                    let mut state = manifest.state.lock();
-                    state.on_disk = true;
-                    state.onpage_project = json.get("onpage_project").and_then(onpage_project);
-                    state.written_project = state.onpage_project.clone();
-                    for (name, entry) in files {
-                        let Some(token) = entry.get("token").and_then(Value::as_str) else {
-                            continue;
-                        };
-                        if !valid_name(name) || !is_safe_token(token) {
-                            continue;
-                        }
-                        let mode = entry
-                            .get("mode")
-                            .and_then(|m| serde_json::from_value::<ManifestMode>(m.clone()).ok())
-                            .unwrap_or(ManifestMode::Unknown);
-                        state.put(
-                            name.clone(),
-                            ManifestEntry {
-                                token: token.to_string(),
-                                size: entry.get("size").and_then(Value::as_f64).map(|s| s as u64),
-                                mode,
-                                remote_name: entry.get("remote_name").and_then(Value::as_str).map(str::to_string),
-                            },
-                        );
-                    }
+            let (back, parsed) = tokio::task::spawn_blocking(move || {
+                let parsed = parse_manifest(&mut manifest.state.lock(), &text);
+                (manifest, parsed)
+            })
+            .await
+            .map_err(|e| Error::Other(e.to_string()))?;
+            manifest = back;
+            match parsed {
+                Parsed::Newer(version) => {
+                    return Err(Error::Job(JobError::with_detail(
+                        IssueCode::FolderProtected,
+                        "The folder was synced by a newer version of the app",
+                        format!(
+                            "The folder was synced by a newer version of the app (data/{MANIFEST_FILE} version {version})"
+                        ),
+                    )));
                 }
-                return Ok(ManifestLoad { manifest, source: ManifestSource::Manifest, recovered });
+                Parsed::Loaded => return Ok(ManifestLoad { manifest, source: ManifestSource::Manifest, recovered }),
+                Parsed::Broken => recovered = true,
             }
-            recovered = true;
         }
         // 1.x: { "<name>": "<token>" }
-        if let Some(text) = read_text(&data_dir.join(LINK_JSON_FILE)).await?
-            && let Ok(Value::Object(links)) = serde_json::from_str::<Value>(&text)
-        {
-            {
-                let mut state = manifest.state.lock();
-                for (name, token) in links {
-                    let Some(token) = token.as_str() else {
-                        continue;
-                    };
-                    if valid_name(&name) && is_safe_token(token) {
-                        let entry = ManifestEntry {
-                            token: token.to_string(),
-                            size: None,
-                            mode: ManifestMode::Unknown,
-                            remote_name: Some(name.clone()),
-                        };
-                        state.put(name, entry);
-                    }
-                }
-                state.changes = state.files.len() as u64;
+        if let Some(text) = read_text(&data_dir.join(LINK_JSON_FILE)).await? {
+            let (back, imported) = tokio::task::spawn_blocking(move || {
+                let imported = parse_link_json(&mut manifest.state.lock(), &text);
+                (manifest, imported)
+            })
+            .await
+            .map_err(|e| Error::Other(e.to_string()))?;
+            manifest = back;
+            if imported {
+                return Ok(ManifestLoad { manifest, source: ManifestSource::LinkJson, recovered });
             }
-            return Ok(ManifestLoad { manifest, source: ManifestSource::LinkJson, recovered });
         }
         Ok(ManifestLoad { manifest, source: ManifestSource::Empty, recovered })
+    }
+
+    /// The names and their entries as they are, without copying them (200k
+    /// names): the plan reads them this way, under the registry's lock
+    pub fn read<T>(&self, read: impl FnOnce(ManifestFiles<'_>) -> T) -> T {
+        let state = self.state.lock();
+        read(ManifestFiles { files: &state.files, keys: &state.keys })
     }
 
     pub fn len(&self) -> usize {

@@ -43,15 +43,25 @@ struct Harness {
     fake: FakeOnPage,
     service: MediaService,
     events: Arc<Mutex<Vec<ServiceEvent>>>,
+    /// The results as they come, and a bell for each: waiting never reads the events again
+    results: Arc<Mutex<Vec<SyncResult>>>,
+    result_bell: Arc<tokio::sync::Notify>,
     root: tempfile::TempDir,
     _cache: tempfile::TempDir,
 }
 
 impl Harness {
     async fn new(things: usize, duplicates: usize) -> Harness {
+        Harness::with_timings(things, duplicates, timings()).await
+    }
+
+    async fn with_timings(things: usize, duplicates: usize, timings: Timings) -> Harness {
         let fake = FakeOnPage::start(sample_project(things, duplicates, "opmd"), "fake-token", 0).await.unwrap();
         let events: Arc<Mutex<Vec<ServiceEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let sink_events = events.clone();
+        let results: Arc<Mutex<Vec<SyncResult>>> = Arc::new(Mutex::new(Vec::new()));
+        let result_bell = Arc::new(tokio::sync::Notify::new());
+        let (sink_results, sink_bell) = (results.clone(), result_bell.clone());
         let cache = tempfile::tempdir().unwrap();
         let service = MediaService::with_handle(
             ServiceConfig {
@@ -60,12 +70,18 @@ impl Harness {
                 instance_id: "test-instance".into(),
                 api_domain: Some(fake.url.clone()),
                 project_folders: Vec::new(),
-                timings: timings(),
+                timings,
             },
-            Arc::new(move |event| sink_events.lock().push(event)),
+            Arc::new(move |event| {
+                if let ServiceEvent::Result { result, .. } = &event {
+                    sink_results.lock().push(result.clone());
+                    sink_bell.notify_waiters();
+                }
+                sink_events.lock().push(event);
+            }),
             Handle::current(),
         );
-        Harness { fake, service, events, root: tempfile::tempdir().unwrap(), _cache: cache }
+        Harness { fake, service, events, results, result_bell, root: tempfile::tempdir().unwrap(), _cache: cache }
     }
 
     fn folder(&self, name: &str) -> PathBuf {
@@ -86,19 +102,18 @@ impl Harness {
 
     /// Starts a job and waits for its result
     async fn run(&self, start: impl FnOnce(&MediaService)) -> SyncResult {
-        let before = self.events.lock().len();
+        let before = self.results.lock().len();
         start(&self.service);
         tokio::time::timeout(Duration::from_secs(600), async {
             loop {
-                let found = self.events.lock()[before..].iter().rev().find_map(|e| match e {
-                    ServiceEvent::Result { result, .. } => Some(result.clone()),
-                    _ => None,
-                });
+                let bell = self.result_bell.notified();
+                let found = self.results.lock().get(before..).and_then(|r| r.last().cloned());
                 if let Some(result) = found {
                     self.service.idle().await;
                     return result;
                 }
-                tokio::time::sleep(Duration::from_millis(5)).await;
+                // The bell, or a stop that ended no job (an ignored command)
+                let _ = tokio::time::timeout(Duration::from_millis(200), bell).await;
             }
         })
         .await
@@ -616,6 +631,7 @@ async fn large_project_duplicates_timings() {
     let answer = h.service.duplicates(project.clone(), page.clone()).await.unwrap();
     eprintln!("after a restart: {:?}, {} groups", started.elapsed(), answer.groups.len());
     // A cache written before that file existed: the names are rebuilt once
+    h.service.engine.listings.writes_done(&project.id).await;
     std::fs::remove_file(h.service.engine.listings.duplicates_file(&project.id)).unwrap();
     h.service.engine.listings.forget(&project.id);
     let started = std::time::Instant::now();
@@ -653,6 +669,7 @@ async fn duplicates_open_from_their_own_file_and_remember_labels() {
     assert_eq!(api_hits(), hits + 1);
 
     // A cache written before that file existed: still answered, from the names and the schema
+    h.service.engine.listings.writes_done(&project.id).await;
     std::fs::remove_file(h.service.engine.listings.duplicates_file(&project.id)).unwrap();
     h.service.engine.listings.forget(&project.id);
     assert_eq!(h.service.duplicates(project.clone(), page.clone()).await.unwrap().total, 2);
@@ -664,4 +681,51 @@ async fn duplicates_open_from_their_own_file_and_remember_labels() {
     h.fake.with(|state| state.api.fail_times = 100);
     let offline = h.service.duplicates(project.clone(), page).await.unwrap();
     assert_eq!((offline.total, label(&offline)), (2, None));
+}
+
+/// The local work of a big project, phase by phase: `cargo test -p op-media-service --release -- --ignored phases --nocapture`
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore]
+async fn large_project_phases() {
+    // The app's own intervals for the state and the activity
+    let h = Harness::with_timings(
+        62_000,
+        34_000,
+        Timings {
+            state_interval: Duration::from_millis(250),
+            activity_interval: Duration::from_millis(250),
+            ..timings()
+        },
+    )
+    .await;
+    let folder = h.folder("Fasi");
+    let project = h.project(&folder);
+    let timings = |from: usize| {
+        let events = h.events.lock();
+        for event in &events[from..] {
+            if let ServiceEvent::Log { message, .. } = event
+                && (message.starts_with("Listing (")
+                    || message.starts_with("Compare:")
+                    || message.starts_with("Run:")
+                    || message.starts_with("Open:"))
+            {
+                eprintln!("  {message}");
+            }
+        }
+    };
+    for (what, job) in [("sync (full listing)", 0), ("download", 1), ("sync again (incremental, all in place)", 0)] {
+        let from = h.events.lock().len();
+        let started = std::time::Instant::now();
+        let result =
+            h.run(|s| if job == 0 { s.sync(project.clone(), false) } else { s.download(project.clone()) }).await;
+        eprintln!("{what}: {:.1?} ({:?})", started.elapsed(), result.outcome);
+        timings(from);
+    }
+    // A restart: the memory goes, the cache stays
+    h.service.engine.listings.forget(&project.id);
+    let from = h.events.lock().len();
+    let started = std::time::Instant::now();
+    h.run(|s| s.download(project.clone())).await;
+    eprintln!("download after a restart (nothing to do): {:.1?}", started.elapsed());
+    timings(from);
 }

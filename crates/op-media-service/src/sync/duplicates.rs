@@ -24,7 +24,7 @@ use serde_json::Value;
 
 use super::names::{DuplicateRaw, FileUse, ResolvedNames, nfc};
 use crate::error::{Error, Result};
-use crate::fsx::atomic_write;
+use crate::fsx::replace_file;
 use crate::models::{DuplicateGroup, DuplicatePage, DuplicateUse, DuplicateVariant, PageQuery};
 use crate::onpage::{Api, Schema, thing_edit_url, thumbnail_link};
 
@@ -103,7 +103,7 @@ impl Duplicates {
         })
         .await
         .map_err(|e| Error::Other(e.to_string()))??;
-        atomic_write(file, &data, None).await
+        replace_file(file, &data).await
     }
 
     /// The labels of these things that are not known yet, read from On Page
