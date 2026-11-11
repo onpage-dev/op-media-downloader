@@ -13,8 +13,7 @@ use parking_lot::Mutex;
 use tauri::webview::PageLoadEvent;
 use tauri::window::Color;
 use tauri::{
-    AppHandle, Emitter, Manager, PhysicalPosition, Theme, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, WindowEvent,
+    AppHandle, Emitter, Manager, PhysicalPosition, Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
 use crate::models::{AppCommand, ThemeSetting};
@@ -52,9 +51,7 @@ impl MainWindow {
     }
 
     pub fn focused(app: &AppHandle) -> bool {
-        Self::current(app)
-            .and_then(|w| w.is_focused().ok())
-            .unwrap_or(false)
+        Self::current(app).and_then(|w| w.is_focused().ok()).unwrap_or(false)
     }
 
     pub fn show(&self, app: &AppHandle) {
@@ -100,31 +97,30 @@ impl MainWindow {
         self.loaded.store(false, Ordering::Release);
         self.page_ready.store(false, Ordering::Release);
         let handle = app.clone();
-        let mut builder =
-            WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
-                .title("On Page Media Downloader")
-                .inner_size(state.width, state.height)
-                .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
-                .visible(false)
-                .background_color(background(theme_of(app, shell.store.settings().theme)))
-                .theme(native_theme(shell.store.settings().theme))
-                .on_navigation(is_app_url)
-                .on_page_load(move |_webview, payload| {
-                    let main = &handle.state::<Shell>().main_window;
-                    match payload.event() {
-                        PageLoadEvent::Started => {
-                            main.page_ready.store(false, Ordering::Release);
-                            main.loaded.store(false, Ordering::Release);
-                        }
-                        PageLoadEvent::Finished => {
-                            main.loaded.store(true, Ordering::Release);
-                            if let Some(window) = MainWindow::current(&handle) {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+        let mut builder = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
+            .title("On Page Media Downloader")
+            .inner_size(state.width, state.height)
+            .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
+            .visible(false)
+            .background_color(background(theme_of(app, shell.store.settings().theme)))
+            .theme(native_theme(shell.store.settings().theme))
+            .on_navigation(is_app_url)
+            .on_page_load(move |_webview, payload| {
+                let main = &handle.state::<Shell>().main_window;
+                match payload.event() {
+                    PageLoadEvent::Started => {
+                        main.page_ready.store(false, Ordering::Release);
+                        main.loaded.store(false, Ordering::Release);
+                    }
+                    PageLoadEvent::Finished => {
+                        main.loaded.store(true, Ordering::Release);
+                        if let Some(window) = MainWindow::current(&handle) {
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
                     }
-                });
+                }
+            });
         if let (Some(x), Some(y)) = (state.x, state.y) {
             builder = builder.position(x, y);
         } else {
@@ -135,10 +131,7 @@ impl MainWindow {
             builder = builder
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
                 .hidden_title(true)
-                .traffic_light_position(tauri::LogicalPosition::new(
-                    12.0,
-                    (TITLE_BAR_HEIGHT - 14.0) / 2.0,
-                ));
+                .traffic_light_position(tauri::LogicalPosition::new(12.0, (TITLE_BAR_HEIGHT - 14.0) / 2.0));
         }
         #[cfg(not(target_os = "macos"))]
         {
@@ -173,22 +166,14 @@ impl MainWindow {
             let state = if maximized {
                 // The bounds before maximizing are the ones to restore
                 match previous {
-                    Some(previous) => WindowState {
-                        maximized: true,
-                        ..previous
-                    },
-                    None => WindowState {
-                        x: None,
-                        y: None,
-                        width: DEFAULT_SIZE.0,
-                        height: DEFAULT_SIZE.1,
-                        maximized: true,
-                    },
+                    Some(previous) => WindowState { maximized: true, ..previous },
+                    None => {
+                        WindowState { x: None, y: None, width: DEFAULT_SIZE.0, height: DEFAULT_SIZE.1, maximized: true }
+                    }
                 }
             } else {
                 let scale = window.scale_factor().unwrap_or(1.0);
-                let (Ok(position), Ok(size)) = (window.outer_position(), window.inner_size())
-                else {
+                let (Ok(position), Ok(size)) = (window.outer_position(), window.inner_size()) else {
                     return;
                 };
                 let position = position.to_logical::<f64>(scale);
@@ -211,12 +196,8 @@ impl MainWindow {
 fn on_event(app: &AppHandle, event: &WindowEvent) {
     let shell = app.state::<Shell>();
     match event {
-        WindowEvent::Focused(focused) => {
-            let _ = app.emit_to(MAIN, "window:focus", focused);
-            if *focused {
-                shell.status.window_focused(app);
-            }
-        }
+        // The page hears of its focus from Tauri itself (onFocusChanged); the taskbar's red goes once it is seen
+        WindowEvent::Focused(true) => shell.status.window_focused(app),
         WindowEvent::Moved(_) | WindowEvent::Resized(_) => shell.main_window.save_bounds_later(app),
         WindowEvent::CloseRequested { api, .. } => {
             if shell.lifecycle.on_window_close(app) {
@@ -243,8 +224,7 @@ pub fn is_app_url(url: &tauri::Url) -> bool {
         "tauri" => true,
         "http" | "https" => {
             let host = url.host_str().unwrap_or("");
-            host == "tauri.localhost"
-                || (cfg!(debug_assertions) && (host == "localhost" || host == "127.0.0.1"))
+            host == "tauri.localhost" || (cfg!(debug_assertions) && (host == "localhost" || host == "127.0.0.1"))
         }
         _ => false,
     }
@@ -273,11 +253,7 @@ fn theme_of(app: &AppHandle, setting: ThemeSetting) -> bool {
 }
 
 fn background(dark: bool) -> Color {
-    if dark {
-        DARK_BACKGROUND
-    } else {
-        LIGHT_BACKGROUND
-    }
+    if dark { DARK_BACKGROUND } else { LIGHT_BACKGROUND }
 }
 
 /// The theme of the settings on every window of the app
@@ -293,24 +269,12 @@ pub fn apply_theme(app: &AppHandle, setting: ThemeSetting) {
 
 /// Saved bounds only when they are still on a connected display
 fn restored_state(app: &AppHandle, saved: Option<WindowState>) -> WindowState {
-    let fallback = WindowState {
-        x: None,
-        y: None,
-        width: DEFAULT_SIZE.0,
-        height: DEFAULT_SIZE.1,
-        maximized: false,
-    };
+    let fallback = WindowState { x: None, y: None, width: DEFAULT_SIZE.0, height: DEFAULT_SIZE.1, maximized: false };
     let Some(saved) = saved else { return fallback };
     let width = saved.width.max(MIN_SIZE.0);
     let height = saved.height.max(MIN_SIZE.1);
     let (Some(x), Some(y)) = (saved.x, saved.y) else {
-        return WindowState {
-            x: None,
-            y: None,
-            width,
-            height,
-            maximized: saved.maximized,
-        };
+        return WindowState { x: None, y: None, width, height, maximized: saved.maximized };
     };
     let monitors = app.available_monitors().unwrap_or_default();
     let visible = monitors.iter().any(|monitor| {
@@ -323,22 +287,10 @@ fn restored_state(app: &AppHandle, saved: Option<WindowState>) -> WindowState {
         overlap_x > 100.0 && overlap_y > 50.0
     });
     if visible {
-        WindowState {
-            x: Some(x),
-            y: Some(y),
-            width,
-            height,
-            maximized: saved.maximized,
-        }
+        WindowState { x: Some(x), y: Some(y), width, height, maximized: saved.maximized }
     } else {
         warn!("The saved window position is off screen: centred");
-        WindowState {
-            x: None,
-            y: None,
-            width,
-            height,
-            maximized: saved.maximized,
-        }
+        WindowState { x: None, y: None, width, height, maximized: saved.maximized }
     }
 }
 
@@ -357,8 +309,7 @@ pub fn clamp_to_work_area(
     let (aw, ah) = (area.size.width as f64, area.size.height as f64);
     let margin = 8.0 * monitor.scale_factor();
     let below = below.unwrap_or(point.y < ay + ah / 2.0);
-    let x =
-        (point.x - size.0 / 2.0).clamp(ax + margin, (ax + aw - size.0 - margin).max(ax + margin));
+    let x = (point.x - size.0 / 2.0).clamp(ax + margin, (ax + aw - size.0 - margin).max(ax + margin));
     let y = if below { point.y } else { point.y - size.1 };
     let y = y.clamp(ay + margin, (ay + ah - size.1 - margin).max(ay + margin));
     PhysicalPosition::new(x, y)

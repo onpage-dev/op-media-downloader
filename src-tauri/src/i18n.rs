@@ -14,21 +14,11 @@ pub struct Plural {
 }
 
 const fn forms(one: &'static str, other: &'static str) -> Plural {
-    Plural {
-        one,
-        few: None,
-        many: None,
-        other,
-    }
+    Plural { one, few: None, many: None, other }
 }
 
 const fn slavic(one: &'static str, few: &'static str, many: &'static str) -> Plural {
-    Plural {
-        one,
-        few: Some(few),
-        many: Some(many),
-        other: many,
-    }
+    Plural { one, few: Some(few), many: Some(many), other: many }
 }
 
 const fn same(text: &'static str) -> Plural {
@@ -201,11 +191,7 @@ impl Texts {
         if seconds < 60 {
             plural(self.language, seconds, &self.seconds)
         } else {
-            plural(
-                self.language,
-                ((seconds as f64) / 60.0).round() as u64,
-                &self.minutes,
-            )
+            plural(self.language, ((seconds as f64) / 60.0).round() as u64, &self.minutes)
         }
     }
 }
@@ -244,16 +230,10 @@ static IT: Texts = Texts {
     sync_all: "Sincronizza tutto",
     quit: "Esci",
     tray_idle: "Tutti i progetti aggiornati",
-    tray_running: forms(
-        "1 sincronizzazione in corso",
-        "{n} sincronizzazioni in corso",
-    ),
+    tray_running: forms("1 sincronizzazione in corso", "{n} sincronizzazioni in corso"),
     tray_attention: forms("1 progetto da controllare", "{n} progetti da controllare"),
     done_title: "{label} aggiornato",
-    done_body: forms(
-        "1 file scaricato in {duration}",
-        "{n} file scaricati in {duration}",
-    ),
+    done_body: forms("1 file scaricato in {duration}", "{n} file scaricati in {duration}"),
     failed_title: "{label}: file non scaricati",
     failed_body: forms(
         "1 file non è stato scaricato. Apri per riprovare.",
@@ -312,15 +292,9 @@ static EN: Texts = Texts {
     tray_running: forms("1 sync running", "{n} syncs running"),
     tray_attention: forms("1 project needs attention", "{n} projects need attention"),
     done_title: "{label} is up to date",
-    done_body: forms(
-        "1 file downloaded in {duration}",
-        "{n} files downloaded in {duration}",
-    ),
+    done_body: forms("1 file downloaded in {duration}", "{n} files downloaded in {duration}"),
     failed_title: "{label}: files not downloaded",
-    failed_body: forms(
-        "1 file was not downloaded. Open to retry.",
-        "{n} files were not downloaded. Open to retry.",
-    ),
+    failed_body: forms("1 file was not downloaded. Open to retry.", "{n} files were not downloaded. Open to retry."),
     error_title: "{label}: sync failed",
     error_body: ErrorBodies {
         token_invalid: "The API token is not valid.",
@@ -371,19 +345,10 @@ static DE: Texts = Texts {
     sync_all: "Alle synchronisieren",
     quit: "Beenden",
     tray_idle: "Alle Projekte sind aktuell",
-    tray_running: forms(
-        "{n} Synchronisierung läuft",
-        "{n} Synchronisierungen laufen",
-    ),
-    tray_attention: forms(
-        "{n} Projekt erfordert Aufmerksamkeit",
-        "{n} Projekte erfordern Aufmerksamkeit",
-    ),
+    tray_running: forms("{n} Synchronisierung läuft", "{n} Synchronisierungen laufen"),
+    tray_attention: forms("{n} Projekt erfordert Aufmerksamkeit", "{n} Projekte erfordern Aufmerksamkeit"),
     done_title: "{label} ist aktuell",
-    done_body: forms(
-        "{n} Datei in {duration} heruntergeladen",
-        "{n} Dateien in {duration} heruntergeladen",
-    ),
+    done_body: forms("{n} Datei in {duration} heruntergeladen", "{n} Dateien in {duration} heruntergeladen"),
     failed_title: "{label}: Dateien nicht heruntergeladen",
     failed_body: forms(
         "{n} Datei wurde nicht heruntergeladen. Zum Wiederholen öffnen.",
@@ -439,16 +404,10 @@ static ES: Texts = Texts {
     sync_all: "Sincronizar todo",
     quit: "Salir",
     tray_idle: "Todos los proyectos actualizados",
-    tray_running: forms(
-        "{n} sincronización en curso",
-        "{n} sincronizaciones en curso",
-    ),
+    tray_running: forms("{n} sincronización en curso", "{n} sincronizaciones en curso"),
     tray_attention: forms("{n} proyecto por revisar", "{n} proyectos por revisar"),
     done_title: "{label}: actualizado",
-    done_body: forms(
-        "{n} archivo descargado en {duration}",
-        "{n} archivos descargados en {duration}",
-    ),
+    done_body: forms("{n} archivo descargado en {duration}", "{n} archivos descargados en {duration}"),
     failed_title: "{label}: archivos no descargados",
     failed_body: forms(
         "{n} archivo no se ha descargado. Abre la app para reintentar.",
@@ -504,16 +463,10 @@ static FR: Texts = Texts {
     sync_all: "Tout synchroniser",
     quit: "Quitter",
     tray_idle: "Tous les projets sont à jour",
-    tray_running: forms(
-        "{n} synchronisation en cours",
-        "{n} synchronisations en cours",
-    ),
+    tray_running: forms("{n} synchronisation en cours", "{n} synchronisations en cours"),
     tray_attention: forms("{n} projet à vérifier", "{n} projets à vérifier"),
     done_title: "{label}\u{a0}: à jour",
-    done_body: forms(
-        "{n} fichier téléchargé en {duration}",
-        "{n} fichiers téléchargés en {duration}",
-    ),
+    done_body: forms("{n} fichier téléchargé en {duration}", "{n} fichiers téléchargés en {duration}"),
     failed_title: "{label}\u{a0}: fichiers non téléchargés",
     failed_body: forms(
         "{n} fichier n’a pas été téléchargé. Ouvrez l’app pour réessayer.",
@@ -569,11 +522,7 @@ static RU: Texts = Texts {
     sync_all: "Синхронизировать всё",
     quit: "Выйти",
     tray_idle: "Все проекты актуальны",
-    tray_running: slavic(
-        "Идёт {n} синхронизация",
-        "Идут {n} синхронизации",
-        "Идёт {n} синхронизаций",
-    ),
+    tray_running: slavic("Идёт {n} синхронизация", "Идут {n} синхронизации", "Идёт {n} синхронизаций"),
     tray_attention: slavic(
         "{n} проект требует внимания",
         "{n} проекта требуют внимания",
@@ -645,10 +594,7 @@ static SV: Texts = Texts {
     tray_running: forms("{n} synkronisering pågår", "{n} synkroniseringar pågår"),
     tray_attention: same("{n} projekt behöver kontrolleras"),
     done_title: "{label} har uppdaterats",
-    done_body: forms(
-        "{n} fil laddades ner på {duration}",
-        "{n} filer laddades ner på {duration}",
-    ),
+    done_body: forms("{n} fil laddades ner på {duration}", "{n} filer laddades ner på {duration}"),
     failed_title: "{label}: filer laddades inte ner",
     failed_body: forms(
         "{n} fil laddades inte ner. Öppna för att försöka igen.",
@@ -778,22 +724,13 @@ mod tests {
         assert_eq!(it.duration(400), "1 secondo");
         assert_eq!(it.duration(42_000), "42 secondi");
         assert_eq!(it.duration(150_000), "3 minuti");
-        assert_eq!(
-            it.done_body(5, &it.duration(61_000)),
-            "5 file scaricati in 1 minuto"
-        );
+        assert_eq!(it.done_body(5, &it.duration(61_000)), "5 file scaricati in 1 minuto");
     }
 
     #[test]
     fn system_languages() {
-        assert_eq!(
-            system_language(&["de-CH".into(), "en".into()]),
-            AppLanguage::De
-        );
-        assert_eq!(
-            system_language(&["pt_BR".into(), "zh-Hans-CN".into()]),
-            AppLanguage::Zh
-        );
+        assert_eq!(system_language(&["de-CH".into(), "en".into()]), AppLanguage::De);
+        assert_eq!(system_language(&["pt_BR".into(), "zh-Hans-CN".into()]), AppLanguage::Zh);
         assert_eq!(system_language(&["ja".into()]), AppLanguage::En);
     }
 

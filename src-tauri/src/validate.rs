@@ -80,9 +80,7 @@ pub fn folder_path(value: &Value) -> Checked<String> {
 
 /// A folder to start a picker from: anything but an absolute path is ignored
 pub fn optional_folder(value: Option<&Value>) -> Option<String> {
-    value
-        .filter(|v| !v.is_null())
-        .and_then(|v| folder_path(v).ok())
+    value.filter(|v| !v.is_null()).and_then(|v| folder_path(v).ok())
 }
 
 fn record(value: &Value) -> Option<&Map<String, Value>> {
@@ -90,10 +88,7 @@ fn record(value: &Value) -> Option<&Map<String, Value>> {
 }
 
 fn whole(value: Option<&Value>) -> Option<i64> {
-    value
-        .and_then(Value::as_f64)
-        .filter(|n| n.is_finite())
-        .map(|n| n.floor() as i64)
+    value.and_then(Value::as_f64).filter(|n| n.is_finite()).map(|n| n.floor() as i64)
 }
 
 /// A page of a long list: at most 200 entries, a query of at most 200 characters
@@ -101,14 +96,9 @@ pub fn page_query(value: &Value) -> PageQuery {
     let empty = Map::new();
     let page = record(value).unwrap_or(&empty);
     PageQuery {
-        offset: whole(page.get("offset"))
-            .unwrap_or(0)
-            .clamp(0, 1_000_000_000) as usize,
+        offset: whole(page.get("offset")).unwrap_or(0).clamp(0, 1_000_000_000) as usize,
         limit: whole(page.get("limit")).unwrap_or(50).clamp(1, 200) as usize,
-        query: page
-            .get("query")
-            .and_then(Value::as_str)
-            .map(|q| q.chars().take(limits::QUERY).collect()),
+        query: page.get("query").and_then(Value::as_str).map(|q| q.chars().take(limits::QUERY).collect()),
     }
 }
 
@@ -163,10 +153,7 @@ pub fn language(value: Option<&Value>) -> Option<AppLanguage> {
 
 /// Parallel downloads per project: a number rounded into 1..10
 pub fn concurrency(value: Option<&Value>) -> Option<u32> {
-    value
-        .and_then(Value::as_f64)
-        .filter(|n| n.is_finite())
-        .map(|n| n.round().clamp(1.0, 10.0) as u32)
+    value.and_then(Value::as_f64).filter(|n| n.is_finite()).map(|n| n.round().clamp(1.0, 10.0) as u32)
 }
 
 fn flag(value: &Map<String, Value>, name: &str) -> Option<bool> {
@@ -198,8 +185,7 @@ pub fn clean_settings(value: Option<&Value>, fallback: &AppSettings) -> AppSetti
         theme: theme(settings.get("theme")).unwrap_or(fallback.theme),
         language: language(settings.get("language")).unwrap_or(fallback.language),
         concurrency: concurrency(settings.get("concurrency")).unwrap_or(fallback.concurrency),
-        auto_retry_failed: flag(settings, "auto_retry_failed")
-            .unwrap_or(fallback.auto_retry_failed),
+        auto_retry_failed: flag(settings, "auto_retry_failed").unwrap_or(fallback.auto_retry_failed),
         notifications: flag(settings, "notifications").unwrap_or(fallback.notifications),
         close_to_tray: flag(settings, "close_to_tray").unwrap_or(fallback.close_to_tray),
         open_at_login: flag(settings, "open_at_login").unwrap_or(fallback.open_at_login),
@@ -212,10 +198,7 @@ pub fn apply_settings(current: &AppSettings, patch: &SettingsPatch) -> AppSettin
     AppSettings {
         theme: patch.theme.unwrap_or(current.theme),
         language: patch.language.unwrap_or(current.language),
-        concurrency: patch
-            .concurrency
-            .unwrap_or(current.concurrency)
-            .clamp(1, 10),
+        concurrency: patch.concurrency.unwrap_or(current.concurrency).clamp(1, 10),
         auto_retry_failed: patch.auto_retry_failed.unwrap_or(current.auto_retry_failed),
         notifications: patch.notifications.unwrap_or(current.notifications),
         close_to_tray: patch.close_to_tray.unwrap_or(current.close_to_tray),
@@ -238,22 +221,15 @@ fn section(value: Option<&Value>) -> Option<SettingsSection> {
 pub fn app_command(value: Option<&Value>) -> Option<AppCommand> {
     let command = value.and_then(record)?;
     Some(match command.get("type")?.as_str()? {
-        "new_project" => AppCommand::NewProject {
-            folder: optional_folder(command.get("folder")),
-        },
+        "new_project" => AppCommand::NewProject { folder: optional_folder(command.get("folder")) },
         "select_project" => {
             let id = command.get("project_id")?.as_str()?;
             if !is_project_id(id) {
                 return None;
             }
-            AppCommand::SelectProject {
-                project_id: id.to_string(),
-                tab: tab(command.get("tab")),
-            }
+            AppCommand::SelectProject { project_id: id.to_string(), tab: tab(command.get("tab")) }
         }
-        "open_settings" => AppCommand::OpenSettings {
-            section: section(command.get("section")),
-        },
+        "open_settings" => AppCommand::OpenSettings { section: section(command.get("section")) },
         "sync_selected" => AppCommand::SyncSelected,
         "sync_all" => AppCommand::SyncAll,
         "download_selected" => AppCommand::DownloadSelected,
@@ -276,15 +252,9 @@ fn allowed_host(host: &str) -> bool {
 /// The address to open in the browser, normalized: https only, to On Page or
 /// GitHub, without credentials or another port; else None
 pub fn external_url(value: &Value) -> Option<String> {
-    let text = value
-        .as_str()
-        .filter(|text| text.chars().count() <= limits::URL)?;
+    let text = value.as_str().filter(|text| text.chars().count() <= limits::URL)?;
     let url = url::Url::parse(text).ok()?;
-    if url.scheme() != "https"
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.port().is_some()
-    {
+    if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some() || url.port().is_some() {
         return None;
     }
     allowed_host(url.host_str()?).then(|| url.to_string())
@@ -327,7 +297,9 @@ mod tests {
 
     #[test]
     fn settings_keep_valid_values_only() {
-        let patch = settings_patch(&json!({ "theme": "neon", "language": "de", "concurrency": 42, "notifications": "yes" })).unwrap();
+        let patch =
+            settings_patch(&json!({ "theme": "neon", "language": "de", "concurrency": 42, "notifications": "yes" }))
+                .unwrap();
         assert_eq!(patch.theme, None);
         assert_eq!(patch.language, Some(AppLanguage::De));
         assert_eq!(patch.concurrency, Some(10));
@@ -343,30 +315,15 @@ mod tests {
 
     #[test]
     fn commands_are_checked() {
+        assert_eq!(app_command(Some(&json!({ "type": "sync_all" }))), Some(AppCommand::SyncAll));
         assert_eq!(
-            app_command(Some(&json!({ "type": "sync_all" }))),
-            Some(AppCommand::SyncAll)
+            app_command(Some(&json!({ "type": "select_project", "project_id": "abc", "tab": "failed" }))),
+            Some(AppCommand::SelectProject { project_id: "abc".into(), tab: Some(InspectorTab::Failed) })
         );
-        assert_eq!(
-            app_command(Some(
-                &json!({ "type": "select_project", "project_id": "abc", "tab": "failed" })
-            )),
-            Some(AppCommand::SelectProject {
-                project_id: "abc".into(),
-                tab: Some(InspectorTab::Failed)
-            })
-        );
-        assert_eq!(
-            app_command(Some(
-                &json!({ "type": "select_project", "project_id": "../x" })
-            )),
-            None
-        );
+        assert_eq!(app_command(Some(&json!({ "type": "select_project", "project_id": "../x" }))), None);
         assert_eq!(app_command(Some(&json!({ "type": "format_disk" }))), None);
         assert_eq!(
-            app_command(Some(
-                &json!({ "type": "open_settings", "section": "nowhere" })
-            )),
+            app_command(Some(&json!({ "type": "open_settings", "section": "nowhere" }))),
             Some(AppCommand::OpenSettings { section: None })
         );
     }
@@ -377,12 +334,7 @@ mod tests {
             external_url(&json!("https://app.onpage.it/#/things")).as_deref(),
             Some("https://app.onpage.it/#/things")
         );
-        assert!(
-            external_url(&json!(
-                "https://github.com/onpage-dev/op-media-downloader/releases"
-            ))
-            .is_some()
-        );
+        assert!(external_url(&json!("https://github.com/onpage-dev/op-media-downloader/releases")).is_some());
         assert!(external_url(&json!("http://app.onpage.it")).is_none());
         assert!(external_url(&json!("https://evil.com/onpage.it")).is_none());
         assert!(external_url(&json!("https://user:pw@app.onpage.it")).is_none());

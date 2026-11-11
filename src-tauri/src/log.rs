@@ -35,10 +35,7 @@ pub fn init(dir: &Path) {
         .name("log".into())
         .spawn(move || write_loop(&target, receiver))
         .expect("cannot start the log thread");
-    let _ = LOGGER.set(Logger {
-        file,
-        sender: Mutex::new(sender),
-    });
+    let _ = LOGGER.set(Logger { file, sender: Mutex::new(sender) });
 }
 
 pub fn log_file() -> Option<PathBuf> {
@@ -61,12 +58,7 @@ pub fn one_line(text: &str) -> String {
 }
 
 pub fn log(level: LogLevel, message: impl AsRef<str>) {
-    let line = format!(
-        "{} {} {}\n",
-        op_media_service::now_iso(),
-        level.as_str(),
-        one_line(message.as_ref())
-    );
+    let line = format!("{} {} {}\n", op_media_service::now_iso(), level.as_str(), one_line(message.as_ref()));
     let development = cfg!(debug_assertions);
     if development || level == LogLevel::Error {
         let _ = std::io::stdout().write_all(line.as_bytes());
@@ -75,10 +67,7 @@ pub fn log(level: LogLevel, message: impl AsRef<str>) {
         return;
     }
     if let Some(logger) = LOGGER.get() {
-        let _ = logger
-            .sender
-            .lock()
-            .map(|sender| sender.send(Message::Line(line)));
+        let _ = logger.sender.lock().map(|sender| sender.send(Message::Line(line)));
     }
 }
 
@@ -86,12 +75,7 @@ pub fn log(level: LogLevel, message: impl AsRef<str>) {
 pub fn flush() {
     let Some(logger) = LOGGER.get() else { return };
     let (done, wait) = mpsc::channel();
-    if logger
-        .sender
-        .lock()
-        .map(|sender| sender.send(Message::Flush(done)))
-        .is_ok()
-    {
+    if logger.sender.lock().map(|sender| sender.send(Message::Flush(done))).is_ok() {
         let _ = wait.recv_timeout(std::time::Duration::from_secs(2));
     }
 }
@@ -155,11 +139,7 @@ fn append(file: &Path, chunk: &str, size: &mut Option<u64>) {
                 *size = Some(0);
             }
         }
-        OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(file)?
-            .write_all(chunk.as_bytes())?;
+        OpenOptions::new().create(true).append(true).open(file)?.write_all(chunk.as_bytes())?;
         *size = Some(size.unwrap_or(0) + bytes);
         Ok(())
     })();
@@ -185,9 +165,6 @@ mod tests {
         let mut size = None;
         append(&file, "a line\n", &mut size);
         assert_eq!(fs::read_to_string(&file).unwrap(), "a line\n");
-        assert_eq!(
-            fs::metadata(dir.path().join("main.log.1")).unwrap().len(),
-            MAX_BYTES - 2
-        );
+        assert_eq!(fs::metadata(dir.path().join("main.log.1")).unwrap().len(), MAX_BYTES - 2);
     }
 }

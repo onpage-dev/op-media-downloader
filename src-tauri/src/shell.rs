@@ -51,10 +51,7 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
     paths.import_legacy();
 
     let preferred: Vec<String> = sys_locale::get_locales().collect();
-    let legacy = paths
-        .legacy
-        .as_ref()
-        .map(|dir| SafeStorage::new(dir, &ELECTRON_NAMES));
+    let legacy = paths.legacy.as_ref().map(|dir| SafeStorage::new(dir, &ELECTRON_NAMES));
     let store = Arc::new(AppStore::open(StoreOptions {
         dir: paths.data.clone(),
         default_language: system_language(&preferred),
@@ -73,19 +70,14 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
             instance_id: uuid::Uuid::new_v4().to_string(),
             // Development only: point the service at a fake On Page server
             api_domain: if cfg!(debug_assertions) {
-                std::env::var("OPMD_API_DOMAIN")
-                    .ok()
-                    .filter(|d| !d.is_empty())
+                std::env::var("OPMD_API_DOMAIN").ok().filter(|d| !d.is_empty())
             } else {
                 None
             },
             project_folders: store
                 .projects()
                 .into_iter()
-                .map(|p| op_media_service::ProjectFolder {
-                    id: p.id,
-                    folder: p.folder,
-                })
+                .map(|p| op_media_service::ProjectFolder { id: p.id, folder: p.folder })
                 .collect(),
             timings: Timings::default(),
         },
@@ -96,9 +88,7 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
     .map_err(|error| format!("The sync service cannot start: {error}"))?;
 
     let handle = app.clone();
-    let projects = ProjectService::new(store.clone(), service, move |event| {
-        on_projects_event(&handle, event)
-    });
+    let projects = ProjectService::new(store.clone(), service, move |event| on_projects_event(&handle, event));
     app.manage(Shell {
         store: store.clone(),
         projects: projects.clone(),
@@ -151,12 +141,7 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
             let _ = handle.emit("app:version", version);
         });
     }
-    info!(
-        "Started {} ({}, Tauri {})",
-        app.package_info().version,
-        std::env::consts::OS,
-        tauri::VERSION
-    );
+    info!("Started {} ({}, Tauri {})", app.package_info().version, std::env::consts::OS, tauri::VERSION);
     Ok(())
 }
 
@@ -167,10 +152,7 @@ pub fn start_failed(app: &AppHandle, message: String) {
     let language = system_language(&sys_locale::get_locales().collect::<Vec<_>>());
     let t = texts(language);
     let detail = match crate::log::log_file() {
-        Some(file) => format!(
-            "{message}\n\n{}",
-            t.start_failed_log(&file.display().to_string())
-        ),
+        Some(file) => format!("{message}\n\n{}", t.start_failed_log(&file.display().to_string())),
         None => message,
     };
     let handle = app.clone();
@@ -189,19 +171,10 @@ fn on_projects_event(app: &AppHandle, event: ProjectsEvent) {
     match event {
         ProjectsEvent::Changed(views) => shell.status.on_projects(app, &views),
         ProjectsEvent::Activity(project_id, entries) => {
-            let _ = app.emit(
-                "sync:activity",
-                ActivityPayload {
-                    project_id: &project_id,
-                    entries: &entries,
-                },
-            );
+            let _ = app.emit("sync:activity", ActivityPayload { project_id: &project_id, entries: &entries });
         }
         ProjectsEvent::Result(view, result) => {
-            shell.status.job_ended(
-                result.outcome == SyncOutcome::Failed,
-                MainWindow::focused(app),
-            );
+            shell.status.job_ended(result.outcome == SyncOutcome::Failed, MainWindow::focused(app));
             notify_result(app, &view, &result);
         }
         ProjectsEvent::DeleteFailed { label, code } => notify_delete_failed(app, &label, &code),
@@ -301,8 +274,7 @@ impl Lifecycle {
         }
         let shell = app.state::<Shell>();
         if code.is_none()
-            && (cfg!(target_os = "macos")
-                || (shell.store.settings().close_to_tray && shell.tray.enabled()))
+            && (cfg!(target_os = "macos") || (shell.store.settings().close_to_tray && shell.tray.enabled()))
         {
             return true;
         }
@@ -329,21 +301,15 @@ impl Lifecycle {
         let t = texts(shell.store.settings().language);
         // Deleting files only: quitting stops the deletion, not downloads
         let deleting = !shell.projects.is_running();
-        let (title, message) = if deleting {
-            (t.deleting_title, t.deleting_message)
-        } else {
-            (t.quit_title, t.quit_message)
-        };
+        let (title, message) =
+            if deleting { (t.deleting_title, t.deleting_message) } else { (t.quit_title, t.quit_message) };
         let handle = app.clone();
         let mut dialog = app
             .dialog()
             .message(message)
             .title(title)
             .kind(MessageDialogKind::Warning)
-            .buttons(MessageDialogButtons::OkCancelCustom(
-                t.quit_confirm.to_string(),
-                t.cancel.to_string(),
-            ));
+            .buttons(MessageDialogButtons::OkCancelCustom(t.quit_confirm.to_string(), t.cancel.to_string()));
         if let Some(window) = MainWindow::current(app) {
             dialog = dialog.parent(&window);
         }

@@ -39,18 +39,14 @@ impl SafeStorage {
 
     /// The token in clear, from `token_enc` (base64)
     pub fn decrypt(&self, token_enc: &str) -> Option<String> {
-        let data = base64::engine::general_purpose::STANDARD
-            .decode(token_enc.trim())
-            .ok()?;
+        let data = base64::engine::general_purpose::STANDARD.decode(token_enc.trim()).ok()?;
         let body = data.strip_prefix(b"v10")?;
         let key = {
             let mut cached = self.key.lock();
             cached.get_or_insert_with(|| self.load_key()).clone()?
         };
         let plain = decrypt_v10(&key, body)?;
-        String::from_utf8(plain)
-            .ok()
-            .filter(|token| !token.is_empty())
+        String::from_utf8(plain).ok().filter(|token| !token.is_empty())
     }
 
     #[cfg(windows)]
@@ -58,9 +54,7 @@ impl SafeStorage {
         let text = std::fs::read_to_string(self.source_dir.join("Local State")).ok()?;
         let json: serde_json::Value = serde_json::from_str(&text).ok()?;
         let encoded = json.get("os_crypt")?.get("encrypted_key")?.as_str()?;
-        let protected = base64::engine::general_purpose::STANDARD
-            .decode(encoded)
-            .ok()?;
+        let protected = base64::engine::general_purpose::STANDARD.decode(encoded).ok()?;
         let protected = protected.strip_prefix(b"DPAPI")?;
         dpapi_unprotect(protected).filter(|key| key.len() == 32)
     }
@@ -70,9 +64,7 @@ impl SafeStorage {
         for name in &self.app_names {
             let service = format!("{name} Safe Storage");
             for account in [name.clone(), format!("{name} Key")] {
-                if let Ok(password) =
-                    security_framework::passwords::get_generic_password(&service, &account)
-                {
+                if let Ok(password) = security_framework::passwords::get_generic_password(&service, &account) {
                     return Some(derive_cbc_key(&password, 1003));
                 }
             }
@@ -94,10 +86,7 @@ fn decrypt_v10(key: &[u8], body: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let (nonce, sealed) = body.split_at(12);
-    Aes256Gcm::new_from_slice(key)
-        .ok()?
-        .decrypt(Nonce::from_slice(nonce), sealed)
-        .ok()
+    Aes256Gcm::new_from_slice(key).ok()?.decrypt(Nonce::from_slice(nonce), sealed).ok()
 }
 
 #[cfg(unix)]
@@ -107,10 +96,7 @@ fn decrypt_v10(key: &[u8], body: &[u8]) -> Option<Vec<u8>> {
     let iv = [b' '; 16];
     let mut buffer = body.to_vec();
     let decryptor = cbc::Decryptor::<aes::Aes128>::new_from_slices(key, &iv).ok()?;
-    decryptor
-        .decrypt_padded_mut::<Pkcs7>(&mut buffer)
-        .ok()
-        .map(|plain| plain.to_vec())
+    decryptor.decrypt_padded_mut::<Pkcs7>(&mut buffer).ok().map(|plain| plain.to_vec())
 }
 
 #[cfg(unix)]
@@ -124,14 +110,8 @@ fn derive_cbc_key(password: &[u8], rounds: u32) -> Vec<u8> {
 fn dpapi_unprotect(data: &[u8]) -> Option<Vec<u8>> {
     use windows_sys::Win32::Foundation::LocalFree;
     use windows_sys::Win32::Security::Cryptography::{CRYPT_INTEGER_BLOB, CryptUnprotectData};
-    let input = CRYPT_INTEGER_BLOB {
-        cbData: data.len() as u32,
-        pbData: data.as_ptr() as *mut u8,
-    };
-    let mut output = CRYPT_INTEGER_BLOB {
-        cbData: 0,
-        pbData: std::ptr::null_mut(),
-    };
+    let input = CRYPT_INTEGER_BLOB { cbData: data.len() as u32, pbData: data.as_ptr() as *mut u8 };
+    let mut output = CRYPT_INTEGER_BLOB { cbData: 0, pbData: std::ptr::null_mut() };
     // SAFETY: input points to `data`, alive for the call; output is allocated by the system and freed below
     let ok = unsafe {
         CryptUnprotectData(
@@ -162,10 +142,7 @@ mod tests {
     fn tokens_of_another_format_are_left_out() {
         let storage = SafeStorage::new(Path::new("/nowhere"), &["On Page Media Downloader"]);
         assert_eq!(storage.decrypt("not base64!"), None);
-        assert_eq!(
-            storage.decrypt(&base64::engine::general_purpose::STANDARD.encode(b"v11whatever")),
-            None
-        );
+        assert_eq!(storage.decrypt(&base64::engine::general_purpose::STANDARD.encode(b"v11whatever")), None);
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]
@@ -186,9 +163,7 @@ mod tests {
         data.extend(sealed);
         let storage = SafeStorage::new(Path::new("/nowhere"), &[]);
         assert_eq!(
-            storage
-                .decrypt(&base64::engine::general_purpose::STANDARD.encode(data))
-                .as_deref(),
+            storage.decrypt(&base64::engine::general_purpose::STANDARD.encode(data)).as_deref(),
             Some("op-token-123")
         );
     }
@@ -201,14 +176,8 @@ mod tests {
         use windows_sys::Win32::Foundation::LocalFree;
         use windows_sys::Win32::Security::Cryptography::{CRYPT_INTEGER_BLOB, CryptProtectData};
         let key = [7u8; 32];
-        let input = CRYPT_INTEGER_BLOB {
-            cbData: 32,
-            pbData: key.as_ptr() as *mut u8,
-        };
-        let mut output = CRYPT_INTEGER_BLOB {
-            cbData: 0,
-            pbData: std::ptr::null_mut(),
-        };
+        let input = CRYPT_INTEGER_BLOB { cbData: 32, pbData: key.as_ptr() as *mut u8 };
+        let mut output = CRYPT_INTEGER_BLOB { cbData: 0, pbData: std::ptr::null_mut() };
         let ok = unsafe {
             CryptProtectData(
                 &input,
@@ -222,9 +191,7 @@ mod tests {
         };
         assert_ne!(ok, 0);
         let mut protected = b"DPAPI".to_vec();
-        protected.extend_from_slice(unsafe {
-            std::slice::from_raw_parts(output.pbData, output.cbData as usize)
-        });
+        protected.extend_from_slice(unsafe { std::slice::from_raw_parts(output.pbData, output.cbData as usize) });
         unsafe { LocalFree(output.pbData as _) };
         let dir = tempfile::tempdir().unwrap();
         let state = serde_json::json!({ "os_crypt": { "encrypted_key": base64::engine::general_purpose::STANDARD.encode(protected) } });
@@ -239,9 +206,7 @@ mod tests {
         data.extend(sealed);
         let storage = SafeStorage::new(dir.path(), &[]);
         assert_eq!(
-            storage
-                .decrypt(&base64::engine::general_purpose::STANDARD.encode(data))
-                .as_deref(),
+            storage.decrypt(&base64::engine::general_purpose::STANDARD.encode(data)).as_deref(),
             Some("op-token-123")
         );
     }

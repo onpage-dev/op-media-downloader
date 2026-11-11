@@ -51,11 +51,7 @@ pub fn project_status(project: &ProjectView) -> Status {
     let status = |tone| Status { tone, todo: false };
     match runtime.phase {
         JobPhase::Stopping => return status(Tone::Warning),
-        JobPhase::Preparing
-        | JobPhase::Listing
-        | JobPhase::Comparing
-        | JobPhase::Downloading
-        | JobPhase::Finishing => {
+        JobPhase::Preparing | JobPhase::Listing | JobPhase::Comparing | JobPhase::Downloading | JobPhase::Finishing => {
             return status(Tone::Accent);
         }
         JobPhase::Idle => {}
@@ -69,24 +65,13 @@ pub fn project_status(project: &ProjectView) -> Status {
     if has(IssueCode::CleanupNeedsConfirmation) {
         return status(Tone::Warning);
     }
-    if runtime
-        .plan
-        .as_ref()
-        .is_some_and(|plan| plan.to_download_names > 0)
-    {
-        return Status {
-            tone: Tone::Info,
-            todo: true,
-        };
+    if runtime.plan.as_ref().is_some_and(|plan| plan.to_download_names > 0) {
+        return Status { tone: Tone::Info, todo: true };
     }
     if WARNINGS.iter().any(|code| has(*code)) {
         return status(Tone::Warning);
     }
-    if runtime.last_result.is_some() {
-        status(Tone::Success)
-    } else {
-        status(Tone::Neutral)
-    }
+    if runtime.last_result.is_some() { status(Tone::Success) } else { status(Tone::Neutral) }
 }
 
 /// Taskbar and tray: the worst state across projects wins
@@ -104,10 +89,7 @@ pub fn aggregate_tone(projects: &[ProjectView]) -> Option<Tone> {
 pub fn progress_of(projects: &[ProjectView]) -> Option<(u64, u64)> {
     let mut done = 0;
     let mut total = 0;
-    for project in projects
-        .iter()
-        .filter(|p| p.runtime.phase != JobPhase::Idle)
-    {
+    for project in projects.iter().filter(|p| p.runtime.phase != JobPhase::Idle) {
         let Some(progress) = &project.runtime.progress else {
             continue;
         };
@@ -116,11 +98,7 @@ pub fn progress_of(projects: &[ProjectView]) -> Option<(u64, u64)> {
         } else {
             progress.downloaded + progress.linked + progress.removed + progress.failed
         };
-        total += if progress.bytes_total > 0 {
-            progress.bytes_total
-        } else {
-            progress.total
-        };
+        total += if progress.bytes_total > 0 { progress.bytes_total } else { progress.total };
     }
     (total > 0).then_some((done, total))
 }
@@ -145,25 +123,13 @@ mod tests {
     }
 
     fn issue(code: IssueCode) -> Issue {
-        Issue {
-            code,
-            severity: Severity::Error,
-            count: None,
-            detail: None,
-            at: String::new(),
-        }
+        Issue { code, severity: Severity::Error, count: None, detail: None, at: String::new() }
     }
 
     #[test]
     fn tones_follow_the_shared_vocabulary() {
-        assert_eq!(
-            project_status(&view(ProjectRuntime::default())).tone,
-            Tone::Neutral
-        );
-        let running = ProjectRuntime {
-            phase: JobPhase::Downloading,
-            ..Default::default()
-        };
+        assert_eq!(project_status(&view(ProjectRuntime::default())).tone, Tone::Neutral);
+        let running = ProjectRuntime { phase: JobPhase::Downloading, ..Default::default() };
         assert_eq!(project_status(&view(running)).tone, Tone::Accent);
         let error = ProjectRuntime {
             issues: vec![issue(IssueCode::DiskFull), issue(IssueCode::FailedFiles)],
@@ -171,27 +137,13 @@ mod tests {
         };
         assert_eq!(project_status(&view(error)).tone, Tone::Danger);
         let todo = ProjectRuntime {
-            plan: Some(PlanSummary {
-                to_download_names: 3,
-                ..Default::default()
-            }),
+            plan: Some(PlanSummary { to_download_names: 3, ..Default::default() }),
             issues: vec![issue(IssueCode::Duplicates)],
             ..Default::default()
         };
-        assert_eq!(
-            project_status(&view(todo.clone())),
-            Status {
-                tone: Tone::Info,
-                todo: true
-            }
-        );
-        let views = [
-            view(todo),
-            view(ProjectRuntime {
-                issues: vec![issue(IssueCode::Duplicates)],
-                ..Default::default()
-            }),
-        ];
+        assert_eq!(project_status(&view(todo.clone())), Status { tone: Tone::Info, todo: true });
+        let views =
+            [view(todo), view(ProjectRuntime { issues: vec![issue(IssueCode::Duplicates)], ..Default::default() })];
         assert_eq!(aggregate_tone(&views), Some(Tone::Warning));
         assert_eq!(aggregate_tone(&[]), None);
     }

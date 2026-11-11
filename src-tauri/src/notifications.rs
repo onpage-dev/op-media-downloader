@@ -23,12 +23,8 @@ pub fn notify_result(app: &AppHandle, view: &ProjectView, result: &SyncResult) {
     } else if result.failed > 0 {
         (t.failed_title(&view.label), t.failed_body(result.failed))
     } else if result.downloaded > 0 {
-        let ms = parse_iso_ms(&result.ended_at).unwrap_or(0)
-            - parse_iso_ms(&result.started_at).unwrap_or(0);
-        (
-            t.done_title(&view.label),
-            t.done_body(result.downloaded, &t.duration(ms)),
-        )
+        let ms = parse_iso_ms(&result.ended_at).unwrap_or(0) - parse_iso_ms(&result.started_at).unwrap_or(0);
+        (t.done_title(&view.label), t.done_body(result.downloaded, &t.duration(ms)))
     } else {
         // A sync that found nothing new is not worth an interruption
         return;
@@ -38,11 +34,7 @@ pub fn notify_result(app: &AppHandle, view: &ProjectView, result: &SyncResult) {
 
 pub fn notify_delete_failed(app: &AppHandle, label: &str, code: &str) {
     let t = texts(app.state::<Shell>().store.settings().language);
-    let body = if code == "folder_other_project" {
-        t.delete_other_project_body
-    } else {
-        t.delete_failed_body
-    };
+    let body = if code == "folder_other_project" { t.delete_other_project_body } else { t.delete_failed_body };
     show(app, &t.delete_failed_title(label), body);
 }
 

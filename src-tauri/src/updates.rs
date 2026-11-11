@@ -8,8 +8,7 @@ use parking_lot::Mutex;
 use crate::models::VersionInfo;
 use crate::warn;
 
-const LATEST_RELEASE: &str =
-    "https://api.github.com/repos/onpage-dev/op-media-downloader/releases/latest";
+const LATEST_RELEASE: &str = "https://api.github.com/repos/onpage-dev/op-media-downloader/releases/latest";
 
 pub struct Updates {
     info: Mutex<VersionInfo>,
@@ -23,12 +22,7 @@ struct Release {
 
 impl Updates {
     pub fn new(current: &str) -> Updates {
-        Updates {
-            info: Mutex::new(VersionInfo {
-                current: current.to_string(),
-                ..Default::default()
-            }),
-        }
+        Updates { info: Mutex::new(VersionInfo { current: current.to_string(), ..Default::default() }) }
     }
 
     pub fn info(&self) -> VersionInfo {
@@ -39,9 +33,7 @@ impl Updates {
         let current = self.info.lock().current.clone();
         let next = match latest().await {
             Ok(release) => {
-                let latest = release
-                    .tag_name
-                    .map(|tag| tag.trim_start_matches(['v', 'V']).to_string());
+                let latest = release.tag_name.map(|tag| tag.trim_start_matches(['v', 'V']).to_string());
                 VersionInfo {
                     latest: latest.filter(|latest| is_newer(latest, &current)),
                     release_url: release.html_url,
@@ -52,11 +44,7 @@ impl Updates {
             }
             Err(error) => {
                 warn!("Update check failed: {error}");
-                VersionInfo {
-                    checked_at: Some(op_media_service::now_iso()),
-                    check_failed: Some(true),
-                    ..self.info()
-                }
+                VersionInfo { checked_at: Some(op_media_service::now_iso()), check_failed: Some(true), ..self.info() }
             }
         };
         *self.info.lock() = next.clone();
@@ -87,11 +75,7 @@ pub fn is_newer(candidate: &str, current: &str) -> bool {
     fn parse(version: &str) -> Option<[u64; 3]> {
         let re = regex::Regex::new(r"^(\d+)\.(\d+)\.(\d+)").ok()?;
         let captures = re.captures(version)?;
-        Some([
-            captures[1].parse().ok()?,
-            captures[2].parse().ok()?,
-            captures[3].parse().ok()?,
-        ])
+        Some([captures[1].parse().ok()?, captures[2].parse().ok()?, captures[3].parse().ok()?])
     }
     match (parse(candidate), parse(current)) {
         (Some(a), Some(b)) => a > b,

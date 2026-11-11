@@ -9,9 +9,7 @@ use crate::models::AppCommand;
 
 /// The command passed on the command line, if any
 pub fn command_from_argv(argv: &[String]) -> Option<AppCommand> {
-    let arg = argv
-        .iter()
-        .find_map(|value| value.strip_prefix("--command="))?;
+    let arg = argv.iter().find_map(|value| value.strip_prefix("--command="))?;
     match arg {
         "sync_all" => Some(AppCommand::SyncAll),
         "new_project" => Some(AppCommand::NewProject { folder: None }),
@@ -28,9 +26,8 @@ pub fn setup_menu(app: &AppHandle) {
     let t = crate::i18n::texts(shell.store.settings().language);
     let m = &t.menu;
     let build = || -> tauri::Result<Menu<tauri::Wry>> {
-        let item = |id: &str, label: &str, accelerator: Option<&str>| {
-            MenuItem::with_id(app, id, label, true, accelerator)
-        };
+        let item =
+            |id: &str, label: &str, accelerator: Option<&str>| MenuItem::with_id(app, id, label, true, accelerator);
         let app_menu = Submenu::with_items(
             app,
             t.app_name,
@@ -92,10 +89,7 @@ pub fn setup_menu(app: &AppHandle) {
             app,
             m.window,
             true,
-            &[
-                &PredefinedMenuItem::minimize(app, None)?,
-                &PredefinedMenuItem::maximize(app, None)?,
-            ],
+            &[&PredefinedMenuItem::minimize(app, None)?, &PredefinedMenuItem::maximize(app, None)?],
         )?;
         Menu::with_items(app, &[&app_menu, &file, &edit, &sync, &window])
     };
@@ -132,10 +126,7 @@ mod tests {
     #[test]
     fn commands_from_the_command_line() {
         let argv = |args: &[&str]| args.iter().map(|a| a.to_string()).collect::<Vec<_>>();
-        assert_eq!(
-            command_from_argv(&argv(&["app", "--command=sync_all"])),
-            Some(AppCommand::SyncAll)
-        );
+        assert_eq!(command_from_argv(&argv(&["app", "--command=sync_all"])), Some(AppCommand::SyncAll));
         assert_eq!(
             command_from_argv(&argv(&["app", "--command=new_project"])),
             Some(AppCommand::NewProject { folder: None })

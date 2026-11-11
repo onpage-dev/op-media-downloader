@@ -10,10 +10,7 @@ use parking_lot::Mutex;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{
-    AppHandle, Manager, PhysicalPosition, PhysicalSize, Rect, WebviewUrl, WebviewWindowBuilder,
-    WindowEvent,
-};
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, Rect, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 use crate::i18n::texts;
 use crate::shell::Shell;
@@ -172,39 +169,25 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
 fn toggle_panel(app: &AppHandle, rect: Rect) {
     let shell = app.state::<Shell>();
-    let Some(panel) = app
-        .get_webview_window(TRAY_PANEL)
-        .or_else(|| create_panel(app))
-    else {
+    let Some(panel) = app.get_webview_window(TRAY_PANEL).or_else(|| create_panel(app)) else {
         return;
     };
     if panel.is_visible().unwrap_or(false) {
         let _ = panel.hide();
         return;
     }
-    if shell
-        .tray
-        .inner
-        .lock()
-        .hidden_at
-        .is_some_and(|at| at.elapsed() < Duration::from_millis(300))
-    {
+    if shell.tray.inner.lock().hidden_at.is_some_and(|at| at.elapsed() < Duration::from_millis(300)) {
         return;
     }
     let scale = panel.scale_factor().unwrap_or(1.0);
     let position = rect.position.to_physical::<f64>(scale);
     let size = rect.size.to_physical::<f64>(scale);
     let panel_size = (PANEL_WIDTH * scale, PANEL_HEIGHT * scale);
-    let center = PhysicalPosition::new(
-        position.x + size.width / 2.0,
-        position.y + size.height / 2.0,
-    );
+    let center = PhysicalPosition::new(position.x + size.width / 2.0, position.y + size.height / 2.0);
     // Below the icon when the icon is in the top half of the screen (macOS, some Linux panels), above otherwise
     let monitor = app.monitor_from_point(center.x, center.y).ok().flatten();
     let below = monitor
-        .map(|m| {
-            center.y < m.work_area().position.y as f64 + m.work_area().size.height as f64 / 2.0
-        })
+        .map(|m| center.y < m.work_area().position.y as f64 + m.work_area().size.height as f64 / 2.0)
         .unwrap_or(false);
     let gap = 6.0 * scale;
     let anchor = if below {
@@ -213,34 +196,27 @@ fn toggle_panel(app: &AppHandle, rect: Rect) {
         PhysicalPosition::new(center.x, position.y - gap)
     };
     let target = clamp_to_work_area(app, anchor, panel_size, Some(below));
-    let _ = panel.set_position(PhysicalPosition::new(
-        target.x.round() as i32,
-        target.y.round() as i32,
-    ));
-    let _ = panel.set_size(PhysicalSize::new(
-        panel_size.0.round() as u32,
-        panel_size.1.round() as u32,
-    ));
+    let _ = panel.set_position(PhysicalPosition::new(target.x.round() as i32, target.y.round() as i32));
+    let _ = panel.set_size(PhysicalSize::new(panel_size.0.round() as u32, panel_size.1.round() as u32));
     let _ = panel.show();
     let _ = panel.set_focus();
 }
 
 fn create_panel(app: &AppHandle) -> Option<tauri::WebviewWindow> {
     let theme = app.state::<Shell>().store.settings().theme;
-    let panel =
-        WebviewWindowBuilder::new(app, TRAY_PANEL, WebviewUrl::App("index.html#/tray".into()))
-            .title("On Page Media Downloader")
-            .inner_size(PANEL_WIDTH, PANEL_HEIGHT)
-            .visible(false)
-            .decorations(false)
-            .resizable(false)
-            .maximizable(false)
-            .minimizable(false)
-            .skip_taskbar(true)
-            .always_on_top(true)
-            .theme(native_theme(theme))
-            .on_navigation(is_app_url)
-            .build();
+    let panel = WebviewWindowBuilder::new(app, TRAY_PANEL, WebviewUrl::App("index.html#/tray".into()))
+        .title("On Page Media Downloader")
+        .inner_size(PANEL_WIDTH, PANEL_HEIGHT)
+        .visible(false)
+        .decorations(false)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .skip_taskbar(true)
+        .always_on_top(true)
+        .theme(native_theme(theme))
+        .on_navigation(is_app_url)
+        .build();
     match panel {
         Ok(panel) => {
             let handle = app.clone();
@@ -297,8 +273,7 @@ fn with_dot(rgba: &mut [u8], size: u32, [r, g, b]: [u8; 3]) {
     let center = size as f64 - DOT_OFFSET;
     for y in 0..size {
         for x in 0..size {
-            let distance =
-                ((x as f64 + 0.5 - center).powi(2) + (y as f64 + 0.5 - center).powi(2)).sqrt();
+            let distance = ((x as f64 + 0.5 - center).powi(2) + (y as f64 + 0.5 - center).powi(2)).sqrt();
             let i = ((y * size + x) * 4) as usize;
             if distance <= DOT_RADIUS + 0.5 {
                 blend(rgba, i, [r, g, b], (DOT_RADIUS + 0.5 - distance).min(1.0));
@@ -318,19 +293,14 @@ fn with_template_dot(rgba: &mut [u8], size: u32, hollow: bool) {
     let coverage = |value: f64| value.clamp(0.0, 1.0);
     for y in 0..size {
         for x in 0..size {
-            let distance =
-                ((x as f64 + 0.5 - center).powi(2) + (y as f64 + 0.5 - center).powi(2)).sqrt();
+            let distance = ((x as f64 + 0.5 - center).powi(2) + (y as f64 + 0.5 - center).powi(2)).sqrt();
             if distance > RING + 0.5 {
                 continue;
             }
             let i = ((y * size + x) * 4) as usize;
             let kept = 1.0 - coverage(RING + 0.5 - distance);
-            let dot = coverage(DOT_RADIUS + 0.5 - distance)
-                * if hollow {
-                    coverage(distance - hole + 0.5)
-                } else {
-                    1.0
-                };
+            let dot =
+                coverage(DOT_RADIUS + 0.5 - distance) * if hollow { coverage(distance - hole + 0.5) } else { 1.0 };
             rgba[i] = 0;
             rgba[i + 1] = 0;
             rgba[i + 2] = 0;
@@ -351,9 +321,7 @@ fn blend(rgba: &mut [u8], i: usize, color: [u8; 3], alpha: f64) {
 #[cfg(windows)]
 fn taskbar_is_dark() -> bool {
     use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
-    let key: Vec<u16> = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize\0"
-        .encode_utf16()
-        .collect();
+    let key: Vec<u16> = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize\0".encode_utf16().collect();
     let value: Vec<u16> = "SystemUsesLightTheme\0".encode_utf16().collect();
     let mut data: u32 = 1;
     let mut size = std::mem::size_of::<u32>() as u32;
@@ -386,9 +354,7 @@ mod tests {
         let size = 32u32;
         let mut rgba = vec![0u8; (size * size * 4) as usize];
         with_dot(&mut rgba, size, [217, 54, 54]);
-        let at = |x: u32, y: u32| {
-            &rgba[((y * size + x) * 4) as usize..((y * size + x) * 4 + 4) as usize]
-        };
+        let at = |x: u32, y: u32| &rgba[((y * size + x) * 4) as usize..((y * size + x) * 4 + 4) as usize];
         assert_eq!(at(24, 24), &[217, 54, 54, 255]);
         assert_eq!(at(2, 2), &[0, 0, 0, 0]);
         let mut template = vec![255u8; (size * size * 4) as usize];

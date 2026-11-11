@@ -53,9 +53,7 @@ impl AppLanguage {
     }
 
     pub fn from_code(code: &str) -> Option<AppLanguage> {
-        AppLanguage::ALL
-            .into_iter()
-            .find(|language| language.code() == code)
+        AppLanguage::ALL.into_iter().find(|language| language.code() == code)
     }
 }
 

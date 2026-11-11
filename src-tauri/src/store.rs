@@ -96,9 +96,7 @@ pub struct KeyringVault {
 
 impl KeyringVault {
     pub fn new(service: &str) -> KeyringVault {
-        KeyringVault {
-            service: service.to_string(),
-        }
+        KeyringVault { service: service.to_string() }
     }
 
     fn entry(&self, id: &str) -> Result<keyring::Entry, String> {
@@ -108,9 +106,7 @@ impl KeyringVault {
 
 impl TokenVault for KeyringVault {
     fn set(&self, id: &str, token: &str) -> Result<(), String> {
-        self.entry(id)?
-            .set_password(token)
-            .map_err(|e| e.to_string())
+        self.entry(id)?.set_password(token).map_err(|e| e.to_string())
     }
 
     fn get(&self, id: &str) -> Result<Option<String>, String> {
@@ -170,19 +166,13 @@ impl AppStore {
     /* ---------------------------------------------------------------- settings */
 
     pub fn settings(&self) -> AppSettings {
-        let fallback = AppSettings {
-            language: self.default_language,
-            ..DEFAULT_SETTINGS
-        };
+        let fallback = AppSettings { language: self.default_language, ..DEFAULT_SETTINGS };
         clean_settings(self.data.lock().get("settings"), &fallback)
     }
 
     pub fn set_settings(&self, next: &AppSettings) {
         self.write(|data| {
-            data.insert(
-                "settings".into(),
-                serde_json::to_value(next).unwrap_or(Value::Null),
-            );
+            data.insert("settings".into(), serde_json::to_value(next).unwrap_or(Value::Null));
         });
     }
 
@@ -191,10 +181,7 @@ impl AppStore {
     pub fn projects(&self) -> Vec<StoredProject> {
         let data = self.data.lock();
         let mut projects: Vec<StoredProject> = match data.get("projects") {
-            Some(Value::Object(map)) => map
-                .iter()
-                .filter_map(|(id, value)| read_project(id, value))
-                .collect(),
+            Some(Value::Object(map)) => map.iter().filter_map(|(id, value)| read_project(id, value)).collect(),
             _ => Vec::new(),
         };
         projects.sort_by(|a, b| a.created_at.cmp(&b.created_at));
@@ -203,10 +190,7 @@ impl AppStore {
 
     pub fn project(&self, id: &str) -> Option<StoredProject> {
         let data = self.data.lock();
-        data.get("projects")?
-            .as_object()?
-            .get(id)
-            .and_then(|value| read_project(id, value))
+        data.get("projects")?.as_object()?.get(id).and_then(|value| read_project(id, value))
     }
 
     pub fn save_project(&self, project: &StoredProject) -> Result<(), String> {
@@ -215,26 +199,17 @@ impl AppStore {
         }
         let value = serde_json::to_value(project).map_err(|e| e.to_string())?;
         self.write(|data| {
-            let projects = data
-                .entry("projects")
-                .or_insert_with(|| Value::Object(Map::new()));
+            let projects = data.entry("projects").or_insert_with(|| Value::Object(Map::new()));
             if !projects.is_object() {
                 *projects = Value::Object(Map::new());
             }
-            projects
-                .as_object_mut()
-                .unwrap()
-                .insert(project.id.clone(), value);
+            projects.as_object_mut().unwrap().insert(project.id.clone(), value);
         });
         Ok(())
     }
 
     /// Changes a project as it is now; None when there is no such project
-    pub fn patch_project(
-        &self,
-        id: &str,
-        patch: impl FnOnce(&mut StoredProject),
-    ) -> Option<StoredProject> {
+    pub fn patch_project(&self, id: &str, patch: impl FnOnce(&mut StoredProject)) -> Option<StoredProject> {
         let mut project = self.project(id)?;
         patch(&mut project);
         project.id = id.to_string();
@@ -245,11 +220,8 @@ impl AppStore {
     pub fn remove_project(&self, id: &str) {
         let removed = {
             let mut data = self.data.lock();
-            let removed = data
-                .get_mut("projects")
-                .and_then(Value::as_object_mut)
-                .and_then(|map| map.remove(id))
-                .is_some();
+            let removed =
+                data.get_mut("projects").and_then(Value::as_object_mut).and_then(|map| map.remove(id)).is_some();
             if removed {
                 self.flush(&data);
             }
@@ -268,18 +240,10 @@ impl AppStore {
     pub fn store_token(&self, id: &str, token: &str) -> TokenFields {
         self.tokens.lock().insert(id.to_string(), token.to_string());
         match self.vault.set(id, token) {
-            Ok(()) => TokenFields {
-                token_keyring: true,
-                token_plain: None,
-            },
+            Ok(()) => TokenFields { token_keyring: true, token_plain: None },
             Err(error) => {
-                warn!(
-                    "No credential store for the token of project {id}: kept in the settings file ({error})"
-                );
-                TokenFields {
-                    token_keyring: false,
-                    token_plain: Some(token.to_string()),
-                }
+                warn!("No credential store for the token of project {id}: kept in the settings file ({error})");
+                TokenFields { token_keyring: false, token_plain: Some(token.to_string()) }
             }
         }
     }
@@ -295,26 +259,16 @@ impl AppStore {
                 let token = match self.vault.get(&project.id) {
                     Ok(token) => token.unwrap_or_default(),
                     Err(error) => {
-                        error!(
-                            "Cannot read the token of project {} from the credential store: {error}",
-                            project.id
-                        );
+                        error!("Cannot read the token of project {} from the credential store: {error}", project.id);
                         String::new()
                     }
                 };
                 self.tokens.lock().insert(project.id.clone(), token);
             } else if let Some(token_enc) = &project.token_enc {
-                match self
-                    .legacy
-                    .as_ref()
-                    .and_then(|legacy| legacy.decrypt(token_enc))
-                {
+                match self.legacy.as_ref().and_then(|legacy| legacy.decrypt(token_enc)) {
                     Some(token) => renew.push((project.id.clone(), token)),
                     None => {
-                        error!(
-                            "Cannot decrypt the token of project {}: the user is asked for it again",
-                            project.id
-                        );
+                        error!("Cannot decrypt the token of project {}: the user is asked for it again", project.id);
                         self.tokens.lock().insert(project.id.clone(), String::new());
                     }
                 }
@@ -359,12 +313,7 @@ impl AppStore {
     pub fn window_state(&self) -> Option<WindowState> {
         let data = self.data.lock();
         let state = data.get("window_state")?.as_object()?;
-        let number = |key: &str| {
-            state
-                .get(key)
-                .and_then(Value::as_f64)
-                .filter(|n| n.is_finite())
-        };
+        let number = |key: &str| state.get(key).and_then(Value::as_f64).filter(|n| n.is_finite());
         Some(WindowState {
             x: number("x"),
             y: number("y"),
@@ -376,10 +325,7 @@ impl AppStore {
 
     pub fn set_window_state(&self, state: &WindowState) {
         self.write(|data| {
-            data.insert(
-                "window_state".into(),
-                serde_json::to_value(state).unwrap_or(Value::Null),
-            );
+            data.insert("window_state".into(), serde_json::to_value(state).unwrap_or(Value::Null));
         });
     }
 
@@ -414,23 +360,16 @@ impl AppStore {
             Some(Value::Object(map)) => map.clone(),
             _ => Map::new(),
         };
-        let mut folders: HashSet<String> = projects
-            .iter()
-            .filter_map(|(id, value)| read_project(id, value))
-            .map(|p| folder_key(&p.folder))
-            .collect();
+        let mut folders: HashSet<String> =
+            projects.iter().filter_map(|(id, value)| read_project(id, value)).map(|p| folder_key(&p.folder)).collect();
         let mut imported = 0;
         for project in v1_projects(data.get("storage_data")) {
             // Already migrated (by id or by folder: two projects never share a folder)
-            if projects.contains_key(&project.id) || folders.contains(&folder_key(&project.folder))
-            {
+            if projects.contains_key(&project.id) || folders.contains(&folder_key(&project.folder)) {
                 continue;
             }
             folders.insert(folder_key(&project.folder));
-            projects.insert(
-                project.id.clone(),
-                serde_json::to_value(&project).unwrap_or(Value::Null),
-            );
+            projects.insert(project.id.clone(), serde_json::to_value(&project).unwrap_or(Value::Null));
             imported += 1;
         }
         let user_properties = data.get("user_properties").cloned();
@@ -440,10 +379,7 @@ impl AppStore {
         data.insert("projects".into(), Value::Object(projects));
         if version < STORE_VERSION {
             let settings = v1_settings(user_properties.as_ref(), has_v1, self.default_language);
-            data.insert(
-                "settings".into(),
-                serde_json::to_value(settings).unwrap_or(Value::Null),
-            );
+            data.insert("settings".into(), serde_json::to_value(settings).unwrap_or(Value::Null));
             data.insert("version".into(), json!(STORE_VERSION));
         }
         self.flush(&data);
@@ -472,10 +408,7 @@ fn read_store(file: &Path) -> (Map<String, Value>, Option<PathBuf>) {
         _ => {
             let stamp = op_media_service::now_iso().replace([':', '.'], "-");
             let aside = file.with_file_name(format!("{STORE_NAME}.corrupt-{stamp}.json"));
-            error!(
-                "The config file cannot be parsed: set aside as {}",
-                aside.display()
-            );
+            error!("The config file cannot be parsed: set aside as {}", aside.display());
             if fs::rename(file, &aside).is_err() {
                 // A file another program holds cannot be moved: it is copied, and the store starts over it
                 warn!("The damaged config file cannot be moved: copied instead");
@@ -493,8 +426,7 @@ fn write_atomic(file: &Path, data: &Map<String, Value>) -> std::io::Result<()> {
     let mut text = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"\t");
     let mut serializer = serde_json::Serializer::with_formatter(&mut text, formatter);
-    data.serialize(&mut serializer)
-        .map_err(std::io::Error::other)?;
+    data.serialize(&mut serializer).map_err(std::io::Error::other)?;
     let temp = file.with_extension(format!("json.{}.tmp", uuid::Uuid::new_v4().simple()));
     let result = (|| {
         let mut handle = fs::File::create(&temp)?;
@@ -515,36 +447,23 @@ pub fn read_project(id: &str, value: &Value) -> Option<StoredProject> {
     if !is_project_id(id) || project.get("id").and_then(Value::as_str) != Some(id) {
         return None;
     }
-    let text = |key: &str| {
-        project
-            .get(key)
-            .and_then(Value::as_str)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
-    };
+    let text = |key: &str| project.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string);
     let typed = |key: &str| project.get(key).cloned();
     Some(StoredProject {
         id: id.to_string(),
         label: project.get("label")?.as_str()?.to_string(),
         folder: project.get("folder")?.as_str()?.to_string(),
         keep_old_files: project.get("keep_old_files") == Some(&Value::Bool(true)),
-        created_at: project
-            .get("created_at")
-            .and_then(Value::as_str)
-            .unwrap_or(EPOCH)
-            .to_string(),
+        created_at: project.get("created_at").and_then(Value::as_str).unwrap_or(EPOCH).to_string(),
         token_enc: text("token_enc"),
         token_plain: text("token_plain"),
         token_keyring: project.get("token_keyring") == Some(&Value::Bool(true)),
         last_result: typed("last_result").and_then(|v| serde_json::from_value(v).ok()),
         plan: typed("plan").and_then(|v| serde_json::from_value(v).ok()),
         issues: match project.get("issues") {
-            Some(Value::Array(items)) => Some(
-                items
-                    .iter()
-                    .filter_map(|item| serde_json::from_value::<Issue>(item.clone()).ok())
-                    .collect(),
-            ),
+            Some(Value::Array(items)) => {
+                Some(items.iter().filter_map(|item| serde_json::from_value::<Issue>(item.clone()).ok()).collect())
+            }
             _ => None,
         },
         folder_info: typed("folder_info").and_then(|v| serde_json::from_value(v).ok()),
@@ -556,11 +475,7 @@ pub fn read_project(id: &str, value: &Value) -> Option<StoredProject> {
 /// Folders compared the way the file systems of the platform compare them
 fn folder_key(folder: &str) -> String {
     let trimmed = folder.trim().trim_end_matches(['/', '\\']);
-    if cfg!(target_os = "linux") {
-        trimmed.to_string()
-    } else {
-        trimmed.to_lowercase()
-    }
+    if cfg!(target_os = "linux") { trimmed.to_string() } else { trimmed.to_lowercase() }
 }
 
 /* -------------------------------------------------------------------- 1.x */
@@ -571,21 +486,11 @@ fn v1_settings(value: Option<&Value>, has_v1: bool, default_language: AppLanguag
     let v1 = value.and_then(Value::as_object).unwrap_or(&empty);
     let simultaneous = concurrency(v1.get("simultaneous_downloads"));
     AppSettings {
-        theme: if v1.get("dark_mode") == Some(&Value::Bool(true)) {
-            ThemeSetting::Dark
-        } else {
-            ThemeSetting::System
-        },
+        theme: if v1.get("dark_mode") == Some(&Value::Bool(true)) { ThemeSetting::Dark } else { ThemeSetting::System },
         // 1.x showed Italian unless told otherwise; a new install speaks the system's language
-        language: language(v1.get("language")).unwrap_or(if has_v1 {
-            AppLanguage::It
-        } else {
-            default_language
-        }),
+        language: language(v1.get("language")).unwrap_or(if has_v1 { AppLanguage::It } else { default_language }),
         // 1 was the 1.x default, not a choice: start from the 2.0 default
-        concurrency: simultaneous
-            .filter(|n| *n > 1)
-            .unwrap_or(DEFAULT_SETTINGS.concurrency),
+        concurrency: simultaneous.filter(|n| *n > 1).unwrap_or(DEFAULT_SETTINGS.concurrency),
         ..DEFAULT_SETTINGS
     }
 }
@@ -601,24 +506,13 @@ fn v1_projects(value: Option<&Value>) -> Vec<StoredProject> {
     let mut projects = Vec::new();
     for v1 in map.values() {
         let Some(v1) = v1.as_object() else { continue };
-        let Some(folder) = v1
-            .get("folder_path")
-            .and_then(Value::as_str)
-            .filter(|f| !f.trim().is_empty())
-        else {
+        let Some(folder) = v1.get("folder_path").and_then(Value::as_str).filter(|f| !f.trim().is_empty()) else {
             continue;
         };
-        let token = v1
-            .get("api_token")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .unwrap_or("");
+        let token = v1.get("api_token").and_then(Value::as_str).map(str::trim).unwrap_or("");
         let label = match v1.get("label").and_then(Value::as_str).map(str::trim) {
             Some(label) if !label.is_empty() => label.to_string(),
-            _ => Path::new(folder)
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default(),
+            _ => Path::new(folder).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
         };
         let id = match v1.get("id").and_then(Value::as_str) {
             Some(id) if is_project_id(id) => id.to_string(),
@@ -634,10 +528,7 @@ fn v1_projects(value: Option<&Value>) -> Vec<StoredProject> {
             token_enc: None,
             token_plain: (!token.is_empty()).then(|| token.to_string()),
             token_keyring: false,
-            last_result: v1
-                .get("last_sync")
-                .and_then(Value::as_object)
-                .map(from_v1_sync),
+            last_result: v1.get("last_sync").and_then(Value::as_object).map(from_v1_sync),
             plan: None,
             issues: None,
             folder_info: None,
@@ -744,9 +635,7 @@ pub mod tests {
         let store = open(dir.path(), Default::default());
         assert_eq!(store.settings().language, AppLanguage::En);
         assert!(store.projects().is_empty());
-        let saved: Value =
-            serde_json::from_str(&fs::read_to_string(dir.path().join(STORE_FILE)).unwrap())
-                .unwrap();
+        let saved: Value = serde_json::from_str(&fs::read_to_string(dir.path().join(STORE_FILE)).unwrap()).unwrap();
         assert_eq!(saved["version"], 2);
     }
 
@@ -780,14 +669,7 @@ pub mod tests {
         assert!(projects[0].token_keyring && projects[0].token_plain.is_none());
         assert_eq!(store.token(&projects[0]), "tok-1");
         assert!(!store.has_token(&projects[1]));
-        assert_eq!(
-            vault
-                .tokens
-                .lock()
-                .get("11111111-1111-1111-1111-111111111111")
-                .unwrap(),
-            "tok-1"
-        );
+        assert_eq!(vault.tokens.lock().get("11111111-1111-1111-1111-111111111111").unwrap(), "tok-1");
         let raw = fs::read_to_string(dir.path().join(STORE_FILE)).unwrap();
         assert!(!raw.contains("storage_data") && !raw.contains("tok-1"));
     }
@@ -795,10 +677,7 @@ pub mod tests {
     #[test]
     fn tokens_stay_in_the_file_without_a_credential_store() {
         let dir = tempfile::tempdir().unwrap();
-        let vault = std::sync::Arc::new(MemoryVault {
-            broken: true,
-            ..Default::default()
-        });
+        let vault = std::sync::Arc::new(MemoryVault { broken: true, ..Default::default() });
         let store = open(dir.path(), vault);
         let mut p = project("p1", "/a");
         let fields = store.store_token("p1", "secret");
@@ -806,11 +685,7 @@ pub mod tests {
         p.token_plain = fields.token_plain;
         store.save_project(&p).unwrap();
         assert_eq!(store.token(&store.project("p1").unwrap()), "secret");
-        assert!(
-            fs::read_to_string(dir.path().join(STORE_FILE))
-                .unwrap()
-                .contains("secret")
-        );
+        assert!(fs::read_to_string(dir.path().join(STORE_FILE)).unwrap().contains("secret"));
     }
 
     #[test]

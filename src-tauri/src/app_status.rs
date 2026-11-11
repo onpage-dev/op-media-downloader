@@ -59,9 +59,7 @@ impl StatusController {
     }
 
     pub fn status(&self, app: &AppHandle) -> AppStatus {
-        app.state::<Shell>()
-            .projects
-            .status(self.online.load(Ordering::Acquire))
+        app.state::<Shell>().projects.status(self.online.load(Ordering::Acquire))
     }
 
     /// The window got the focus: the errors have been seen
@@ -80,14 +78,9 @@ impl StatusController {
     pub fn update_tray(&self, app: &AppHandle, views: &[ProjectView]) {
         let shell = app.state::<Shell>();
         let t = texts(shell.store.settings().language);
-        let running = views
-            .iter()
-            .filter(|v| v.runtime.phase != JobPhase::Idle)
-            .count() as u64;
-        let attention = views
-            .iter()
-            .filter(|v| matches!(project_status(v).tone, Tone::Danger | Tone::Warning))
-            .count() as u64;
+        let running = views.iter().filter(|v| v.runtime.phase != JobPhase::Idle).count() as u64;
+        let attention =
+            views.iter().filter(|v| matches!(project_status(v).tone, Tone::Danger | Tone::Warning)).count() as u64;
         let line = if running > 0 {
             t.tray_running(running)
         } else if attention > 0 {
@@ -96,11 +89,7 @@ impl StatusController {
             t.tray_idle.to_string()
         };
         let tone = aggregate_tone(views);
-        shell.tray.update(
-            app,
-            tone.filter(|tone| *tone != Tone::Success),
-            format!("{}\n{line}", t.app_name),
-        );
+        shell.tray.update(app, tone.filter(|tone| *tone != Tone::Success), format!("{}\n{line}", t.app_name));
     }
 
     pub fn on_projects(&self, app: &AppHandle, views: &[ProjectView]) {
@@ -119,10 +108,7 @@ impl StatusController {
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(STATUS_THROTTLE).await;
             let shell = app.state::<Shell>();
-            shell
-                .status
-                .status_scheduled
-                .store(false, Ordering::Release);
+            shell.status.status_scheduled.store(false, Ordering::Release);
             let _ = app.emit("app:status", shell.status.status(&app));
         });
     }
@@ -143,82 +129,55 @@ pub fn update_taskbar(app: &AppHandle, views: &[ProjectView], show_errors: bool)
     let Some(window) = MainWindow::current(app) else {
         return;
     };
-    let running: Vec<&ProjectView> = views
-        .iter()
-        .filter(|v| v.runtime.phase != JobPhase::Idle)
-        .collect();
+    let running: Vec<&ProjectView> = views.iter().filter(|v| v.runtime.phase != JobPhase::Idle).collect();
     let statuses: Vec<_> = views.iter().map(project_status).collect();
     let state = if !running.is_empty() {
-        let stopping = running
-            .iter()
-            .all(|v| v.runtime.phase == JobPhase::Stopping);
+        let stopping = running.iter().all(|v| v.runtime.phase == JobPhase::Stopping);
         match progress_of(views) {
             Some((done, total)) => ProgressBarState {
-                status: Some(if stopping {
-                    ProgressBarStatus::Paused
-                } else {
-                    ProgressBarStatus::Normal
-                }),
+                status: Some(if stopping { ProgressBarStatus::Paused } else { ProgressBarStatus::Normal }),
                 progress: Some(((done as f64 / total as f64).min(1.0) * 100.0).round() as u64),
             },
-            None => ProgressBarState {
-                status: Some(ProgressBarStatus::Indeterminate),
-                progress: None,
-            },
+            None => ProgressBarState { status: Some(ProgressBarStatus::Indeterminate), progress: None },
         }
     } else if show_errors && statuses.iter().any(|s| s.tone == Tone::Danger) {
-        ProgressBarState {
-            status: Some(ProgressBarStatus::Error),
-            progress: Some(100),
-        }
+        ProgressBarState { status: Some(ProgressBarStatus::Error), progress: Some(100) }
     } else {
-        ProgressBarState {
-            status: Some(ProgressBarStatus::None),
-            progress: None,
-        }
+        ProgressBarState { status: Some(ProgressBarStatus::None), progress: None }
     };
     let _ = window.set_progress_bar(state);
     #[cfg(target_os = "macos")]
     {
-        let attention = statuses
-            .iter()
-            .filter(|s| s.tone == Tone::Danger || s.todo)
-            .count() as i64;
+        let attention = statuses.iter().filter(|s| s.tone == Tone::Danger || s.todo).count() as i64;
         let _ = window.set_badge_count(if attention > 0 { Some(attention) } else { None });
     }
 }
 
 /// A route out of this computer exists (no packet is sent: a UDP "connection" only picks a route)
 fn is_online() -> bool {
-    let route = |bind: &str, target: &str| {
-        UdpSocket::bind(bind)
-            .and_then(|socket| socket.connect(target))
-            .is_ok()
-    };
+    let route = |bind: &str, target: &str| UdpSocket::bind(bind).and_then(|socket| socket.connect(target)).is_ok();
     route("0.0.0.0:0", "1.1.1.1:53") || route("[::]:0", "[2606:4700:4700::1111]:53")
 }
 
 /// The system's "stay awake" request belongs to the thread that made it (Windows): one thread holds it
 fn keep_awake_thread() -> Sender<bool> {
     let (sender, receiver) = mpsc::channel::<bool>();
-    let _ = std::thread::Builder::new()
-        .name("keep-awake".into())
-        .spawn(move || {
-            let mut guard = None;
-            while let Ok(busy) = receiver.recv() {
-                if busy && guard.is_none() {
-                    guard = keepawake::Builder::default()
-                        .idle(true)
-                        .reason("Syncing On Page media")
-                        .app_name("On Page Media Downloader")
-                        .app_reverse_domain("com.onpage.mediadownloader")
-                        .create()
-                        .map_err(|error| crate::warn!("The computer cannot be kept awake: {error}"))
-                        .ok();
-                } else if !busy {
-                    guard = None;
-                }
+    let _ = std::thread::Builder::new().name("keep-awake".into()).spawn(move || {
+        let mut guard = None;
+        while let Ok(busy) = receiver.recv() {
+            if busy && guard.is_none() {
+                guard = keepawake::Builder::default()
+                    .idle(true)
+                    .reason("Syncing On Page media")
+                    .app_name("On Page Media Downloader")
+                    .app_reverse_domain("com.onpage.mediadownloader")
+                    .create()
+                    .map_err(|error| crate::warn!("The computer cannot be kept awake: {error}"))
+                    .ok();
+            } else if !busy {
+                guard = None;
             }
-        });
+        }
+    });
     sender
 }

@@ -29,9 +29,7 @@ use tauri::{Manager, RunEvent};
 fn main() {
     let app = tauri::Builder::default()
         // First: a second launch hands its arguments over and ends
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            shell::on_second_instance(app, argv)
-        }))
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| shell::on_second_instance(app, argv)))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())

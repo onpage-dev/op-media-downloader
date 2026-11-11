@@ -11,9 +11,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use op_media_service::{
-    ActivityEntry, DuplicatePage, FailedPage, FolderInfo, FolderProblem, Issue, IssueCode, JobKind,
-    JobPhase, MediaService, PageQuery, ProjectFolder, ProjectId, ProjectRuntime, ServiceEvent,
-    ServiceProject, SyncOutcome, SyncResult, TokenCheck, TokenError,
+    ActivityEntry, DuplicatePage, FailedPage, FolderInfo, FolderProblem, Issue, IssueCode, JobKind, JobPhase,
+    MediaService, PageQuery, ProjectFolder, ProjectId, ProjectRuntime, ServiceEvent, ServiceProject, SyncOutcome,
+    SyncResult, TokenCheck, TokenError,
 };
 use parking_lot::Mutex;
 
@@ -55,11 +55,8 @@ const PERSISTED_ISSUES: &[IssueCode] = &[
 ];
 
 /// Folder problems that make a project impossible to save
-const BLOCKING_PROBLEMS: &[FolderProblem] = &[
-    FolderProblem::Protected,
-    FolderProblem::UsedByOtherProject,
-    FolderProblem::ForeignData,
-];
+const BLOCKING_PROBLEMS: &[FolderProblem] =
+    &[FolderProblem::Protected, FolderProblem::UsedByOtherProject, FolderProblem::ForeignData];
 
 const AUTO_RETRY_DELAY: Duration = Duration::from_secs(60);
 /// How long the job of a removed project gets to stop
@@ -112,20 +109,12 @@ impl ProjectService {
     /* ---------------------------------------------------------------- reading */
 
     pub fn views(&self) -> Vec<ProjectView> {
-        self.store
-            .projects()
-            .iter()
-            .map(|project| self.to_view(project))
-            .collect()
+        self.store.projects().iter().map(|project| self.to_view(project)).collect()
     }
 
     /// A job runs (also the one of a removed project, while it stops)
     pub fn is_running(&self) -> bool {
-        self.state
-            .lock()
-            .runtimes
-            .values()
-            .any(|runtime| runtime.phase != JobPhase::Idle)
+        self.state.lock().runtimes.values().any(|runtime| runtime.phase != JobPhase::Idle)
     }
 
     /// The files of a removed project are being deleted
@@ -137,14 +126,8 @@ impl ProjectService {
         let views = self.views();
         AppStatus {
             online,
-            running_jobs: views
-                .iter()
-                .filter(|v| v.runtime.phase != JobPhase::Idle)
-                .count() as u64,
-            speed_bps: views
-                .iter()
-                .map(|v| v.runtime.progress.as_ref().map_or(0.0, |p| p.speed_bps))
-                .sum(),
+            running_jobs: views.iter().filter(|v| v.runtime.phase != JobPhase::Idle).count() as u64,
+            speed_bps: views.iter().map(|v| v.runtime.progress.as_ref().map_or(0.0, |p| p.speed_bps)).sum(),
             total_files: views
                 .iter()
                 .map(|v| {
@@ -156,10 +139,7 @@ impl ProjectService {
                         .unwrap_or(0)
                 })
                 .sum(),
-            total_bytes: views
-                .iter()
-                .map(|v| v.runtime.plan.as_ref().map_or(0, |p| p.remote_bytes))
-                .sum(),
+            total_bytes: views.iter().map(|v| v.runtime.plan.as_ref().map_or(0, |p| p.remote_bytes)).sum(),
         }
     }
 
@@ -171,11 +151,7 @@ impl ProjectService {
     pub async fn folder_to_open(&self, id: &str) -> Result<PathBuf, String> {
         let folder = PathBuf::from(self.require(id)?.folder);
         let check = folder.clone();
-        let is_dir = tokio::time::timeout(
-            FOLDER_CHECK,
-            tokio::task::spawn_blocking(move || check.is_dir()),
-        )
-        .await;
+        let is_dir = tokio::time::timeout(FOLDER_CHECK, tokio::task::spawn_blocking(move || check.is_dir())).await;
         match is_dir {
             Ok(Ok(true)) => Ok(folder),
             _ => Err("open_failed".into()),
@@ -227,11 +203,7 @@ impl ProjectService {
         Ok(self.to_view(&project))
     }
 
-    pub async fn update(
-        self: &Arc<Self>,
-        id: &str,
-        patch: ProjectPatch,
-    ) -> Result<ProjectView, String> {
+    pub async fn update(self: &Arc<Self>, id: &str, patch: ProjectPatch) -> Result<ProjectView, String> {
         let _edit = self.edits.lock().await;
         let current = self.require(id)?;
         self.require_idle(&current)?;
@@ -282,10 +254,7 @@ impl ProjectService {
             next.folder = folder;
             next.folder_info = Some(info);
         }
-        if let Some(keep) = patch
-            .keep_old_files
-            .filter(|keep| *keep != latest.keep_old_files)
-        {
+        if let Some(keep) = patch.keep_old_files.filter(|keep| *keep != latest.keep_old_files) {
             next.keep_old_files = keep;
             // The plan was computed with the other rule
             next.plan = None;
@@ -319,33 +288,18 @@ impl ProjectService {
                 state.deleting.insert(id.to_string(), target.clone());
             }
             // The runtime of a running job stays until the service says it ended
-            if state
-                .runtimes
-                .get(id)
-                .is_none_or(|runtime| runtime.phase == JobPhase::Idle)
-            {
+            if state.runtimes.get(id).is_none_or(|runtime| runtime.phase == JobPhase::Idle) {
                 state.runtimes.remove(id);
             }
         }
         self.store.remove_project(id);
         self.configure_service(None);
         self.changed();
-        info!(
-            "Project {id} removed{}",
-            if delete_files {
-                ": deleting its files"
-            } else {
-                ""
-            }
-        );
+        info!("Project {id} removed{}", if delete_files { ": deleting its files" } else { "" });
         let me = self.clone();
         let id = id.to_string();
         tauri::async_runtime::spawn(async move {
-            if delete_files {
-                me.delete_files(target).await
-            } else {
-                me.forget(&id).await
-            }
+            if delete_files { me.delete_files(target).await } else { me.forget(&id).await }
         });
         Ok(())
     }
@@ -367,10 +321,7 @@ impl ProjectService {
             return Ok(());
         }
         if take_over_folder {
-            project = self
-                .store
-                .patch_project(id, |p| p.take_over_folder = true)
-                .unwrap_or(project);
+            project = self.store.patch_project(id, |p| p.take_over_folder = true).unwrap_or(project);
         }
         self.mark_starting(&project, job);
         let target = self.service_project(&project);
@@ -408,12 +359,7 @@ impl ProjectService {
     pub async fn stop_all(self: &Arc<Self>, timeout: Duration) {
         let running: Vec<ProjectId> = {
             let state = self.state.lock();
-            state
-                .runtimes
-                .iter()
-                .filter(|(_, r)| r.phase != JobPhase::Idle)
-                .map(|(id, _)| id.clone())
-                .collect()
+            state.runtimes.iter().filter(|(_, r)| r.phase != JobPhase::Idle).map(|(id, _)| id.clone()).collect()
         };
         for id in &running {
             self.stop(id);
@@ -433,40 +379,29 @@ impl ProjectService {
 
     pub async fn duplicates(&self, id: &str, page: PageQuery) -> Result<DuplicatePage, String> {
         let project = self.require(id)?;
-        self.service
-            .duplicates(self.service_project(&project), page)
-            .await
+        self.service.duplicates(self.service_project(&project), page).await
     }
 
     pub async fn verify_token(&self, token: &str) -> TokenCheck {
         let token = token.trim();
         if token.is_empty() {
-            return TokenCheck {
-                ok: false,
-                error: Some(TokenError::TokenInvalid),
-                ..Default::default()
-            };
+            return TokenCheck { ok: false, error: Some(TokenError::TokenInvalid), ..Default::default() };
         }
         self.service.verify_token(token.to_string()).await
     }
 
     /// A folder the user picked
     pub async fn inspect(&self, folder: &str, project_id: Option<ProjectId>) -> FolderInfo {
-        let mut info = self
-            .service
-            .inspect_folder(normalize_folder(folder), project_id)
-            .await;
+        let mut info = self.service.inspect_folder(normalize_folder(folder), project_id).await;
         // The service names the other project by id: the user knows it by its label
         if info.problems.contains(&FolderProblem::UsedByOtherProject)
             && let Some(other) = info.problem_detail.clone()
         {
-            let label = self.store.project(&other).map(|p| p.label).or_else(|| {
-                self.state
-                    .lock()
-                    .deleting
-                    .get(&other)
-                    .map(|p| p.label.clone())
-            });
+            let label = self
+                .store
+                .project(&other)
+                .map(|p| p.label)
+                .or_else(|| self.state.lock().deleting.get(&other).map(|p| p.label.clone()));
             info.problem_detail = Some(label.unwrap_or(other));
         }
         info
@@ -489,25 +424,16 @@ impl ProjectService {
     }
 
     pub fn configure_service(&self, concurrency: Option<u32>) {
-        self.service
-            .configure(concurrency, Some(self.project_folders()));
+        self.service.configure(concurrency, Some(self.project_folders()));
     }
 
     /// The folders of the projects, and of the removed ones whose files are being deleted
     pub fn project_folders(&self) -> Vec<ProjectFolder> {
-        let mut folders: Vec<ProjectFolder> = self
-            .store
-            .projects()
-            .into_iter()
-            .map(|p| ProjectFolder {
-                id: p.id,
-                folder: p.folder,
-            })
-            .collect();
-        folders.extend(self.state.lock().deleting.values().map(|p| ProjectFolder {
-            id: p.id.clone(),
-            folder: p.folder.clone(),
-        }));
+        let mut folders: Vec<ProjectFolder> =
+            self.store.projects().into_iter().map(|p| ProjectFolder { id: p.id, folder: p.folder }).collect();
+        folders.extend(
+            self.state.lock().deleting.values().map(|p| ProjectFolder { id: p.id.clone(), folder: p.folder.clone() }),
+        );
         folders
     }
 
@@ -549,15 +475,9 @@ impl ProjectService {
                 }
             ),
             Err((code, error)) => {
-                error!(
-                    "The files of project {id} could not be deleted from {}: {error}",
-                    project.folder
-                );
+                error!("The files of project {id} could not be deleted from {}: {error}", project.folder);
                 self.service.forget(&id);
-                (self.notify)(ProjectsEvent::DeleteFailed {
-                    label: project.label.clone(),
-                    code,
-                });
+                (self.notify)(ProjectsEvent::DeleteFailed { label: project.label.clone(), code });
             }
         }
         {
@@ -570,12 +490,7 @@ impl ProjectService {
     }
 
     async fn stop_removed(self: &Arc<Self>, id: &str) {
-        let running = self
-            .state
-            .lock()
-            .runtimes
-            .get(id)
-            .is_some_and(|r| r.phase != JobPhase::Idle);
+        let running = self.state.lock().runtimes.get(id).is_some_and(|r| r.phase != JobPhase::Idle);
         if !running {
             return;
         }
@@ -587,10 +502,7 @@ impl ProjectService {
 
     pub fn on_service_event(self: &Arc<Self>, event: ServiceEvent) {
         match event {
-            ServiceEvent::State {
-                project_id,
-                runtime,
-            } => {
+            ServiceEvent::State { project_id, runtime } => {
                 let Some(project) = self.store.project(&project_id) else {
                     return self.removed_state(&project_id, Some(runtime));
                 };
@@ -600,30 +512,22 @@ impl ProjectService {
                     last_result: self.runtime(&project).last_result,
                     ..runtime
                 };
-                self.state
-                    .lock()
-                    .runtimes
-                    .insert(project_id, runtime.clone());
+                self.state.lock().runtimes.insert(project_id, runtime.clone());
                 if idle {
                     self.persist(&project, &runtime);
                 }
                 self.changed();
             }
-            ServiceEvent::Activity {
-                project_id,
-                entries,
-            } => (self.notify)(ProjectsEvent::Activity(project_id, entries)),
+            ServiceEvent::Activity { project_id, entries } => {
+                (self.notify)(ProjectsEvent::Activity(project_id, entries))
+            }
             ServiceEvent::Result { project_id, result } => {
                 if self.store.project(&project_id).is_none() {
                     return self.removed_state(&project_id, None);
                 }
                 self.handle_result(&project_id, result);
             }
-            ServiceEvent::Log {
-                level,
-                message,
-                project_id,
-            } => {
+            ServiceEvent::Log { level, message, project_id } => {
                 let project = project_id.map(|id| format!(" [{id}]")).unwrap_or_default();
                 crate::log::log(level, format!("[service]{project} {message}"));
             }
@@ -657,25 +561,14 @@ impl ProjectService {
         // «Sincronizzato» is the last run that completed: a comparison that
         // leaves files to download, a stop or a failure (shown by the issues) do not count
         let finished = result.outcome == SyncOutcome::Completed
-            && (result.job != JobKind::Sync
-                || !runtime
-                    .plan
-                    .as_ref()
-                    .is_some_and(|plan| plan.to_download_names > 0));
+            && (result.job != JobKind::Sync || !runtime.plan.as_ref().is_some_and(|plan| plan.to_download_names > 0));
         let next = ProjectRuntime {
             phase: JobPhase::Idle,
             progress: None,
-            last_result: if finished {
-                Some(result.clone())
-            } else {
-                runtime.last_result.clone()
-            },
+            last_result: if finished { Some(result.clone()) } else { runtime.last_result.clone() },
             ..runtime
         };
-        self.state
-            .lock()
-            .runtimes
-            .insert(id.to_string(), next.clone());
+        self.state.lock().runtimes.insert(id.to_string(), next.clone());
         // The folder's registry names this project's On Page project now: the choice of the folder is done
         if let Some(onpage) = &result.onpage_project
             && let Some(patched) = self.store.patch_project(id, |p| {
@@ -696,10 +589,7 @@ impl ProjectService {
             result.removed,
             result.failed
         );
-        (self.notify)(ProjectsEvent::Result(
-            Box::new(self.to_view(&saved)),
-            Box::new(result.clone()),
-        ));
+        (self.notify)(ProjectsEvent::Result(Box::new(self.to_view(&saved)), Box::new(result.clone())));
         self.schedule_auto_retry(id, &result);
         let me = self.clone();
         let id = id.to_string();
@@ -710,10 +600,7 @@ impl ProjectService {
         if !self.store.settings().auto_retry_failed {
             return;
         }
-        if result.failed == 0
-            || result.job == JobKind::RetryFailed
-            || result.outcome == SyncOutcome::Stopped
-        {
+        if result.failed == 0 || result.job == JobKind::RetryFailed || result.outcome == SyncOutcome::Stopped {
             return;
         }
         let key = format!("{id}:{}", result.started_at);
@@ -750,27 +637,18 @@ impl ProjectService {
     }
 
     fn runtime(&self, project: &StoredProject) -> ProjectRuntime {
-        self.state
-            .lock()
-            .runtimes
-            .get(&project.id)
-            .cloned()
-            .unwrap_or_else(|| ProjectRuntime {
-                phase: JobPhase::Idle,
-                plan: project.plan.clone(),
-                last_result: project.last_result.clone(),
-                issues: project.issues.clone().unwrap_or_default(),
-                ..Default::default()
-            })
+        self.state.lock().runtimes.get(&project.id).cloned().unwrap_or_else(|| ProjectRuntime {
+            phase: JobPhase::Idle,
+            plan: project.plan.clone(),
+            last_result: project.last_result.clone(),
+            issues: project.issues.clone().unwrap_or_default(),
+            ..Default::default()
+        })
     }
 
     fn persist(&self, project: &StoredProject, runtime: &ProjectRuntime) -> StoredProject {
-        let issues: Vec<Issue> = runtime
-            .issues
-            .iter()
-            .filter(|issue| PERSISTED_ISSUES.contains(&issue.code))
-            .cloned()
-            .collect();
+        let issues: Vec<Issue> =
+            runtime.issues.iter().filter(|issue| PERSISTED_ISSUES.contains(&issue.code)).cloned().collect();
         self.store
             .patch_project(&project.id, |p| {
                 p.plan = runtime.plan.clone();
@@ -785,13 +663,8 @@ impl ProjectService {
         let mut runtime = self.runtime(project);
         runtime.phase = JobPhase::Preparing;
         runtime.job = Some(job);
-        runtime
-            .issues
-            .retain(|issue| issue.code != IssueCode::Interrupted);
-        self.state
-            .lock()
-            .runtimes
-            .insert(project.id.clone(), runtime);
+        runtime.issues.retain(|issue| issue.code != IssueCode::Interrupted);
+        self.state.lock().runtimes.insert(project.id.clone(), runtime);
         self.changed();
     }
 
@@ -808,42 +681,26 @@ impl ProjectService {
     }
 
     /// A folder a project can use: normalized, inspected, not protected nor taken
-    async fn checked_folder(
-        &self,
-        raw: &str,
-        project_id: Option<&str>,
-    ) -> Result<(String, FolderInfo), String> {
+    async fn checked_folder(&self, raw: &str, project_id: Option<&str>) -> Result<(String, FolderInfo), String> {
         let folder = normalize_folder(raw);
         if folder.is_empty() {
             return Err("invalid_input".into());
         }
         let info = self.inspect(&folder, project_id.map(str::to_string)).await;
-        if let Some(blocking) = info
-            .problems
-            .iter()
-            .find(|problem| BLOCKING_PROBLEMS.contains(problem))
-        {
-            let code = serde_json::to_value(blocking)
-                .ok()
-                .and_then(|v| v.as_str().map(str::to_string))
-                .unwrap_or_default();
+        if let Some(blocking) = info.problems.iter().find(|problem| BLOCKING_PROBLEMS.contains(problem)) {
+            let code =
+                serde_json::to_value(blocking).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
             return Err(format!("folder_{code}"));
         }
         Ok((folder, info))
     }
 
     fn require(&self, id: &str) -> Result<StoredProject, String> {
-        self.store
-            .project(id)
-            .ok_or_else(|| "project_not_found".to_string())
+        self.store.project(id).ok_or_else(|| "project_not_found".to_string())
     }
 
     fn require_idle(&self, project: &StoredProject) -> Result<(), String> {
-        if self.runtime(project).phase != JobPhase::Idle {
-            Err("project_busy".into())
-        } else {
-            Ok(())
-        }
+        if self.runtime(project).phase != JobPhase::Idle { Err("project_busy".into()) } else { Ok(()) }
     }
 
     async fn wait_idle(&self, ids: &[ProjectId], timeout: Duration) {
@@ -854,12 +711,7 @@ impl ProjectService {
             notified.as_mut().enable();
             let done = {
                 let state = self.state.lock();
-                ids.iter().all(|id| {
-                    state
-                        .runtimes
-                        .get(id)
-                        .is_none_or(|r| r.phase == JobPhase::Idle)
-                })
+                ids.iter().all(|id| state.runtimes.get(id).is_none_or(|r| r.phase == JobPhase::Idle))
             };
             if done {
                 return;
@@ -890,10 +742,7 @@ pub fn normalize_folder(folder: &str) -> String {
     if trimmed.is_empty() {
         return String::new();
     }
-    let path: PathBuf = Path::new(trimmed)
-        .components()
-        .filter(|c| !matches!(c, Component::CurDir))
-        .collect();
+    let path: PathBuf = Path::new(trimmed).components().filter(|c| !matches!(c, Component::CurDir)).collect();
     path.to_string_lossy().into_owned()
 }
 
@@ -909,10 +758,7 @@ mod tests {
             assert_eq!(normalize_folder(" D:\\Media\\ "), "D:\\Media");
             assert_eq!(normalize_folder("D:/Media/./Foto/"), "D:\\Media\\Foto");
             assert_eq!(normalize_folder("C:\\"), "C:\\");
-            assert_eq!(
-                normalize_folder("\\\\nas\\share\\media\\"),
-                "\\\\nas\\share\\media"
-            );
+            assert_eq!(normalize_folder("\\\\nas\\share\\media\\"), "\\\\nas\\share\\media");
         }
         #[cfg(not(windows))]
         {
