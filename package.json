@@ -2,6 +2,7 @@
   "name": "op-media-downloader",
   "version": "3.0.0",
   "private": true,
+  "type": "module",
   "license": "MIT",
   "description": "Keeps a local or network folder in sync with the media files of an On Page project",
   "author": "On Page®",

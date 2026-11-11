@@ -8,7 +8,7 @@ edition = "2024"
 license = "MIT"
 authors = ["On Page®"]
 repository = "https://github.com/onpage-dev/op-media-downloader"
-rust-version = "1.88"
+rust-version = "1.90"
 
 [workspace.dependencies]
 op-media-service = { path = "crates/op-media-service" }
