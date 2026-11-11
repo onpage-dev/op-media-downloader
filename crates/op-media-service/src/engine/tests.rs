@@ -505,3 +505,83 @@ async fn a_second_job_is_ignored_and_forget_frees_the_project() {
     assert!(!h.service.is_busy("p1"));
     assert!(h.service.activity("p1", None).is_empty(), "its memory went");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_registry_of_the_folder() {
+    let h = Harness::new(4, 0).await;
+    let folder = h.folder("Registro");
+    h.run(|s| s.download(h.project(&folder))).await;
+    let manifest_file = folder.join(DATA_DIR).join(MANIFEST_FILE);
+    let names = list_dir(&folder);
+
+    // Cut by a power cut: the names are recognised by their size, nothing removed or downloaded again
+    std::fs::write(&manifest_file, "{\"version\":2,\"files\":{\"prodotto-1.jpg\"").unwrap();
+    let hits = h.fake.storage_hits();
+    let result = h.run(|s| s.sync(h.project(&folder), false)).await;
+    assert_eq!((result.outcome, result.downloaded, result.removed), (SyncOutcome::Completed, 0, 0), "{result:?}");
+    assert_eq!(h.fake.storage_hits(), hits);
+    assert_eq!(list_dir(&folder), names);
+    let rebuilt: serde_json::Value = serde_json::from_slice(&std::fs::read(&manifest_file).unwrap()).unwrap();
+    assert_eq!(rebuilt["files"].as_object().unwrap().len(), names.len() - 1, "every name but data/");
+
+    // Written by a newer version of the app: left as it is, the job ends
+    let newer = r#"{"version":3,"files":{}}"#;
+    std::fs::write(&manifest_file, newer).unwrap();
+    let result = h.run(|s| s.sync(h.project(&folder), false)).await;
+    assert_eq!(result.error.unwrap().code, IssueCode::FolderProtected);
+    assert_eq!(std::fs::read_to_string(&manifest_file).unwrap(), newer);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_incomplete_listing_removes_nothing_until_a_complete_one() {
+    let h = Harness::new(4, 0).await;
+    let folder = h.folder("Incompleta");
+    h.run(|s| s.download(h.project(&folder))).await;
+    h.fake.with(|state| {
+        state.api.fail_resource = Some("schede".into());
+        state.project.things.retain(|t| t.id != 1001);
+    });
+    let result = h.run(|s| s.sync(h.project(&folder), true)).await;
+    assert_eq!((result.outcome, result.removed), (SyncOutcome::Completed, 0), "{result:?}");
+    let issue = h.last_state().issues.into_iter().find(|i| i.code == IssueCode::ListingIncomplete).unwrap();
+    assert_eq!(issue.detail.as_deref(), Some("Schede tecniche"));
+    assert!(folder.join("scheda-1-it.pdf").exists(), "the collection not read keeps its files");
+    h.fake.with(|state| state.api.fail_resource = None);
+    let result = h.run(|s| s.sync(h.project(&folder), false)).await;
+    assert_eq!(result.removed, 3);
+    assert!(!h.issue_codes().contains(&IssueCode::ListingIncomplete));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn leftovers_are_cleared_and_foreign_names_are_conflicts() {
+    let h = Harness::new(3, 0).await;
+    let folder = h.folder("Residui");
+    std::fs::create_dir_all(folder.join(DATA_DIR)).unwrap();
+    std::fs::write(folder.join(DATA_DIR).join(MANIFEST_FILE), r#"{"version":2,"project_id":"p1","files":{}}"#).unwrap();
+    std::fs::write(folder.join(DATA_DIR).join("0123456789abcdef0123456789abcdef01234567.1a2b3c4d.download"), "half")
+        .unwrap();
+    std::fs::write(folder.join(".opmd-0a1b2c3d4e5f"), "half").unwrap();
+    // A file of the user under a wanted name, with another size
+    std::fs::write(folder.join("prodotto-2.jpg"), "mine").unwrap();
+    let result = h.run(|s| s.download(h.project(&folder))).await;
+    assert_eq!(result.outcome, SyncOutcome::Completed, "{result:?}");
+    assert_eq!(std::fs::read_to_string(folder.join("prodotto-2.jpg")).unwrap(), "mine", "never overwritten");
+    assert!(list_dir(&folder).iter().all(|n| !n.starts_with(".opmd-")));
+    assert!(list_dir(&folder.join(DATA_DIR)).iter().all(|n| !n.ends_with(".download")));
+    assert_eq!(h.last_state().plan.unwrap().conflicts, 1);
+    assert!(h.issue_codes().contains(&IssueCode::NameConflicts));
+    let failed = h.service.failed("p1", &PageQuery { offset: 0, limit: 50, query: None });
+    assert_eq!(failed.entries[0].reason, FailureCode::NameConflict);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn keep_old_files_never_removes() {
+    let h = Harness::new(3, 0).await;
+    let folder = h.folder("Tieni");
+    let project = ServiceProject { keep_old_files: true, ..h.project(&folder) };
+    h.run(|s| s.download(project.clone())).await;
+    h.fake.with(|state| state.project.things.retain(|t| t.id != 1001));
+    let result = h.run(|s| s.sync(project.clone(), false)).await;
+    assert_eq!(result.removed, 0);
+    assert!(folder.join("prodotto-1.jpg").exists());
+}
