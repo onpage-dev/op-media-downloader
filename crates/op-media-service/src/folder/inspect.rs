@@ -3,13 +3,13 @@
 //! with other projects, entries the app did not create, a lock by someone
 //! else. Inspecting never creates folders and leaves no file behind.
 
-use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use super::data_dir::{DataDirOwner, data_dir_owner};
 use super::lock::{is_stale, read_lock};
-use super::manifest::{DATA_DIR, Manifest, TEMP_PREFIX};
+use super::manifest::{DATA_DIR, KeptRegistries, Manifest, TEMP_PREFIX};
 use super::scan::read_entries;
 use crate::fsx::{free_space, random_hex, reachable, unlink_quiet};
 use crate::models::{DestinationKind, FolderInfo, FolderProblem, ProjectFolder, ProjectId, now_iso};
@@ -289,6 +289,8 @@ pub struct InspectContext<'a> {
     pub project_folders: &'a [ProjectFolder],
     pub instance_id: Option<&'a str>,
     pub reach_timeout: Duration,
+    /// The registries the last jobs left in memory
+    pub registries: Option<&'a KeptRegistries>,
 }
 
 pub async fn inspect_folder(folder: &str, ctx: InspectContext<'_>) -> FolderInfo {
@@ -362,15 +364,21 @@ pub async fn inspect_folder(folder: &str, ctx: InspectContext<'_>) -> FolderInfo
         }
 
         // Entries the app did not create
-        let mut own: HashSet<String> = HashSet::new();
+        let mut registry: Option<Arc<Manifest>> = None;
         if has_data && data_dir_owner(&data_dir).await.unwrap_or(DataDirOwner::Ours) == DataDirOwner::Foreign {
             problems.push(FolderProblem::ForeignData);
         } else if has_data {
-            // Unreadable now, or of a newer version of the app: the job will tell
-            if let Ok(loaded) = Manifest::load(&data_dir, ctx.project_id.map(String::as_str).unwrap_or("")).await {
-                own.extend(loaded.manifest.names().iter().map(|n| name_key(n)));
-                info.onpage_project = loaded.manifest.onpage_project();
-            }
+            let project_id = ctx.project_id.map(String::as_str).unwrap_or("");
+            let kept = match ctx.registries {
+                Some(registries) => registries.peek(&data_dir, project_id).await,
+                None => None,
+            };
+            registry = match kept {
+                Some(kept) => Some(kept),
+                // Unreadable now, or of a newer version of the app: the job will tell
+                None => Manifest::load(&data_dir, project_id).await.ok().map(|loaded| Arc::new(loaded.manifest)),
+            };
+            info.onpage_project = registry.as_ref().and_then(|r| r.onpage_project());
             if let Some(lock) = read_lock(&data_dir).await
                 && Some(lock.instance_id.as_str()) != ctx.instance_id
                 && !is_stale(&lock, chrono::Utc::now().timestamp_millis(), super::lock::LOCK_STALE)
@@ -385,7 +393,9 @@ pub async fn inspect_folder(folder: &str, ctx: InspectContext<'_>) -> FolderInfo
                     .iter()
                     .filter(|(name, _)| {
                         let key = name_key(name);
-                        key != DATA_DIR && !name.starts_with(TEMP_PREFIX) && !own.contains(&key)
+                        key != DATA_DIR
+                            && !name.starts_with(TEMP_PREFIX)
+                            && !registry.as_ref().is_some_and(|r| r.read(|files| files.contains_key(&key)))
                     })
                     .count() as u64,
             );
@@ -452,6 +462,7 @@ mod tests {
             project_folders: &folders,
             instance_id: None,
             reach_timeout: REACH_TIMEOUT,
+            registries: None,
         };
         let info = inspect_folder(&path_text(&dir.path().join("new")), ctx()).await;
         assert!(!info.exists && info.writable, "{info:?}");

@@ -721,8 +721,9 @@ async fn large_project_phases() {
         eprintln!("{what}: {:.1?} ({:?})", started.elapsed(), result.outcome);
         timings(from);
     }
-    // A restart: the memory goes, the cache stays
+    // A restart: the memory goes, the caches stay
     h.service.engine.listings.forget(&project.id);
+    h.service.engine.registries.forget_project(&project.id);
     let from = h.events.lock().len();
     let started = std::time::Instant::now();
     h.run(|s| s.download(project.clone())).await;

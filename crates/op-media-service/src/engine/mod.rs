@@ -25,6 +25,7 @@ use self::slot::{Job, Slot};
 use crate::error::{Error, Result};
 use crate::folder::delete::{DeleteOptions, delete_project_files};
 use crate::folder::inspect::{InspectContext, inspect_folder};
+use crate::folder::manifest::KeptRegistries;
 use crate::http::{API_RETRY, DOWNLOAD_RETRY, RetryPolicy};
 use crate::models::*;
 use crate::onpage::{Api, DEFAULT_DOMAIN, OnPageContext, http_client, verify_token};
@@ -114,6 +115,8 @@ pub(crate) struct Engine {
     pub api_domain: String,
     pub http: reqwest::Client,
     pub listings: ListingStore,
+    /// The registries of the last jobs, for the next ones and for folder inspections
+    pub registries: KeptRegistries,
     settings: Mutex<(u32, Vec<ProjectFolder>)>,
     slots: Mutex<HashMap<ProjectId, Arc<Slot>>>,
     sink: EventSink,
@@ -207,6 +210,7 @@ impl MediaService {
         let api_domain = config.api_domain.clone().unwrap_or_else(|| DEFAULT_DOMAIN.to_string());
         let engine = Engine {
             listings: ListingStore::new(config.cache_dir.clone(), config.timings.listing_max_age),
+            registries: KeptRegistries::new(config.timings.listing_max_age),
             http: http_client(concat!("OnPageMediaService/", env!("CARGO_PKG_VERSION"))),
             timings: config.timings,
             instance_id: config.instance_id,
@@ -353,6 +357,7 @@ impl MediaService {
                     project_folders: &folders,
                     instance_id: Some(&engine.instance_id),
                     reach_timeout: crate::folder::inspect::REACH_TIMEOUT,
+                    registries: Some(&engine.registries),
                 },
             )
             .await
@@ -445,6 +450,7 @@ impl MediaService {
                 return Err("project_busy".into());
             }
         }
+        engine.registries.forget_project(&project.id);
         let task = self.engine.handle.spawn({
             let engine = engine.clone();
             let project = project.clone();
@@ -502,6 +508,7 @@ async fn forget(engine: &Arc<Engine>, id: &str) {
     }
     // After the job: a listing that ended meanwhile kept its names
     engine.listings.forget(id);
+    engine.registries.forget_project(id);
 }
 
 /// What a request answers when it fails: the issue's code, or the error's

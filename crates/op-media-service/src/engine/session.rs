@@ -14,7 +14,7 @@ use crate::error::{Error, JobError, Result};
 use crate::folder::data_dir::{DataDirOwner, data_dir_owner};
 use crate::folder::inspect::{is_inside, is_protected_path, normalize, path_text, root_of};
 use crate::folder::lock::{FolderLock, LockOptions};
-use crate::folder::manifest::{DATA_DIR, Manifest, ManifestSource};
+use crate::folder::manifest::{DATA_DIR, KeptRegistries, Manifest, ManifestSource};
 use crate::folder::scan::scan_folder;
 use crate::fsx::{free_space, path_exists, reachable, unlink_quiet};
 use crate::http::sleep;
@@ -31,6 +31,8 @@ pub struct SessionOptions<'a> {
     pub lock_stale: Duration,
     pub lock_heartbeat: Duration,
     pub log: &'a (dyn Fn(LogLevel, String) + Send + Sync),
+    /// The registries of the last jobs, reused when the disk still has them
+    pub registries: &'a KeptRegistries,
 }
 
 /// File system calls at a time for stats and leftovers: a share answers each one slowly
@@ -124,8 +126,19 @@ impl FolderSession {
         .await
         .map_err(Error::into_job_error)?;
         let locked = started.elapsed();
-        let opened: Result<Manifest> = async {
+        let opened: Result<Arc<Manifest>> = async {
             job.check()?;
+            if let Some(kept) = options.registries.take(&data_dir, &project.id).await {
+                (options.log)(
+                    LogLevel::Info,
+                    format!(
+                        "Open: checked in {checked:.1?}, locked in {:.1?}, registry of {} names kept in memory",
+                        locked - checked,
+                        kept.len()
+                    ),
+                );
+                return Ok(kept);
+            }
             let loaded = Manifest::load(&data_dir, &project.id).await.map_err(Error::into_job_error)?;
             if loaded.source == ManifestSource::LinkJson {
                 (options.log)(LogLevel::Info, "Imported data/link.json from 1.x".into());
@@ -142,7 +155,7 @@ impl FolderSession {
                     started.elapsed() - locked
                 ),
             );
-            Ok(loaded.manifest)
+            Ok(Arc::new(loaded.manifest))
         }
         .await;
         let manifest = match opened {
@@ -161,7 +174,7 @@ impl FolderSession {
                 job.fail(lock_lost());
             }
         });
-        Ok(FolderSession { folder, data_dir, manifest: Arc::new(manifest), lock, watcher: Mutex::new(Some(watcher)) })
+        Ok(FolderSession { folder, data_dir, manifest, lock, watcher: Mutex::new(Some(watcher)) })
     }
 
     /// Fails once the folder is not the job's to write: another computer took it
@@ -321,12 +334,17 @@ impl FolderSession {
         }
     }
 
-    /// Frees the folder: the lock goes, and data/ too when a first job left it empty
-    pub async fn close(&self) {
+    /// Frees the folder: the lock goes, and data/ too when a first job left it
+    /// empty. A registry all on the disk stays in memory for the next job
+    pub async fn close(&self, registries: &KeptRegistries) {
         if let Some(watcher) = self.watcher.lock().take() {
             watcher.abort();
         }
+        let lost = self.lock.lost();
         self.lock.release().await;
         let _ = tokio::fs::remove_dir(&self.data_dir).await;
+        if !lost {
+            registries.keep(self.manifest.clone()).await;
+        }
     }
 }

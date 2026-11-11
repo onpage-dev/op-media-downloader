@@ -4,7 +4,10 @@
 use std::collections::BTreeMap;
 
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::SystemTime;
 use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
@@ -122,6 +125,10 @@ impl<'a> ManifestFiles<'a> {
 
     pub fn get(&self, name: &str) -> Option<&'a ManifestEntry> {
         self.files.get(name)
+    }
+
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.keys.contains_key(key)
     }
 
     /// The entry whose name is the same ignoring case
@@ -328,6 +335,12 @@ impl Manifest {
         self.state.lock().files.len()
     }
 
+    /// Everything is on the disk: what the file holds is what is in memory
+    pub fn is_saved(&self) -> bool {
+        let state = self.state.lock();
+        state.changes == 0 && state.on_disk
+    }
+
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -451,6 +464,89 @@ impl Manifest {
     }
 }
 
+/// What identifies the file on the disk without reading it
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Stamp {
+    len: u64,
+    modified: Option<SystemTime>,
+}
+
+async fn stamp(file: &Path) -> Option<Stamp> {
+    let meta = tokio::fs::metadata(file).await.ok()?;
+    meta.is_file().then(|| Stamp { len: meta.len(), modified: meta.modified().ok() })
+}
+
+struct KeptRegistry {
+    manifest: Arc<Manifest>,
+    stamp: Stamp,
+    at: Instant,
+}
+
+/// The registries of the last jobs, kept in memory for a while: the next job
+/// on the same folder (a «Scarica» after a «Sincronizza») does not read 200k
+/// names again. One is used only while the file on the disk is still the
+/// one it was read from or written to: another computer writing it changes
+/// its size or time, and then it is read again
+pub struct KeptRegistries {
+    kept: Mutex<HashMap<PathBuf, KeptRegistry>>,
+    max_age: Duration,
+}
+
+impl KeptRegistries {
+    pub fn new(max_age: Duration) -> KeptRegistries {
+        KeptRegistries { kept: Mutex::new(HashMap::new()), max_age }
+    }
+
+    /// After a job: the registry as the disk has it now
+    pub async fn keep(&self, manifest: Arc<Manifest>) {
+        if !manifest.is_saved() {
+            return;
+        }
+        let Some(stamp) = stamp(&Manifest::file(&manifest.data_dir)).await else { return };
+        let data_dir = manifest.data_dir.clone();
+        self.kept.lock().insert(data_dir, KeptRegistry { manifest, stamp, at: Instant::now() });
+        self.expire();
+    }
+
+    /// The registry of this folder and project, when the disk still has it as kept
+    async fn valid(&self, data_dir: &Path, project_id: &str, take: bool) -> Option<Arc<Manifest>> {
+        let (manifest, kept_stamp) = {
+            let mut kept = self.kept.lock();
+            let entry = kept.get(data_dir)?;
+            if entry.at.elapsed() >= self.max_age || entry.manifest.project_id != project_id {
+                kept.remove(data_dir);
+                return None;
+            }
+            let found = (entry.manifest.clone(), entry.stamp);
+            if take {
+                kept.remove(data_dir);
+            }
+            found
+        };
+        (stamp(&Manifest::file(data_dir)).await == Some(kept_stamp)).then_some(manifest)
+    }
+
+    /// For a job, which owns it until it keeps it again
+    pub async fn take(&self, data_dir: &Path, project_id: &str) -> Option<Arc<Manifest>> {
+        self.valid(data_dir, project_id, true).await
+    }
+
+    /// To look at it (folder inspection), leaving it kept
+    pub async fn peek(&self, data_dir: &Path, project_id: &str) -> Option<Arc<Manifest>> {
+        self.valid(data_dir, project_id, false).await
+    }
+
+    pub fn forget_project(&self, project_id: &str) {
+        self.kept.lock().retain(|_, kept| kept.manifest.project_id != project_id);
+    }
+
+    /// The memory goes after max_age
+    fn expire(&self) {
+        let max_age = self.max_age;
+        self.kept.lock().retain(|_, kept| kept.at.elapsed() < max_age);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -494,6 +590,26 @@ mod tests {
         std::fs::write(dir.path().join(MANIFEST_FILE), r#"{"version":3,"files":{}}"#).unwrap();
         let Err(Error::Job(error)) = Manifest::load(dir.path(), "p").await else { panic!("refused") };
         assert_eq!(error.issue, IssueCode::FolderProtected);
+    }
+
+    #[tokio::test]
+    async fn a_kept_registry_is_used_only_while_the_file_is_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let kept = KeptRegistries::new(Duration::from_secs(60));
+        let manifest = Arc::new(Manifest::new(dir.path(), "p"));
+        manifest.set("a.jpg", entry("t1"));
+        manifest.flush().await.unwrap();
+        kept.keep(manifest.clone()).await;
+        assert!(kept.peek(dir.path(), "other").await.is_none(), "another project's");
+        kept.keep(manifest.clone()).await;
+        assert!(Arc::ptr_eq(&kept.peek(dir.path(), "p").await.unwrap(), &manifest));
+        // Another computer writes it: read again
+        std::fs::write(Manifest::file(dir.path()), r#"{"version":2,"project_id":"p","files":{}}"#).unwrap();
+        assert!(kept.take(dir.path(), "p").await.is_none());
+        // Not saved: not kept
+        manifest.set("b.jpg", entry("t2"));
+        kept.keep(manifest).await;
+        assert!(kept.take(dir.path(), "p").await.is_none());
     }
 
     #[tokio::test]

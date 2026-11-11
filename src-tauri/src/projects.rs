@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use op_media_service::{
     ActivityEntry, DuplicatePage, FailedPage, FolderInfo, FolderProblem, Issue, IssueCode, JobKind, JobPhase,
@@ -66,7 +66,8 @@ const DELETE_RETRY_ERRORS: &[&str] = &["project_busy"];
 const DELETE_ATTEMPTS: u32 = 3;
 /// A share that does not answer counts as missing after this
 const FOLDER_CHECK: Duration = Duration::from_secs(10);
-const CHANGE_DEBOUNCE: Duration = Duration::from_millis(100);
+/// The page hears of the projects at most this often; the first change after a quiet moment at once
+const CHANGE_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Default)]
 struct State {
@@ -85,6 +86,8 @@ pub struct ProjectService {
     edits: tokio::sync::Mutex<()>,
     notify: Box<dyn Fn(ProjectsEvent) + Send + Sync>,
     change_scheduled: AtomicBool,
+    /// When the page last heard of the projects
+    last_change: Mutex<Option<Instant>>,
     /// Wakes whoever waits for jobs to end
     changes: tokio::sync::Notify,
 }
@@ -102,6 +105,7 @@ impl ProjectService {
             edits: tokio::sync::Mutex::new(()),
             notify: Box::new(notify),
             change_scheduled: AtomicBool::new(false),
+            last_change: Mutex::new(None),
             changes: tokio::sync::Notify::new(),
         })
     }
@@ -722,15 +726,22 @@ impl ProjectService {
         }
     }
 
+    /// The page hears of a change at once when it heard of none in the last
+    /// 100 ms (a click shows without delay), else with the others of those
+    /// 100 ms. Sent from a task: the caller may hold the locks the views read
     fn changed(self: &Arc<Self>) {
         self.changes.notify_waiters();
         if self.change_scheduled.swap(true, Ordering::AcqRel) {
             return;
         }
+        let wait = self.last_change.lock().map_or(Duration::ZERO, |at| CHANGE_INTERVAL.saturating_sub(at.elapsed()));
         let me = self.clone();
         tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(CHANGE_DEBOUNCE).await;
+            if !wait.is_zero() {
+                tokio::time::sleep(wait).await;
+            }
             me.change_scheduled.store(false, Ordering::Release);
+            *me.last_change.lock() = Some(Instant::now());
             (me.notify)(ProjectsEvent::Changed(me.views()));
         });
     }

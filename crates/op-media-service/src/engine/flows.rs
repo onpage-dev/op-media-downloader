@@ -53,6 +53,7 @@ async fn open_folder(ctx: &JobContext) -> Result<FolderSession> {
             lock_stale: timings.lock_stale,
             lock_heartbeat: timings.lock_heartbeat,
             log: &log,
+            registries: &ctx.engine.registries,
         },
     )
     .await
@@ -66,6 +67,8 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
         return Ok(fresh);
     }
     ctx.slot.set_phase(JobPhase::Listing);
+    // The names of the listing this one replaces: the same, when nothing changed on On Page
+    let previous_names = engine.listings.kept_names(id, token);
     engine.listings.begin(id);
     let listed = async {
         let started = Instant::now();
@@ -108,10 +111,17 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
         .await?;
         let listed_in = started.elapsed();
         let local = Instant::now();
-        let index = listing.index.clone();
-        let resolved = tokio::task::spawn_blocking(move || resolve_names(&index))
-            .await
-            .map_err(|e| Error::Other(e.to_string()))?;
+        let resolved = match previous_names.filter(|_| !listing.changed) {
+            Some(names) => names,
+            None => {
+                let index = listing.index.clone();
+                Arc::new(
+                    tokio::task::spawn_blocking(move || resolve_names(&index))
+                        .await
+                        .map_err(|e| Error::Other(e.to_string()))?,
+                )
+            }
+        };
         let names_resolved = local.elapsed();
         for failed in &listing.failed_resources {
             ctx.log(LogLevel::Warn, format!("Collection {} not read: {}", failed.label, failed.error));
@@ -356,7 +366,7 @@ pub async fn run_sync(ctx: Arc<JobContext>, full: bool) -> Result<SyncResult> {
     let ctx = &*ctx;
     let session = open_folder(ctx).await?;
     let result = sync_in(ctx, &session, full).await;
-    session.close().await;
+    session.close(&ctx.engine.registries).await;
     result
 }
 
@@ -382,7 +392,7 @@ pub async fn run_download(ctx: Arc<JobContext>, only_failed: bool) -> Result<Syn
         only_failed.then(|| ctx.slot.failed.lock().retryable().into_iter().map(|e| e.name).collect());
     let session = open_folder(ctx).await?;
     let result = download_in(ctx, &session, retry).await;
-    session.close().await;
+    session.close(&ctx.engine.registries).await;
     result
 }
 
@@ -410,7 +420,7 @@ pub async fn run_cleanup(ctx: Arc<JobContext>, confirmed: HashSet<String>) -> Re
     let ctx = &*ctx;
     let session = open_folder(ctx).await?;
     let result = cleanup_in(ctx, &session, &confirmed).await;
-    session.close().await;
+    session.close(&ctx.engine.registries).await;
     result
 }
 

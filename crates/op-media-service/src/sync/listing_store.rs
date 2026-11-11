@@ -163,9 +163,13 @@ impl ListingStore {
         self.listing.lock().remove(id);
     }
 
-    pub fn keep(&self, id: &str, token: &str, listing: ListingResult, resolved: ResolvedNames) -> Listed {
+    /// The names of the last listing of this token still in memory, whatever its age
+    pub fn kept_names(&self, id: &str, token: &str) -> Option<Arc<ResolvedNames>> {
+        self.kept.lock().get(id).filter(|k| k.token == token).and_then(|k| k.resolved.clone())
+    }
+
+    pub fn keep(&self, id: &str, token: &str, listing: ListingResult, resolved: Arc<ResolvedNames>) -> Listed {
         let listing = Arc::new(listing);
-        let resolved = Arc::new(resolved);
         let at = self.put(id, token, Some(listing.clone()), Some(resolved.clone()), None);
         Listed { token: token.to_string(), listing, resolved, at }
     }
