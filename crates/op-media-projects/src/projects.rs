@@ -158,6 +158,47 @@ impl ProjectService {
         }
     }
 
+    /// A project by its id or its name (any case): what a person or an agent
+    /// types. `project_not_found`, or `project_ambiguous` for a name two share
+    pub fn find(&self, reference: &str) -> Result<ProjectView, String> {
+        let reference = reference.trim();
+        let views = self.views();
+        if let Some(view) = views.iter().find(|view| view.id == reference) {
+            return Ok(view.clone());
+        }
+        let wanted = reference.to_lowercase();
+        let mut named = views.into_iter().filter(|view| view.label.trim().to_lowercase() == wanted);
+        match (named.next(), named.next()) {
+            (Some(view), None) => Ok(view),
+            (Some(_), Some(_)) => Err("project_ambiguous".into()),
+            _ => Err("project_not_found".into()),
+        }
+    }
+
+    /// Waits for the project's job to end (none running: at once), at most `timeout`
+    pub async fn wait_job(&self, id: &str, timeout: Duration) -> Result<ProjectView, String> {
+        self.require(id)?;
+        self.wait_idle(&[id.to_string()], timeout).await;
+        Ok(self.to_view(&self.require(id)?))
+    }
+
+    /// Settings changed from outside the window (`opmd`, an agent): saved,
+    /// applied to the service, and told to whoever opened the projects
+    pub fn set_settings(&self, patch: &SettingsPatch) -> AppSettings {
+        let previous = self.store.settings();
+        let next = crate::validate::apply_settings(&previous, patch);
+        self.store.set_settings(&next);
+        self.configure_service(Some(next.concurrency));
+        if next != previous {
+            (self.notify)(ProjectsEvent::Settings { next: Box::new(next.clone()), previous: Box::new(previous) });
+        }
+        next
+    }
+
+    pub fn settings(&self) -> AppSettings {
+        self.store.settings()
+    }
+
     pub fn reveal_token(&self, id: &str) -> Result<String, String> {
         Ok(self.store.token(&self.require(id)?))
     }

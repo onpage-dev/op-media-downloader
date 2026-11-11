@@ -97,6 +97,19 @@ pub trait TokenVault: Send + Sync {
     fn delete(&self, id: &str);
 }
 
+/// No credential store: the tokens stay in the settings file (`OPMD_NO_KEYRING`)
+pub struct NoVault;
+
+impl TokenVault for NoVault {
+    fn set(&self, _id: &str, _token: &str) -> Result<(), String> {
+        Err("no credential store used".into())
+    }
+    fn get(&self, _id: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+    fn delete(&self, _id: &str) {}
+}
+
 /// The system's credential store, one entry per project under `service`
 pub struct KeyringVault {
     service: String,
@@ -526,7 +539,12 @@ fn write_atomic(file: &Path, data: &Map<String, Value>) -> std::io::Result<()> {
     data.serialize(&mut serializer).map_err(std::io::Error::other)?;
     let temp = file.with_extension(format!("json.{}.tmp", uuid::Uuid::new_v4().simple()));
     let result = (|| {
-        let mut handle = fs::File::create(&temp)?;
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // Tokens may be in it (no credential store): its owner's only
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        let mut handle = options.open(&temp)?;
         handle.write_all(&text)?;
         handle.sync_all()?;
         drop(handle);

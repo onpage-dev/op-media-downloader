@@ -12,6 +12,7 @@
 
 pub mod log;
 pub mod models;
+pub mod ops;
 pub mod os_crypt;
 pub mod paths;
 pub mod projects;
@@ -27,14 +28,15 @@ use crate::models::AppLanguage;
 use crate::os_crypt::SafeStorage;
 use crate::paths::{AppPaths, ELECTRON_NAMES};
 use crate::projects::{ProjectService, ProjectsEvent};
-use crate::store::{AppStore, KeyringVault, StoreOptions};
+use crate::store::{AppStore, KeyringVault, NoVault, StoreOptions};
 
 pub struct OpenOptions {
     pub paths: AppPaths,
     /// The language of a new settings file
     pub default_language: AppLanguage,
-    /// The credential store's service for the tokens (`paths::KEYRING_SERVICE`)
-    pub keyring_service: String,
+    /// The credential store's service for the tokens (`paths::KEYRING_SERVICE`);
+    /// None keeps them in the settings file (a server, a container without one)
+    pub keyring_service: Option<String>,
     /// Another On Page server (development: the fake one)
     pub api_domain: Option<String>,
     /// Where the projects run their background work
@@ -56,7 +58,10 @@ pub fn open(options: OpenOptions) -> Result<Opened, String> {
     let store = Arc::new(AppStore::open(StoreOptions {
         dir: paths.data.clone(),
         default_language: options.default_language,
-        vault: Box::new(KeyringVault::new(&options.keyring_service)),
+        vault: match &options.keyring_service {
+            Some(service) => Box::new(KeyringVault::new(service)),
+            None => Box::new(NoVault),
+        },
         legacy,
     }));
     // Before anything reads a token

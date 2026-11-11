@@ -36,7 +36,12 @@ pub fn quiet_console() {
 
 /// Starts the logger on `<dir>/main.log`; before it, lines only reach the console
 pub fn init(dir: &Path) {
-    let file = dir.join("main.log");
+    init_named(dir, "main.log");
+}
+
+/// Starts the logger on a file of its own (`opmd.log`: the app may be writing `main.log`)
+pub fn init_named(dir: &Path, name: &str) {
+    let file = dir.join(name);
     let (sender, receiver) = mpsc::channel();
     let target = file.clone();
     std::thread::Builder::new()

@@ -57,7 +57,7 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
     let Opened { store, projects } = op_media_projects::open(OpenOptions {
         paths,
         default_language: system_language(&preferred),
-        keyring_service: KEYRING_SERVICE.to_string(),
+        keyring_service: Some(KEYRING_SERVICE.to_string()),
         // Development only: point the service at a fake On Page server
         api_domain: if cfg!(debug_assertions) {
             std::env::var("OPMD_API_DOMAIN").ok().filter(|d| !d.is_empty())
