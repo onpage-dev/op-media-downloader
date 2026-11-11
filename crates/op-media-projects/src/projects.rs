@@ -81,6 +81,8 @@ struct State {
 pub struct ProjectService {
     store: Arc<AppStore>,
     service: MediaService,
+    /// Where the background work runs (the app's runtime, or the command's)
+    runtime: tokio::runtime::Handle,
     state: Mutex<State>,
     /// Creating, editing and removing run one at a time: two creates could take the same folder
     edits: tokio::sync::Mutex<()>,
@@ -96,11 +98,13 @@ impl ProjectService {
     pub fn new(
         store: Arc<AppStore>,
         service: MediaService,
+        runtime: tokio::runtime::Handle,
         notify: impl Fn(ProjectsEvent) + Send + Sync + 'static,
     ) -> Arc<ProjectService> {
         Arc::new(ProjectService {
             store,
             service,
+            runtime,
             state: Mutex::new(State::default()),
             edits: tokio::sync::Mutex::new(()),
             notify: Box::new(notify),
@@ -302,9 +306,8 @@ impl ProjectService {
         info!("Project {id} removed{}", if delete_files { ": deleting its files" } else { "" });
         let me = self.clone();
         let id = id.to_string();
-        tauri::async_runtime::spawn(async move {
-            if delete_files { me.delete_files(target).await } else { me.forget(&id).await }
-        });
+        self.runtime
+            .spawn(async move { if delete_files { me.delete_files(target).await } else { me.forget(&id).await } });
         Ok(())
     }
 
@@ -602,7 +605,7 @@ impl ProjectService {
         self.schedule_auto_retry(id, &result);
         let me = self.clone();
         let id = id.to_string();
-        tauri::async_runtime::spawn(async move { me.refresh_folder(&id).await });
+        self.runtime.spawn(async move { me.refresh_folder(&id).await });
     }
 
     fn schedule_auto_retry(self: &Arc<Self>, id: &str, result: &SyncResult) {
@@ -618,7 +621,7 @@ impl ProjectService {
         }
         let me = self.clone();
         let id = id.to_string();
-        tauri::async_runtime::spawn(async move {
+        self.runtime.spawn(async move {
             tokio::time::sleep(AUTO_RETRY_DELAY).await;
             if let Some(project) = me.store.project(&id)
                 && me.runtime(&project).phase == JobPhase::Idle
@@ -735,7 +738,7 @@ impl ProjectService {
     fn changed_now(self: &Arc<Self>) {
         self.changes.notify_waiters();
         let me = self.clone();
-        tauri::async_runtime::spawn(async move {
+        self.runtime.spawn(async move {
             *me.last_change.lock() = Some(Instant::now());
             (me.notify)(ProjectsEvent::Changed(me.views()));
         });
@@ -751,7 +754,7 @@ impl ProjectService {
         }
         let wait = self.last_change.lock().map_or(Duration::ZERO, |at| CHANGE_INTERVAL.saturating_sub(at.elapsed()));
         let me = self.clone();
-        tauri::async_runtime::spawn(async move {
+        self.runtime.spawn(async move {
             if !wait.is_zero() {
                 tokio::time::sleep(wait).await;
             }

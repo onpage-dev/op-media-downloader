@@ -206,3 +206,15 @@ pub enum AppCommand {
     },
     FocusSearch,
 }
+
+/// The first of the system's preferred languages that the app speaks, else English
+pub fn system_language(preferred: &[String]) -> AppLanguage {
+    for tag in preferred {
+        let base = tag.to_lowercase();
+        let base = base.split(['-', '_']).next().unwrap_or("");
+        if let Some(language) = AppLanguage::from_code(base) {
+            return language;
+        }
+    }
+    AppLanguage::En
+}

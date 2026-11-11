@@ -9,13 +9,12 @@ use op_media_service::{
     ActivityEntry, DuplicatePage, DuplicateVariants, FailedPage, FolderInfo, JobKind, LogLevel, TokenCheck,
 };
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::models::*;
-use crate::paths::licenses_file;
 use crate::shell::{Shell, apply_settings};
 use crate::validate::{self, limits};
 
@@ -265,4 +264,12 @@ pub fn window_toggle_maximize(window: WebviewWindow) {
 #[tauri::command]
 pub fn window_close(window: WebviewWindow) {
     let _ = window.close();
+}
+
+/// The third-party notices: a resource of the bundle, in the repository in development
+fn licenses_file(app: &AppHandle) -> Option<std::path::PathBuf> {
+    if cfg!(debug_assertions) {
+        return Some(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("THIRD_PARTY_NOTICES.txt"));
+    }
+    app.path().resource_dir().ok().map(|dir| dir.join("THIRD_PARTY_NOTICES.txt"))
 }

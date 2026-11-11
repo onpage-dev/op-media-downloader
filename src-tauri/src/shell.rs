@@ -8,7 +8,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use op_media_service::{MediaService, ServiceConfig, ServiceEvent, SyncOutcome, Timings};
+use op_media_projects::{OpenOptions, Opened};
+use op_media_service::SyncOutcome;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
@@ -19,10 +20,9 @@ use crate::i18n::{system_language, texts};
 use crate::menu::{command_from_argv, setup_menu};
 use crate::models::{AppCommand, AppSettings};
 use crate::notifications::{notify_delete_failed, notify_result};
-use crate::os_crypt::SafeStorage;
-use crate::paths::{AppPaths, ELECTRON_NAMES, KEYRING_SERVICE};
+use crate::paths::{AppPaths, KEYRING_SERVICE};
 use crate::projects::{ProjectService, ProjectsEvent};
-use crate::store::{AppStore, KeyringVault, StoreOptions};
+use crate::store::AppStore;
 use crate::tray::TrayController;
 use crate::updates::Updates;
 use crate::window::{MainWindow, apply_theme};
@@ -46,49 +46,28 @@ struct ActivityPayload<'a> {
 
 /// Everything the app needs, before the first window: an error here is shown and the app quits
 pub fn setup(app: &AppHandle) -> Result<(), String> {
-    let paths = AppPaths::resolve(app);
+    let paths = AppPaths::resolve(cfg!(debug_assertions));
     crate::log::init(&paths.logs);
     paths.import_legacy();
 
-    let preferred: Vec<String> = sys_locale::get_locales().collect();
-    let legacy = paths.legacy.as_ref().map(|dir| SafeStorage::new(dir, &ELECTRON_NAMES));
-    let store = Arc::new(AppStore::open(StoreOptions {
-        dir: paths.data.clone(),
-        default_language: system_language(&preferred),
-        vault: Box::new(KeyringVault::new(KEYRING_SERVICE)),
-        legacy,
-    }));
-    // Before anything reads a token
-    store.unlock_tokens();
-
-    let (events, mut received) = tokio::sync::mpsc::unbounded_channel::<ServiceEvent>();
-    let settings = store.settings();
-    let service = MediaService::new(
-        ServiceConfig {
-            cache_dir: paths.cache.clone(),
-            concurrency: settings.concurrency,
-            instance_id: uuid::Uuid::new_v4().to_string(),
-            // Development only: point the service at a fake On Page server
-            api_domain: if cfg!(debug_assertions) {
-                std::env::var("OPMD_API_DOMAIN").ok().filter(|d| !d.is_empty())
-            } else {
-                None
-            },
-            project_folders: store
-                .projects()
-                .into_iter()
-                .map(|p| op_media_service::ProjectFolder { id: p.id, folder: p.folder })
-                .collect(),
-            timings: Timings::default(),
-        },
-        Arc::new(move |event| {
-            let _ = events.send(event);
-        }),
-    )
-    .map_err(|error| format!("The sync service cannot start: {error}"))?;
-
     let handle = app.clone();
-    let projects = ProjectService::new(store.clone(), service, move |event| on_projects_event(&handle, event));
+    let preferred: Vec<String> = sys_locale::get_locales().collect();
+    // Tauri's runtime is Tokio's: the projects run their background work on it
+    let runtime = tauri::async_runtime::block_on(async { tokio::runtime::Handle::current() });
+    let Opened { store, projects } = op_media_projects::open(OpenOptions {
+        paths,
+        default_language: system_language(&preferred),
+        keyring_service: KEYRING_SERVICE.to_string(),
+        // Development only: point the service at a fake On Page server
+        api_domain: if cfg!(debug_assertions) {
+            std::env::var("OPMD_API_DOMAIN").ok().filter(|d| !d.is_empty())
+        } else {
+            None
+        },
+        runtime,
+        notify: Box::new(move |event| on_projects_event(&handle, event)),
+    })?;
+    let settings = store.settings();
     app.manage(Shell {
         store: store.clone(),
         projects: projects.clone(),
@@ -98,13 +77,6 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
         main_window: MainWindow::default(),
         lifecycle: Lifecycle::default(),
     });
-    let pump = projects.clone();
-    tauri::async_runtime::spawn(async move {
-        while let Some(event) = received.recv().await {
-            pump.on_service_event(event);
-        }
-    });
-
     let shell = app.state::<Shell>();
     setup_menu(app);
     if settings.close_to_tray {

@@ -3463,22 +3463,14 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 name = "op-media-downloader"
 version = "2.0.0"
 dependencies = [
- "aes",
- "aes-gcm",
- "base64 0.22.1",
- "cbc",
- "chrono",
  "keepawake",
- "keyring",
+ "op-media-projects",
  "op-media-service",
  "parking_lot",
- "pbkdf2",
  "regex",
  "reqwest 0.12.28",
- "security-framework 3.7.0",
  "serde",
  "serde_json",
- "sha1",
  "sys-locale",
  "tauri",
  "tauri-build",
@@ -3488,6 +3480,30 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
+ "tempfile",
+ "tokio",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "op-media-projects"
+version = "2.0.0"
+dependencies = [
+ "aes",
+ "aes-gcm",
+ "base64 0.22.1",
+ "cbc",
+ "chrono",
+ "dirs 6.0.0",
+ "keyring",
+ "op-media-service",
+ "parking_lot",
+ "pbkdf2",
+ "regex",
+ "security-framework 3.7.0",
+ "serde",
+ "serde_json",
+ "sha1",
  "tempfile",
  "tokio",
  "url",

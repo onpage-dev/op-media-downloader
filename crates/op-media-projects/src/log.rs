@@ -7,10 +7,11 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 
-use op_media_service::LogLevel;
+pub use op_media_service::LogLevel;
 
 const MAX_BYTES: u64 = 5 * 1024 * 1024;
 
@@ -25,6 +26,13 @@ struct Logger {
 }
 
 static LOGGER: OnceLock<Logger> = OnceLock::new();
+/// The console is someone else's: `opmd` prints its own output there, and `opmd mcp` speaks MCP on it
+static QUIET_CONSOLE: AtomicBool = AtomicBool::new(false);
+
+/// Lines only to the file from now on (else a development run prints them all, a release one its errors)
+pub fn quiet_console() {
+    QUIET_CONSOLE.store(true, Ordering::Relaxed);
+}
 
 /// Starts the logger on `<dir>/main.log`; before it, lines only reach the console
 pub fn init(dir: &Path) {
@@ -60,7 +68,7 @@ pub fn one_line(text: &str) -> String {
 pub fn log(level: LogLevel, message: impl AsRef<str>) {
     let line = format!("{} {} {}\n", op_media_service::now_iso(), level.as_str(), one_line(message.as_ref()));
     let development = cfg!(debug_assertions);
-    if development || level == LogLevel::Error {
+    if (development || level == LogLevel::Error) && !QUIET_CONSOLE.load(Ordering::Relaxed) {
         let _ = std::io::stdout().write_all(line.as_bytes());
     }
     if level == LogLevel::Debug && !development {
@@ -82,19 +90,19 @@ pub fn flush() {
 
 #[macro_export]
 macro_rules! info {
-    ($($arg:tt)*) => { $crate::log::log(op_media_service::LogLevel::Info, format!($($arg)*)) };
+    ($($arg:tt)*) => { $crate::log::log($crate::log::LogLevel::Info, format!($($arg)*)) };
 }
 #[macro_export]
 macro_rules! warn {
-    ($($arg:tt)*) => { $crate::log::log(op_media_service::LogLevel::Warn, format!($($arg)*)) };
+    ($($arg:tt)*) => { $crate::log::log($crate::log::LogLevel::Warn, format!($($arg)*)) };
 }
 #[macro_export]
 macro_rules! error {
-    ($($arg:tt)*) => { $crate::log::log(op_media_service::LogLevel::Error, format!($($arg)*)) };
+    ($($arg:tt)*) => { $crate::log::log($crate::log::LogLevel::Error, format!($($arg)*)) };
 }
 #[macro_export]
 macro_rules! debug {
-    ($($arg:tt)*) => { $crate::log::log(op_media_service::LogLevel::Debug, format!($($arg)*)) };
+    ($($arg:tt)*) => { $crate::log::log($crate::log::LogLevel::Debug, format!($($arg)*)) };
 }
 
 fn write_loop(file: &Path, receiver: Receiver<Message>) {

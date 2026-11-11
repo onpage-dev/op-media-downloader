@@ -9,20 +9,16 @@
 mod app_status;
 mod commands;
 mod i18n;
-mod log;
 mod menu;
-mod models;
 mod notifications;
-mod os_crypt;
-mod paths;
-mod projects;
 mod shell;
-mod status;
-mod store;
 mod tray;
 mod updates;
-mod validate;
 mod window;
+
+// Projects, settings file, tokens, checks and log are shared with `opmd` and the MCP server
+pub(crate) use op_media_projects::{error, info, warn};
+pub(crate) use op_media_projects::{log, models, paths, projects, status, store, validate};
 
 use tauri::{Manager, RunEvent};
 

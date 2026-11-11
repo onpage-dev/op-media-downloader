@@ -13,10 +13,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use tauri::{AppHandle, Manager, Runtime};
-
 use crate::store::STORE_FILE;
 use crate::{info, warn};
+
+/// The app's identifier: its data folder is named after it
+pub const IDENTIFIER: &str = "com.onpage.mediadownloader";
 
 pub const KEYRING_SERVICE: &str =
     if cfg!(debug_assertions) { "com.onpage.mediadownloader.dev" } else { "com.onpage.mediadownloader" };
@@ -35,19 +36,31 @@ pub struct AppPaths {
 }
 
 impl AppPaths {
-    pub fn resolve<R: Runtime>(app: &AppHandle<R>) -> AppPaths {
-        let config = app.path().config_dir().unwrap_or_else(|_| std::env::temp_dir());
-        let (data, legacy) = if cfg!(debug_assertions) {
+    /// The app's own data: the folder of the installed app, or of the
+    /// development builds (`dev`). The same folders as Tauri's `config_dir`
+    /// and `app_data_dir`, so the app and `opmd` find the same projects.
+    pub fn resolve(dev: bool) -> AppPaths {
+        let config = dirs::config_dir().unwrap_or_else(std::env::temp_dir);
+        let (data, legacy) = if dev {
             let data = std::env::var_os("OPMD_USER_DATA")
                 .filter(|v| !v.is_empty())
                 .map(PathBuf::from)
                 .unwrap_or_else(|| config.join("op-media-downloader-dev"));
             (data.clone(), Some(data))
         } else {
-            let data = app.path().app_data_dir().unwrap_or_else(|_| config.join("com.onpage.mediadownloader"));
+            let data = dirs::data_dir().map(|dir| dir.join(IDENTIFIER)).unwrap_or_else(|| config.join(IDENTIFIER));
             let legacy = ELECTRON_NAMES.iter().map(|name| config.join(name)).find(|dir| dir.join(STORE_FILE).is_file());
             (data, legacy)
         };
+        AppPaths::with_legacy(data, legacy)
+    }
+
+    /// A data folder of its own (`opmd --data-dir`: a server, a NAS), without the Electron app's
+    pub fn at(data: PathBuf) -> AppPaths {
+        AppPaths::with_legacy(data, None)
+    }
+
+    fn with_legacy(data: PathBuf, legacy: Option<PathBuf>) -> AppPaths {
         AppPaths { cache: data.join("cache"), logs: data.join("logs"), data, legacy }
     }
 
@@ -78,12 +91,4 @@ fn copy_caches(from: &Path, to: &Path) -> usize {
         .filter(|entry| entry.file_name().to_string_lossy().ends_with(".json.gz"))
         .filter(|entry| fs::copy(entry.path(), to.join(entry.file_name())).is_ok())
         .count()
-}
-
-/// The third-party notices: a resource of the bundle, in the repository in development
-pub fn licenses_file<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
-    if cfg!(debug_assertions) {
-        return Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("THIRD_PARTY_NOTICES.txt"));
-    }
-    app.path().resource_dir().ok().map(|dir| dir.join("THIRD_PARTY_NOTICES.txt"))
 }
