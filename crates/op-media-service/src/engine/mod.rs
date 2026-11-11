@@ -408,21 +408,19 @@ impl MediaService {
     pub async fn duplicates(&self, project: ServiceProject, page: PageQuery) -> Result<DuplicatePage, String> {
         let engine = self.engine.clone();
         let task = self.engine.handle.spawn(async move {
-            // No slot for a project the service does not run: the store keeps the names for a while
+            // No slot for a project the service does not run: the store keeps the duplicates
             let (id, token) = (project.id.as_str(), project.token.as_str());
-            let resolved = engine.listings.resolved(id, token).await;
-            let load = async {
-                let schema = engine
-                    .listings
-                    .schema(id, token, || async { Api::new(token, engine.onpage_context(None)).load_schema().await })
-                    .await?;
-                let api = Api::for_schema(token, engine.onpage_context(None), &schema);
-                Ok((schema, api))
+            let load = || async { Api::new(token, engine.onpage_context(None)).load_schema().await };
+            let Some(duplicates) = engine.listings.duplicates(id, token, load).await? else {
+                return Ok(DuplicatePage::default());
             };
-            duplicates_page(resolved.as_deref(), &page, load, &engine.api_domain, |message| {
-                engine.log(LogLevel::Warn, message, Some(id))
-            })
-            .await
+            // The labels are a courtesy: a slow On Page leaves the page without them, quickly
+            let mut labels = engine.onpage_context(None);
+            labels.policy = RetryPolicy { attempts: 2, ..engine.timings.api_policy };
+            labels.timeout = Duration::from_secs(15);
+            let api = Api::for_schema(token, labels, &duplicates.schema);
+            let log = |message: String| engine.log(LogLevel::Warn, message, Some(id));
+            Ok::<_, Error>(duplicates_page(&duplicates, &page, &api, &engine.api_domain, &log).await)
         });
         match task.await {
             Ok(Ok(page)) => Ok(page),

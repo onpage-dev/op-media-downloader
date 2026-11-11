@@ -88,7 +88,7 @@ impl Harness {
     async fn run(&self, start: impl FnOnce(&MediaService)) -> SyncResult {
         let before = self.events.lock().len();
         start(&self.service);
-        tokio::time::timeout(Duration::from_secs(30), async {
+        tokio::time::timeout(Duration::from_secs(600), async {
             loop {
                 let found = self.events.lock()[before..].iter().rev().find_map(|e| match e {
                     ServiceEvent::Result { result, .. } => Some(result.clone()),
@@ -584,4 +584,84 @@ async fn keep_old_files_never_removes() {
     let result = h.run(|s| s.sync(project.clone(), false)).await;
     assert_eq!(result.removed, 0);
     assert!(folder.join("prodotto-1.jpg").exists());
+}
+
+/// Timings of the duplicates tab on a project as big as a real one: `cargo test -p op-media-service --release -- --ignored large --nocapture`
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore]
+async fn large_project_duplicates_timings() {
+    let h = Harness::new(62_000, 34_000).await;
+    let folder = h.folder("Grande");
+    let project = h.project(&folder);
+    let started = std::time::Instant::now();
+    let result = h.run(|s| s.sync(project.clone(), false)).await;
+    eprintln!("sync: {:?} ({:?}, {} names)", started.elapsed(), result.outcome, result.total);
+    let page = PageQuery { offset: 0, limit: 50, query: None };
+    for round in ["first page, listing in memory", "same page again"] {
+        let started = std::time::Instant::now();
+        let resolved = h.service.engine.listings.resolved(&project.id, &project.token).await.unwrap();
+        let names = started.elapsed();
+        let answer = h.service.duplicates(project.clone(), page.clone()).await.unwrap();
+        eprintln!(
+            "{round}: {:?} (names {names:?}), {} groups of {}",
+            started.elapsed(),
+            answer.groups.len(),
+            answer.total
+        );
+        assert_eq!(resolved.duplicates.len() as u64, answer.total);
+    }
+    // After a restart, or 30 minutes later: the duplicates' own file
+    h.service.engine.listings.forget(&project.id);
+    let started = std::time::Instant::now();
+    let answer = h.service.duplicates(project.clone(), page.clone()).await.unwrap();
+    eprintln!("after a restart: {:?}, {} groups", started.elapsed(), answer.groups.len());
+    // A cache written before that file existed: the names are rebuilt once
+    std::fs::remove_file(h.service.engine.listings.duplicates_file(&project.id)).unwrap();
+    h.service.engine.listings.forget(&project.id);
+    let started = std::time::Instant::now();
+    h.service.duplicates(project.clone(), page.clone()).await.unwrap();
+    eprintln!("after a restart, old cache: {:?}", started.elapsed());
+    let started = std::time::Instant::now();
+    h.service
+        .duplicates(project.clone(), PageQuery { offset: 0, limit: 50, query: Some("prodotto-61".into()) })
+        .await
+        .unwrap();
+    eprintln!("a search: {:?}", started.elapsed());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn duplicates_open_from_their_own_file_and_remember_labels() {
+    let h = Harness::new(20, 2).await;
+    let folder = h.folder("Doppi");
+    let project = h.project(&folder);
+    h.run(|s| s.sync(project.clone(), false)).await;
+    let page = PageQuery { offset: 0, limit: 50, query: None };
+    let api_hits = || h.fake.with(|state| state.hits.api);
+    let label = |page: &DuplicatePage| page.groups[0].variants[0].uses[0].thing_label.clone();
+
+    let first = h.service.duplicates(project.clone(), page.clone()).await.unwrap();
+    assert_eq!(first.total, 2);
+    assert_eq!(label(&first).as_deref(), Some("Prodotto 1"));
+    let hits = api_hits();
+    h.service.duplicates(project.clone(), page.clone()).await.unwrap();
+    assert_eq!(api_hits(), hits, "the labels are remembered");
+
+    // A restart: the memory is gone, the small file answers; no schema from On Page, only the labels
+    h.service.engine.listings.forget(&project.id);
+    let again = h.service.duplicates(project.clone(), page.clone()).await.unwrap();
+    assert_eq!((again.total, label(&again).as_deref()), (2, Some("Prodotto 1")));
+    assert_eq!(api_hits(), hits + 1);
+
+    // A cache written before that file existed: still answered, from the names and the schema
+    std::fs::remove_file(h.service.engine.listings.duplicates_file(&project.id)).unwrap();
+    h.service.engine.listings.forget(&project.id);
+    assert_eq!(h.service.duplicates(project.clone(), page.clone()).await.unwrap().total, 2);
+
+    // On Page not answering: the page opens all the same, without the labels
+    h.service.engine.listings.forget(&project.id);
+    h.run(|s| s.sync(project.clone(), false)).await;
+    h.service.engine.listings.forget(&project.id);
+    h.fake.with(|state| state.api.fail_times = 100);
+    let offline = h.service.duplicates(project.clone(), page).await.unwrap();
+    assert_eq!((offline.total, label(&offline)), (2, None));
 }

@@ -98,7 +98,7 @@ pub fn is_safe_token(token: &str) -> bool {
         && !token.ends_with(".download")
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FileUse {
     pub resource_id: i64,
     pub thing_id: i64,
@@ -118,7 +118,7 @@ pub struct DesiredFile {
     pub use_: FileUse,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DuplicateVariantRaw {
     pub token: String,
     pub remote_name: String,
@@ -129,7 +129,7 @@ pub struct DuplicateVariantRaw {
     pub uses: Vec<FileUse>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DuplicateRaw {
     pub key: String,
     /// The name of the chosen variant
@@ -147,7 +147,8 @@ pub struct InvalidFile {
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedNames {
     pub desired: Vec<DesiredFile>,
-    pub duplicates: Vec<DuplicateRaw>,
+    /// Shared with the duplicates tab, which keeps them longer than the names
+    pub duplicates: std::sync::Arc<Vec<DuplicateRaw>>,
     /// Files whose token cannot be stored safely
     pub invalid: Vec<InvalidFile>,
     /// Of the duplicates: names whose files are one field of one item in
@@ -284,7 +285,7 @@ pub fn resolve_names(index: &RemoteIndex) -> ResolvedNames {
 
     let duplicates: Vec<DuplicateRaw> = groups.into_iter().map(|w| w.group).collect();
     let language_variants = duplicates.iter().filter(|g| language_variant(g)).count() as u64;
-    ResolvedNames { desired, duplicates, invalid, language_variants }
+    ResolvedNames { desired, duplicates: std::sync::Arc::new(duplicates), invalid, language_variants }
 }
 
 /// resource, thing, field

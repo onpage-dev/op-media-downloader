@@ -133,6 +133,12 @@ async fn list(ctx: &JobContext, full: bool, reuse: bool) -> Result<Listed> {
                 });
             }
         }
+        // What the duplicates tab needs, small, for the next start of the app
+        if listing.complete
+            && let Err(error) = engine.listings.write_duplicates(id, &listing.schema, &resolved).await
+        {
+            ctx.log(LogLevel::Warn, format!("Duplicates cache not written: {}", error.detail()));
+        }
         Ok(engine.listings.keep(id, token, listing, resolved))
     }
     .await;

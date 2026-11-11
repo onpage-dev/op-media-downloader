@@ -292,16 +292,7 @@ fn matches(thing: &FakeThing, filters: &[Value]) -> bool {
                     return false;
                 }
             }
-            Value::Object(object) if object.get("field").and_then(Value::as_str) == Some("_id") => {
-                let ids: Vec<i64> = object
-                    .get("value")
-                    .and_then(Value::as_array)
-                    .map(|v| v.iter().filter_map(Value::as_i64).collect())
-                    .unwrap_or_default();
-                if !ids.contains(&thing.id) {
-                    return false;
-                }
-            }
+            // `_id in`: read once per request (`id_filter`)
             _ => {}
         }
     }
@@ -441,8 +432,21 @@ async fn api(shared: &Shared, parts: &[String], auth: Option<String>, body: &Byt
                 return answer(StatusCode::NOT_FOUND, json!({ "message": "Resource not found" }));
             };
             let filters: Vec<Value> = data.get("filters").and_then(Value::as_array).cloned().unwrap_or_default();
-            let mut things: Vec<&FakeThing> =
-                project.things.iter().filter(|t| t.resource_id == resource.id && matches(t, &filters)).collect();
+            let id_filter: Option<std::collections::HashSet<i64>> = filters.iter().find_map(|clause| {
+                let object = clause.as_object()?;
+                (object.get("field").and_then(Value::as_str) == Some("_id")).then(|| {
+                    object
+                        .get("value")
+                        .and_then(Value::as_array)
+                        .map(|ids| ids.iter().filter_map(Value::as_i64).collect())
+                })?
+            });
+            let mut things: Vec<&FakeThing> = project
+                .things
+                .iter()
+                .filter(|t| t.resource_id == resource.id && matches(t, &filters))
+                .filter(|t| id_filter.as_ref().is_none_or(|ids| ids.contains(&t.id)))
+                .collect();
             things.sort_by_key(|t| t.id);
             match data.get("return").and_then(Value::as_str) {
                 Some("ids") => answer(StatusCode::OK, json!(things.iter().map(|t| t.id).collect::<Vec<_>>())),

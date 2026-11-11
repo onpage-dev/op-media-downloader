@@ -84,7 +84,8 @@ pub fn encode_uri_component(text: &str) -> String {
 
 /* ------------------------------------------------------------------ schema */
 
-#[derive(Debug, Clone)]
+/// Kept with the duplicates on disk: the labels of their uses without asking On Page again
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Field {
     pub id: i64,
     pub name: String,
@@ -106,7 +107,7 @@ impl Field {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Resource {
     pub id: i64,
     pub name: String,
@@ -114,7 +115,7 @@ pub struct Resource {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Schema {
     pub id: i64,
     pub company_id: Option<i64>,

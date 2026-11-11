@@ -1,10 +1,11 @@
 //! What the last listing of each project found. In memory, the listing and
 //! its names (100+ MB with 200k files) for `max_age` only: «Scarica» reuses
 //! them meanwhile, then they are dropped. On disk
-//! (`<cache_dir>/<project>.json.gz`), the index for incremental listings and
-//! for the duplicates tab after a restart. One copy of the names per project:
-//! names read from the disk while a listing runs are not kept, the listing
-//! brings new ones.
+//! (`<cache_dir>/<project>.json.gz`), the index for incremental listings,
+//! and beside it (`<project>.duplicates.json.gz`) what the duplicates tab
+//! needs, small, to open at once after a restart. One copy of the names per
+//! project: names read from the disk while a listing runs are not kept, the
+//! listing brings new ones.
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
@@ -14,6 +15,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
+use super::duplicates::Duplicates;
 use super::listing::ListingResult;
 use super::names::{ResolvedNames, resolve_names};
 use super::remote_index::{RemoteIndex, read_index_cache, write_index_cache};
@@ -35,8 +37,8 @@ struct Kept {
     /// Missing for names resolved from the cache on disk
     listing: Option<Arc<ListingResult>>,
     resolved: Option<Arc<ResolvedNames>>,
-    /// Loaded for the labels of the duplicates tab, when there is no listing
-    schema: Option<Arc<Schema>>,
+    /// The duplicates tab's, with the thing labels it read
+    duplicates: Option<Arc<Duplicates>>,
     at: Instant,
     generation: u64,
 }
@@ -60,10 +62,18 @@ impl ListingStore {
         }
     }
 
-    pub fn cache_file(&self, id: &str) -> PathBuf {
+    fn file(&self, id: &str, suffix: &str) -> PathBuf {
         let safe: String =
             id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
-        self.cache_dir.join(format!("{safe}.json.gz"))
+        self.cache_dir.join(format!("{safe}{suffix}"))
+    }
+
+    pub fn cache_file(&self, id: &str) -> PathBuf {
+        self.file(id, ".json.gz")
+    }
+
+    pub fn duplicates_file(&self, id: &str) -> PathBuf {
+        self.file(id, ".duplicates.json.gz")
     }
 
     pub async fn read_cache(&self, id: &str) -> Option<RemoteIndex> {
@@ -74,8 +84,14 @@ impl ListingStore {
         write_index_cache(&self.cache_file(id), index).await
     }
 
+    /// What the duplicates tab needs, after a complete listing
+    pub async fn write_duplicates(&self, id: &str, schema: &Schema, resolved: &ResolvedNames) -> Result<()> {
+        Duplicates::write(&self.duplicates_file(id), Arc::new(schema.clone()), resolved).await
+    }
+
     pub async fn remove_cache(&self, id: &str) {
         let _ = unlink_quiet(&self.cache_file(id)).await;
+        let _ = unlink_quiet(&self.duplicates_file(id)).await;
     }
 
     /// A complete listing of this token, younger than max_age
@@ -103,7 +119,7 @@ impl ListingStore {
     pub fn keep(&self, id: &str, token: &str, listing: ListingResult, resolved: ResolvedNames) -> Listed {
         let listing = Arc::new(listing);
         let resolved = Arc::new(resolved);
-        let at = self.put(id, token, Some(listing.clone()), Some(resolved.clone()));
+        let at = self.put(id, token, Some(listing.clone()), Some(resolved.clone()), None);
         Listed { token: token.to_string(), listing, resolved, at }
     }
 
@@ -121,34 +137,51 @@ impl ListingStore {
         let cache = self.read_cache(id).await?;
         let resolved = Arc::new(tokio::task::spawn_blocking(move || resolve_names(&cache)).await.ok()?);
         if !self.listing.lock().contains(id) {
-            self.put(id, token, None, Some(resolved.clone()));
+            self.put(id, token, None, Some(resolved.clone()), None);
         }
         Some(resolved)
     }
 
-    /// The schema of the last listing, or loaded once for the names kept
-    pub async fn schema<F, Fut>(&self, id: &str, token: &str, load: F) -> Result<Arc<Schema>>
+    /// What the duplicates tab shows: from the listing in memory, else from
+    /// its small file on disk, else (a cache written before that file existed)
+    /// from the names of the cache and the schema `load` reads. None: no
+    /// listing is known yet
+    pub async fn duplicates<F, Fut>(&self, id: &str, token: &str, load: F) -> Result<Option<Arc<Duplicates>>>
     where
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<Schema>>,
     {
         {
-            let kept = self.kept.lock();
-            if let Some(kept) = kept.get(id).filter(|k| k.token == token) {
-                if let Some(listing) = &kept.listing {
-                    return Ok(Arc::new(listing.schema.clone()));
+            let mut kept = self.kept.lock();
+            if let Some(kept) = kept.get_mut(id).filter(|k| k.token == token) {
+                if let Some(duplicates) = &kept.duplicates {
+                    return Ok(Some(duplicates.clone()));
                 }
-                if let Some(schema) = &kept.schema {
-                    return Ok(schema.clone());
+                if let (Some(listing), Some(resolved)) = (&kept.listing, &kept.resolved) {
+                    let duplicates = Arc::new(Duplicates::new(Arc::new(listing.schema.clone()), resolved));
+                    kept.duplicates = Some(duplicates.clone());
+                    return Ok(Some(duplicates));
                 }
             }
         }
-        let schema = Arc::new(load().await?);
-        let mut kept = self.kept.lock();
-        if let Some(now_kept) = kept.get_mut(id).filter(|k| k.token == token && k.listing.is_none()) {
-            now_kept.schema = Some(schema.clone());
+        let duplicates = match Duplicates::read(&self.duplicates_file(id)).await {
+            Some(duplicates) => Arc::new(duplicates),
+            None => {
+                let Some(resolved) = self.resolved(id, token).await else { return Ok(None) };
+                Arc::new(Duplicates::new(Arc::new(load().await?), &resolved))
+            }
+        };
+        if !self.listing.lock().contains(id) {
+            let mut kept = self.kept.lock();
+            match kept.get_mut(id).filter(|k| k.token == token) {
+                Some(entry) => entry.duplicates = Some(duplicates.clone()),
+                None => {
+                    drop(kept);
+                    self.put(id, token, None, None, Some(duplicates.clone()));
+                }
+            }
         }
-        Ok(schema)
+        Ok(Some(duplicates))
     }
 
     pub fn forget(&self, id: &str) {
@@ -161,6 +194,7 @@ impl ListingStore {
         token: &str,
         listing: Option<Arc<ListingResult>>,
         resolved: Option<Arc<ResolvedNames>>,
+        duplicates: Option<Arc<Duplicates>>,
     ) -> Instant {
         let generation = {
             let mut generation = self.generation.lock();
@@ -170,7 +204,7 @@ impl ListingStore {
         let at = Instant::now();
         self.kept
             .lock()
-            .insert(id.to_string(), Kept { token: token.to_string(), listing, resolved, schema: None, at, generation });
+            .insert(id.to_string(), Kept { token: token.to_string(), listing, resolved, duplicates, at, generation });
         // Dropped after max_age, unless something newer replaced it
         let kept = Arc::downgrade(&self.kept);
         let id = id.to_string();
