@@ -95,9 +95,9 @@ Download the installer for your system from the [latest release](https://github.
 
 Every release lists the SHA-256 checksums of its files in `SHA256SUMS.txt` and carries a build provenance attestation, which [GitHub CLI](https://cli.github.com) checks with `gh attestation verify <file> --repo onpage-dev/op-media-downloader`.
 
-### Upgrading from 1.x or 2.0
+### Upgrading from 1.x
 
-On its first start 3.0 copies the projects, folders and settings of 1.x or 2.0 (their folder is left as it is) and keeps the API tokens in the system's credential store: Windows Credential Manager, the macOS Keychain, the Secret Service on Linux. A 2.0 token that cannot be read on this computer is asked again in the project's settings. Files already downloaded are reused: nothing is downloaded again. The 3.0 installer does not replace the old app: once 3.0 has started and shows your projects, uninstall 1.x or 2.0.
+On its first start 2.0 copies the projects, folders and settings of 1.x (its folder is left as it is) and keeps the API tokens in the system's credential store: Windows Credential Manager, the macOS Keychain, the Secret Service on Linux. Files already downloaded are reused: nothing is downloaded again. The 2.0 installer does not replace 1.x: once 2.0 has started and shows your projects, uninstall 1.x.
 
 ## Getting started
 
