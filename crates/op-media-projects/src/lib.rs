@@ -11,6 +11,7 @@
 //! hear of their changes (`OpenOptions::notify`).
 
 pub mod log;
+pub mod mcp;
 pub mod models;
 pub mod ops;
 pub mod os_crypt;
@@ -28,6 +29,7 @@ use crate::models::AppLanguage;
 use crate::os_crypt::SafeStorage;
 use crate::paths::{AppPaths, ELECTRON_NAMES};
 use crate::projects::{ProjectService, ProjectsEvent};
+use crate::store::StoredProject;
 use crate::store::{AppStore, KeyringVault, NoVault, StoreOptions};
 
 pub struct OpenOptions {
@@ -97,4 +99,31 @@ pub fn open(options: OpenOptions) -> Result<Opened, String> {
     });
     projects.watch_store();
     Ok(Opened { store, projects })
+}
+
+/// A project's token, from the settings file and the credential store only
+/// (no sync service, no MCP server): `opmd token`. The project by id or name
+pub fn read_token(paths: &AppPaths, keyring_service: Option<String>, reference: &str) -> Result<String, String> {
+    let store = AppStore::open(StoreOptions {
+        dir: paths.data.clone(),
+        default_language: AppLanguage::En,
+        vault: match &keyring_service {
+            Some(service) => Box::new(KeyringVault::new(service)),
+            None => Box::new(NoVault),
+        },
+        legacy: None,
+    });
+    let reference = reference.trim();
+    let projects = store.projects();
+    let named = |p: &&StoredProject| p.label.trim().to_lowercase() == reference.to_lowercase();
+    let project = match projects.iter().find(|p| p.id == reference) {
+        Some(project) => project,
+        None => match (projects.iter().find(named), projects.iter().filter(named).nth(1)) {
+            (Some(project), None) => project,
+            (Some(_), Some(_)) => return Err("project_ambiguous".into()),
+            _ => return Err("project_not_found".into()),
+        },
+    };
+    let token = store.token(project);
+    if token.is_empty() { Err("token_missing".into()) } else { Ok(token) }
 }

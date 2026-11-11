@@ -15,6 +15,7 @@ mod render;
 
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use backend::Backend;
@@ -182,8 +183,11 @@ enum Command {
     },
     /// Jobs running, speed and totals
     Status,
-    /// Where the data is
+    /// Where the data is, and whether the app is open on it
     Info,
+    /// MCP server on stdin/stdout for AI agents (e.g. claude mcp add opmd -- opmd mcp): the same
+    /// operations, run in the app when it is open, else here
+    Mcp,
 }
 
 #[derive(Args)]
@@ -233,13 +237,21 @@ fn main() {
 }
 
 async fn run(cli: Cli, paths: AppPaths) -> i32 {
-    if let Command::Info = cli.command {
-        return info(&cli, &paths);
-    }
-    let backend = match Backend::open(paths) {
-        Ok(backend) => backend,
+    let keep_looking = matches!(cli.command, Command::Mcp);
+    let backend = match Backend::open(paths.clone(), keep_looking).await {
+        Ok(backend) => Arc::new(backend),
         Err(error) => fail(&error),
     };
+    match &cli.command {
+        Command::Info => return info(&cli, &paths, &backend).await,
+        Command::Mcp => {
+            return match op_media_projects::mcp::serve_stdio(backend.executor()).await {
+                Ok(()) => OK,
+                Err(error) => fail(&error),
+            };
+        }
+        _ => {}
+    }
     match execute(&cli, &backend).await {
         Ok(code) => code,
         Err(error) => {
@@ -315,7 +327,7 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
             if !cli.json {
                 println!("Removed {label}{}", if *delete_files { ": its files are being deleted" } else { "" });
             }
-            if *delete_files && backend.runs_jobs_here() {
+            if *delete_files && backend.runs_jobs_here().await {
                 // The deletion runs in the background of this process: it ends with it
                 wait_deletions(backend).await;
             }
@@ -404,7 +416,7 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
             print(&settings, &render::settings);
         }
         Command::Status => print(&backend.call("get_status", json!({})).await?, &render::status),
-        Command::Info => unreachable!("answered before the projects are opened"),
+        Command::Info | Command::Mcp => unreachable!("answered in run"),
     }
     Ok(OK)
 }
@@ -486,7 +498,7 @@ async fn follow(backend: &Backend, ids: &[String], wait: &WaitArgs) -> Result<(V
             }
             return Ok((views, interrupted));
         }
-        if deadline.is_some_and(|deadline| tokio::time::Instant::now() >= deadline) && !backend.runs_jobs_here() {
+        if deadline.is_some_and(|deadline| tokio::time::Instant::now() >= deadline) && !backend.runs_jobs_here().await {
             return Ok((views, interrupted));
         }
         let line = running
@@ -610,11 +622,13 @@ fn absolute(path: &std::path::Path) -> String {
     std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf()).display().to_string()
 }
 
-fn info(cli: &Cli, paths: &AppPaths) -> i32 {
+async fn info(cli: &Cli, paths: &AppPaths, backend: &Backend) -> i32 {
+    let app_open = backend.app_open().await;
     let data = json!({
         "version": env!("CARGO_PKG_VERSION"),
         "data_dir": paths.data.display().to_string(),
         "own_data": cli.data_dir.is_some(),
+        "app_open": app_open,
         "log": paths.logs.join("opmd.log").display().to_string(),
     });
     if cli.json {
@@ -627,6 +641,10 @@ fn info(cli: &Cli, paths: &AppPaths) -> i32 {
             if cli.data_dir.is_some() { " (its own)" } else { " (the app's)" }
         );
         println!("Log:   {}", paths.logs.join("opmd.log").display());
+        println!(
+            "App:   {}",
+            if app_open { "open: commands run in it" } else { "not open on this data: commands run here" }
+        );
     }
     OK
 }

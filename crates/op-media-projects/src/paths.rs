@@ -25,6 +25,7 @@ pub const KEYRING_SERVICE: &str =
 /// The names the Electron app had: its package name, its product name
 pub const ELECTRON_NAMES: [&str; 2] = ["op-media-downloader", "On Page Media Downloader"];
 
+#[derive(Debug, Clone)]
 pub struct AppPaths {
     /// Settings file
     pub data: PathBuf,
