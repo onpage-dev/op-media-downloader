@@ -1,10 +1,11 @@
 /**
- * The API the preload exposes to the renderer as `window.desktop`.
- * The renderer never sees Node, `ipcRenderer` or API tokens in clear (except
- * when the user asks to show the token in the project settings). Main never
- * trusts what comes from here: a folder is opened by project id, a stored
- * token is verified in main. Calls reject with an `Error` whose message is a
- * code (`project_busy`, `engine_timeout`, `open_failed`, …) or `code:detail`.
+ * The API the renderer sees as `window.desktop`, implemented on the app's
+ * Tauri commands and events by `src/renderer/src/desktop/tauri.ts`.
+ * The renderer never sees API tokens in clear (except when the user asks to
+ * show the token in the project settings). The app never trusts what comes
+ * from here (`src-tauri/src/validate.rs`): a folder is opened by project id,
+ * a stored token is verified by the app. Calls reject with an `Error` whose
+ * message is a code (`project_busy`, `open_failed`, …) or `code:detail`.
  */
 import {
   ActivityEntry,
@@ -61,6 +62,8 @@ export type SettingsSection = 'general' | 'download' | 'appearance' | 'language'
 
 export type Unsubscribe = () => void
 
+export type FolderDrag = { type: 'enter' } | { type: 'leave' } | { type: 'drop'; paths: string[] }
+
 export interface DesktopApi {
   platform: 'win32' | 'darwin' | 'linux'
 
@@ -95,8 +98,12 @@ export interface DesktopApi {
     inspect(path: string, project_id?: ProjectId): Promise<FolderInfo>
     /** The folder of a project, as main has it recorded */
     openProject(id: ProjectId): Promise<void>
-    /** Path of a folder dropped on the window (File from a drop event) */
-    pathForDroppedFile(file: File): string
+    /**
+     * Files and folders dragged over the window: `enter` while they are over it,
+     * `leave` when they go, `drop` with their paths (the system's drag and drop:
+     * the page's own drop events carry no path)
+     */
+    onDrag(listener: (drag: FolderDrag) => void): Unsubscribe
   }
 
   tokens: {

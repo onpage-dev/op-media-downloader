@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-sync-all"
+description = "Enables the sync_sync_all command without any pre-configured scope."
+commands.allow = ["sync_sync_all"]
+
+[[permission]]
+identifier = "deny-sync-sync-all"
+description = "Denies the sync_sync_all command without any pre-configured scope."
+commands.deny = ["sync_sync_all"]

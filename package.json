@@ -1,10 +1,9 @@
 {
   "name": "op-media-downloader",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "license": "MIT",
   "description": "Keeps a local or network folder in sync with the media files of an On Page project",
-  "main": "./out/main/index.js",
   "author": "On Page®",
   "homepage": "https://app.onpage.it/#/",
   "repository": {
@@ -13,12 +12,11 @@
   },
   "bugs": "https://github.com/onpage-dev/op-media-downloader/issues",
   "scripts": {
-    "dev": "electron-vite dev --watch",
-    "start": "electron-vite preview",
-    "build": "yarn run typecheck && node scripts/notices.mjs && electron-vite build",
-    "build:win": "yarn run build && electron-builder --win --config",
-    "build:mac": "yarn run build && electron-builder --mac --config --$ARCH",
-    "build:linux": "yarn run build && electron-builder --linux --config",
+    "dev": "tauri dev",
+    "dev:renderer": "vite",
+    "build": "yarn run typecheck && node scripts/notices.mjs && tauri build",
+    "build:renderer": "vite build",
+    "tauri": "tauri",
     "typecheck": "yarn run typecheck:node && yarn run typecheck:web",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
@@ -30,27 +28,23 @@
     "test:watch": "vitest",
     "icons": "node scripts/pro-icons.mjs",
     "app-icons": "node scripts/app-icons.mjs",
-    "postinstall": "electron-builder install-app-deps && node scripts/pro-icons.mjs && node scripts/notices.mjs"
+    "postinstall": "node scripts/pro-icons.mjs && node scripts/notices.mjs --no-rust"
   },
   "dependencies": {
-    "electron-store": "^12.0.0",
-    "onpage-js": "^1.2.0"
+    "@tauri-apps/api": "^2.9.0"
   },
   "devDependencies": {
-    "@electron-toolkit/tsconfig": "^2.0.0",
     "@eslint/js": "^10.0.1",
     "@fortawesome/fontawesome-svg-core": "^7.3.1",
     "@fortawesome/free-regular-svg-icons": "^7.3.1",
     "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "@fortawesome/vue-fontawesome": "^3.3.3",
     "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.9.0",
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.9.0",
-    "electron": "^45.2.1",
-    "electron-builder": "^26.18.0",
-    "electron-vite": "^6.0.0",
     "eslint": "^10.14.0",
     "eslint-plugin-vue": "^10.12.0",
     "flag-icons": "^7.6.0",
@@ -67,9 +61,5 @@
   "engines": {
     "node": ">=22.18"
   },
-  "packageManager": "yarn@1.22.22",
-  "resolutions": {
-    "electron-store/**/ajv": "^8.20.0",
-    "electron-store/**/fast-uri": "^3.1.9"
-  }
+  "packageManager": "yarn@1.22.22"
 }

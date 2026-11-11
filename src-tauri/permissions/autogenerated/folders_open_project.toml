@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-folders-open-project"
+description = "Enables the folders_open_project command without any pre-configured scope."
+commands.allow = ["folders_open_project"]
+
+[[permission]]
+identifier = "deny-folders-open-project"
+description = "Denies the folders_open_project command without any pre-configured scope."
+commands.deny = ["folders_open_project"]

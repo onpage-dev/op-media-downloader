@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tokens-verify-project"
+description = "Enables the tokens_verify_project command without any pre-configured scope."
+commands.allow = ["tokens_verify_project"]
+
+[[permission]]
+identifier = "deny-tokens-verify-project"
+description = "Denies the tokens_verify_project command without any pre-configured scope."
+commands.deny = ["tokens_verify_project"]

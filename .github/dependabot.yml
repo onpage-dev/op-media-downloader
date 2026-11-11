@@ -9,6 +9,15 @@ updates:
         patterns: ['*']
         update-types: [minor, patch]
 
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      crates:
+        patterns: ['*']
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
