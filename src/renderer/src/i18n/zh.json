@@ -459,7 +459,8 @@
       "download": "下载",
       "appearance": "外观",
       "language": "语言",
-      "updates": "更新"
+      "updates": "更新",
+      "agents": "AI 智能体"
     },
     "open_at_login": {
       "title": "随系统启动",
@@ -510,6 +511,15 @@
       "never": "尚未检查。",
       "failed": "无法检查：请稍后重试。",
       "licenses": "开源许可"
+    },
+    "agents": {
+      "title": "允许 AI 智能体和终端访问",
+      "text": "应用打开时，Claude 等智能体和 opmd 命令可以通过 MCP 使用它（项目、同步、重复项）。仅限本机。",
+      "address": "地址",
+      "starting": "正在打开…",
+      "copy": "复制 Claude Code 配置",
+      "copied": "命令已复制：粘贴到终端中运行",
+      "terminal": "在终端中，即使应用已关闭，也可以使用 opmd 命令："
     }
   },
   "tray": {

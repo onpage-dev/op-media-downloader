@@ -190,6 +190,7 @@ pub fn settings_patch(value: &Value) -> Checked<SettingsPatch> {
         close_to_tray: flag(patch, "close_to_tray"),
         open_at_login: flag(patch, "open_at_login"),
         check_updates: flag(patch, "check_updates"),
+        agent_access: flag(patch, "agent_access"),
     })
 }
 
@@ -206,6 +207,7 @@ pub fn clean_settings(value: Option<&Value>, fallback: &AppSettings) -> AppSetti
         close_to_tray: flag(settings, "close_to_tray").unwrap_or(fallback.close_to_tray),
         open_at_login: flag(settings, "open_at_login").unwrap_or(fallback.open_at_login),
         check_updates: flag(settings, "check_updates").unwrap_or(fallback.check_updates),
+        agent_access: flag(settings, "agent_access").unwrap_or(fallback.agent_access),
     }
 }
 
@@ -220,6 +222,7 @@ pub fn apply_settings(current: &AppSettings, patch: &SettingsPatch) -> AppSettin
         close_to_tray: patch.close_to_tray.unwrap_or(current.close_to_tray),
         open_at_login: patch.open_at_login.unwrap_or(current.open_at_login),
         check_updates: patch.check_updates.unwrap_or(current.check_updates),
+        agent_access: patch.agent_access.unwrap_or(current.agent_access),
     }
 }
 

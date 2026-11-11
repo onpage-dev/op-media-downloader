@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-agent-access"
+description = "Enables the app_agent_access command without any pre-configured scope."
+commands.allow = ["app_agent_access"]
+
+[[permission]]
+identifier = "deny-app-agent-access"
+description = "Denies the app_agent_access command without any pre-configured scope."
+commands.deny = ["app_agent_access"]

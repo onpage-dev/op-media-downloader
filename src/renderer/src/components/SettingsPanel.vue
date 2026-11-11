@@ -1,17 +1,29 @@
 <script setup lang="ts">
 /**
- * The app's settings in five sections, the sections on the left; each change
+ * The app's settings in six sections, the sections on the left; each change
  * applies at once. Drawn as a window of its own: over the main window on a
  * veil (a dialog named by `titleId`), or alone when main opens `#/settings` in
  * a window. «Aggiornamenti» says what the last check found (or that it could
  * not check, or never did) and links the licenses of the open source parts.
+ * «Agenti AI» opens the app to AI agents and the opmd command (its MCP
+ * server on this computer): its address, and the command for Claude Code.
  */
-import { computed, ref, useId } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SettingsSection } from '@shared/desktop-api'
-import type { AppSettings, ThemeSetting } from '@shared/models'
+import type { AgentAccess, AppSettings, ThemeSetting } from '@shared/models'
 import * as icons from '../lib/icons'
-import { app, checkForUpdates, openLicenses, openRelease, platform, setSettings } from '../store'
+import {
+  agentAccess,
+  app,
+  checkForUpdates,
+  copyAgentConfig,
+  notify,
+  openLicenses,
+  openRelease,
+  platform,
+  setSettings,
+} from '../store'
 import TitleBar from './TitleBar.vue'
 import AppIcon from './ui/AppIcon.vue'
 import AppLogo from './ui/AppLogo.vue'
@@ -37,6 +49,7 @@ const SECTIONS: [SettingsSection, icons.IconDefinition][] = [
   ['appearance', icons.faPalette],
   ['language', icons.faLanguage],
   ['updates', icons.faArrowsRotate],
+  ['agents', icons.faLink],
 ]
 /** Starting with the system does nothing on Linux: not offered there */
 const GENERAL = (['open_at_login', 'close_to_tray', 'notifications'] as const).filter(
@@ -71,6 +84,27 @@ const found = computed(() => {
   if (!version?.checked_at) return t('settings.updates.never')
   return t('settings.updates.latest')
 })
+/** The server opens a moment after the switch: asked again a few times until it says so */
+const agents = ref<AgentAccess>({ open: false })
+let asking = 0
+watch(
+  () => [props.section == 'agents', s.value.agent_access] as const,
+  async ([shown, enabled]) => {
+    const ask = ++asking
+    if (!shown) return
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const answer = await agentAccess()
+      if (ask != asking) return
+      agents.value = answer
+      if (answer.open == enabled) return
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+  },
+  { immediate: true },
+)
+async function copyConfig(): Promise<void> {
+  if (await copyAgentConfig()) notify(t('settings.agents.copied'), 'success')
+}
 /** «2.0.1» in a sentence, «v2.0.1» on its own */
 const bare = (version: string): string => version.replace(/^v/, '')
 const v = (version: string): string => `v${bare(version)}`
@@ -205,6 +239,34 @@ const v = (version: string): string => `v${bare(version)}`
               <UiButton variant="link" class="-ml-md" :icon="icons.faArrowUpRightFromSquare" @click="openLicenses">
                 {{ t('settings.updates.licenses') }}
               </UiButton>
+            </div>
+          </template>
+          <template v-if="section == 'agents'">
+            <div class="flex items-center gap-lg py-lg first:pt-0">
+              <div class="min-w-0 flex-1">
+                <div class="font-medium">{{ t('settings.agents.title') }}</div>
+                <div class="text-secondary">{{ t('settings.agents.text') }}</div>
+              </div>
+              <UiToggle
+                :model-value="s.agent_access"
+                :label="t('settings.agents.title')"
+                @update:model-value="set('agent_access', $event)"
+              />
+            </div>
+            <div v-if="s.agent_access" class="flex items-center gap-lg py-lg">
+              <div class="min-w-0 flex-1">
+                <div class="font-medium">{{ t('settings.agents.address') }}</div>
+                <div class="select-all break-all font-mono text-sm text-secondary" role="status">
+                  {{ agents.url ?? t('settings.agents.starting') }}
+                </div>
+              </div>
+              <UiButton class="shrink-0" :icon="icons.faCopy" :disabled="!agents.open" @click="copyConfig">
+                {{ t('settings.agents.copy') }}
+              </UiButton>
+            </div>
+            <div class="flex flex-col gap-xs py-lg text-secondary">
+              {{ t('settings.agents.terminal') }}
+              <code class="select-all font-mono text-sm text-text">opmd --help</code>
             </div>
           </template>
         </div>

@@ -36,6 +36,8 @@ const COMMANDS: &[&str] = &[
     "app_log",
     "app_show_main_window",
     "app_quit",
+    "app_agent_access",
+    "app_copy_agent_config",
     "window_minimize",
     "window_toggle_maximize",
     "window_close",

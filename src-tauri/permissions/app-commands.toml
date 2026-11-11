@@ -35,6 +35,8 @@ permissions = [
   "allow-app-log",
   "allow-app-show-main-window",
   "allow-app-quit",
+  "allow-app-agent-access",
+  "allow-app-copy-agent-config",
   "allow-window-minimize",
   "allow-window-toggle-maximize",
   "allow-window-close",

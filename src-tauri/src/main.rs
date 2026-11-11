@@ -72,6 +72,8 @@ fn main() {
             commands::app_log,
             commands::app_show_main_window,
             commands::app_quit,
+            commands::app_agent_access,
+            commands::app_copy_agent_config,
             commands::window_minimize,
             commands::window_toggle_maximize,
             commands::window_close,
@@ -96,6 +98,9 @@ fn main() {
         }
         RunEvent::Exit => {
             if let Some(shell) = app.try_state::<shell::Shell>() {
+                if let Some(server) = shell.agents.lock().take() {
+                    server.stop();
+                }
                 shell.lifecycle.on_exit(app);
             }
         }

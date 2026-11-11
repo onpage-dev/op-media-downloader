@@ -366,6 +366,27 @@ impl AppStore {
         !self.token(project).is_empty()
     }
 
+    /* ---------------------------------------------------------------- agents */
+
+    /// The secret of the app's MCP server: made once, so an agent configured
+    /// with it keeps working across restarts
+    pub fn agent_secret(&self) -> String {
+        self.refresh();
+        if let Some(secret) = self.data.lock().get("agent_secret").and_then(Value::as_str).filter(|s| s.len() >= 32) {
+            return secret.to_string();
+        }
+        let secret = crate::mcp::new_secret();
+        self.write(|data| {
+            data.insert("agent_secret".into(), json!(secret));
+        });
+        secret
+    }
+
+    /// The folder of the settings file: the app's data
+    pub fn dir(&self) -> &Path {
+        self.file.parent().unwrap_or(Path::new("."))
+    }
+
     /* ---------------------------------------------------------------- window */
 
     pub fn window_state(&self) -> Option<WindowState> {

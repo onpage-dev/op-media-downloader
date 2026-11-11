@@ -316,6 +316,7 @@ pub const OPERATIONS: &[Operation] = &[
                     ("close_to_tray", boolean("Keep running in the notification area when the window closes")),
                     ("open_at_login", boolean("Start with the system")),
                     ("check_updates", boolean("Look for a new version at start-up")),
+                    ("agent_access", boolean("AI agents and opmd reach the app while it is open")),
                 ],
                 &[],
             )

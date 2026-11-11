@@ -72,6 +72,8 @@ pub struct AppSettings {
     pub open_at_login: bool,
     /// Look for a new version on GitHub at start-up
     pub check_updates: bool,
+    /// AI agents and `opmd` reach the app while it is open (its MCP server on 127.0.0.1)
+    pub agent_access: bool,
 }
 
 pub const DEFAULT_SETTINGS: AppSettings = AppSettings {
@@ -83,6 +85,7 @@ pub const DEFAULT_SETTINGS: AppSettings = AppSettings {
     close_to_tray: false,
     open_at_login: false,
     check_updates: true,
+    agent_access: true,
 };
 
 /// A project as the page sees it: configuration and live state, never the token
@@ -156,6 +159,7 @@ pub struct SettingsPatch {
     pub close_to_tray: Option<bool>,
     pub open_at_login: Option<bool>,
     pub check_updates: Option<bool>,
+    pub agent_access: Option<bool>,
 }
 
 /* ------------------------------------------------------------------ commands */
@@ -178,6 +182,7 @@ pub enum SettingsSection {
     Appearance,
     Language,
     Updates,
+    Agents,
 }
 
 /// Commands that reach the page from the menu, the shortcuts, the tray or a second launch

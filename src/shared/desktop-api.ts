@@ -9,6 +9,7 @@
  */
 import {
   ActivityEntry,
+  AgentAccess,
   AppSettings,
   AppStatus,
   DuplicatePage,
@@ -60,7 +61,7 @@ export type AppCommand =
   | { type: 'focus_search' }
 
 export type InspectorTab = 'general' | 'activity' | 'failed' | 'duplicates' | 'settings'
-export type SettingsSection = 'general' | 'download' | 'appearance' | 'language' | 'updates'
+export type SettingsSection = 'general' | 'download' | 'appearance' | 'language' | 'updates' | 'agents'
 
 export type Unsubscribe = () => void
 
@@ -135,6 +136,10 @@ export interface DesktopApi {
     onCommand(listener: (command: AppCommand) => void): Unsubscribe
     /** The third-party notices shipped with the app */
     openLicenses(): Promise<void>
+    /** «Agenti AI»: the MCP server for AI agents and opmd */
+    agentAccess(): Promise<AgentAccess>
+    /** Copies the command that adds the app to Claude Code, its secret included (main writes the clipboard) */
+    copyAgentConfig(): Promise<void>
     /** Errors of the page, written to main's log */
     log(level: 'warn' | 'error', message: string): void
     /**

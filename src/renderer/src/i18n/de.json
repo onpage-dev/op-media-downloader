@@ -459,7 +459,8 @@
       "download": "Downloads",
       "appearance": "Darstellung",
       "language": "Sprache",
-      "updates": "Aktualisierungen"
+      "updates": "Aktualisierungen",
+      "agents": "KI-Agenten"
     },
     "open_at_login": {
       "title": "Beim Systemstart öffnen",
@@ -510,6 +511,15 @@
       "never": "Noch nicht geprüft.",
       "failed": "Die Prüfung ist fehlgeschlagen: Versuchen Sie es später erneut.",
       "licenses": "Open-Source-Lizenzen"
+    },
+    "agents": {
+      "title": "Zugriff für KI-Agenten und Terminal",
+      "text": "Solange die App geöffnet ist, können Agenten wie Claude und der Befehl opmd sie über MCP nutzen (Projekte, Synchronisierungen, Duplikate). Nur von diesem Computer aus.",
+      "address": "Adresse",
+      "starting": "Wird geöffnet…",
+      "copy": "Konfiguration für Claude Code kopieren",
+      "copied": "Befehl kopiert: im Terminal einfügen",
+      "terminal": "Im Terminal, auch bei geschlossener App, gibt es den Befehl opmd:"
     }
   },
   "tray": {

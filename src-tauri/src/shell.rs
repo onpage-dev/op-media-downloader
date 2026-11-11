@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use op_media_projects::mcp::{self, HttpServer};
 use op_media_projects::{OpenOptions, Opened};
 use op_media_service::SyncOutcome;
 use serde::Serialize;
@@ -26,11 +27,13 @@ use crate::store::AppStore;
 use crate::tray::TrayController;
 use crate::updates::Updates;
 use crate::window::{MainWindow, apply_theme};
-use crate::{error, info};
+use crate::{error, info, warn};
 
 pub struct Shell {
     pub store: Arc<AppStore>,
     pub projects: Arc<ProjectService>,
+    /// The MCP server for AI agents and `opmd`, while «Agenti AI» is on
+    pub agents: parking_lot::Mutex<Option<HttpServer>>,
     pub updates: Updates,
     pub status: StatusController,
     pub tray: TrayController,
@@ -76,7 +79,9 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
         tray: TrayController::default(),
         main_window: MainWindow::default(),
         lifecycle: Lifecycle::default(),
+        agents: parking_lot::Mutex::new(None),
     });
+    apply_agent_access(app, settings.agent_access);
     let shell = app.state::<Shell>();
     setup_menu(app);
     if settings.close_to_tray {
@@ -186,8 +191,43 @@ pub fn apply_settings(app: &AppHandle, next: &AppSettings, previous: &AppSetting
     if next.open_at_login != previous.open_at_login {
         apply_login_item(app, next);
     }
+    if next.agent_access != previous.agent_access {
+        apply_agent_access(app, next.agent_access);
+    }
     shell.status.update_tray(app, &shell.projects.views());
     let _ = app.emit("settings:changed", next);
+}
+
+/// AI agents and `opmd` reach the app through its MCP server, on 127.0.0.1 only, while the setting is on
+pub fn apply_agent_access(app: &AppHandle, enabled: bool) {
+    let shell = app.state::<Shell>();
+    if !enabled {
+        if let Some(server) = shell.agents.lock().take() {
+            server.stop();
+            info!("Agent access closed");
+        }
+        return;
+    }
+    if shell.agents.lock().is_some() {
+        return;
+    }
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let shell = handle.state::<Shell>();
+        let executor = mcp::local(shell.projects.clone());
+        let secret = shell.store.agent_secret();
+        match mcp::serve_http(executor, mcp::DEFAULT_PORT, secret, shell.store.dir()).await {
+            // Turned off meanwhile: closed again at once
+            Ok(server) if !shell.store.settings().agent_access => server.stop(),
+            Ok(server) => {
+                info!("Agent access open on {}", server.control.url);
+                if let Some(previous) = shell.agents.lock().replace(server) {
+                    previous.stop();
+                }
+            }
+            Err(error) => warn!("Agent access cannot open: {error}"),
+        }
+    });
 }
 
 /// Start with the system, in the notification area. In development this would register the bare debug binary

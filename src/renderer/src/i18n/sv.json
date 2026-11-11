@@ -459,7 +459,8 @@
       "download": "Nedladdningar",
       "appearance": "Utseende",
       "language": "Språk",
-      "updates": "Uppdateringar"
+      "updates": "Uppdateringar",
+      "agents": "AI-agenter"
     },
     "open_at_login": {
       "title": "Starta vid systemstart",
@@ -510,6 +511,15 @@
       "never": "Inte kontrollerat än.",
       "failed": "Kontrollen misslyckades: försök igen senare.",
       "licenses": "Licenser för öppen källkod"
+    },
+    "agents": {
+      "title": "Åtkomst för AI-agenter och terminalen",
+      "text": "Medan appen är öppen kan agenter som Claude och kommandot opmd använda den (projekt, synkroniseringar, dubbletter) via MCP. Endast från den här datorn.",
+      "address": "Adress",
+      "starting": "Öppnar…",
+      "copy": "Kopiera inställning för Claude Code",
+      "copied": "Kommandot kopierat: klistra in det i en terminal",
+      "terminal": "I terminalen, även när appen är stängd, finns kommandot opmd:"
     }
   },
   "tray": {

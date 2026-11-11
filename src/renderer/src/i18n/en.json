@@ -459,7 +459,8 @@
       "download": "Downloads",
       "appearance": "Appearance",
       "language": "Language",
-      "updates": "Updates"
+      "updates": "Updates",
+      "agents": "AI agents"
     },
     "open_at_login": {
       "title": "Start with the system",
@@ -510,6 +511,15 @@
       "never": "Not checked yet.",
       "failed": "The check did not work: try again later.",
       "licenses": "Open source licenses"
+    },
+    "agents": {
+      "title": "Access for AI agents and the terminal",
+      "text": "While the app is open, agents such as Claude and the opmd command can use it (projects, syncs, duplicates) through MCP. From this computer only.",
+      "address": "Address",
+      "starting": "Opening…",
+      "copy": "Copy Claude Code setup",
+      "copied": "Command copied: paste it in a terminal",
+      "terminal": "From the terminal, also with the app closed, there is the opmd command:"
     }
   },
   "tray": {

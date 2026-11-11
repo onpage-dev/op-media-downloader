@@ -387,6 +387,8 @@ export interface AppSettings {
   open_at_login: boolean
   /** Look for a new version on GitHub at start-up */
   check_updates: boolean
+  /** AI agents and the opmd command reach the app while it is open (its MCP server on 127.0.0.1) */
+  agent_access: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -398,6 +400,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   close_to_tray: false,
   open_at_login: false,
   check_updates: true,
+  agent_access: true,
 }
 
 /* ------------------------------------------------------------------ App info */
@@ -417,4 +420,10 @@ export interface AppStatus {
   speed_bps: number
   total_files: number
   total_bytes: number
+}
+
+/** «Agenti AI»: whether the app's MCP server is open, and where (its secret never reaches the page) */
+export interface AgentAccess {
+  open: boolean
+  url?: string
 }

@@ -174,6 +174,31 @@ pub fn settings_set(app: AppHandle, shell: State<'_, Shell>, patch: Value) -> An
 
 /* ------------------------------------------------------------------ app */
 
+/// «Agenti AI»: whether the server is open, and its address (never the secret)
+#[derive(serde::Serialize)]
+pub struct AgentAccess {
+    open: bool,
+    url: Option<String>,
+}
+
+#[tauri::command]
+pub fn app_agent_access(shell: State<'_, Shell>) -> AgentAccess {
+    let url = shell.agents.lock().as_ref().map(|server| server.control.url.clone());
+    AgentAccess { open: url.is_some(), url }
+}
+
+/// Copies the command that adds the app's server to Claude Code, with its
+/// secret: the secret goes to the clipboard, never to the page
+#[tauri::command]
+pub fn app_copy_agent_config(app: AppHandle, shell: State<'_, Shell>) -> Answer<()> {
+    let url = shell.agents.lock().as_ref().map(|server| server.control.url.clone()).ok_or("agent_access_closed")?;
+    let command = format!(
+        "claude mcp add --transport http op-media-downloader {url} --header \"Authorization: Bearer {}\"",
+        shell.store.agent_secret()
+    );
+    app.clipboard().write_text(command).map_err(|error| format!("copy_failed: {error}"))
+}
+
 #[tauri::command]
 pub fn app_version(shell: State<'_, Shell>) -> VersionInfo {
     shell.updates.info()

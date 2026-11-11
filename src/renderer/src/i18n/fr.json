@@ -459,7 +459,8 @@
       "download": "Téléchargements",
       "appearance": "Apparence",
       "language": "Langue",
-      "updates": "Mises à jour"
+      "updates": "Mises à jour",
+      "agents": "Agents IA"
     },
     "open_at_login": {
       "title": "Lancer au démarrage",
@@ -510,6 +511,15 @@
       "never": "Pas encore vérifié.",
       "failed": "La vérification a échoué : réessayez plus tard.",
       "licenses": "Licences open source"
+    },
+    "agents": {
+      "title": "Accès pour les agents IA et le terminal",
+      "text": "Tant que l’app est ouverte, des agents comme Claude et la commande opmd peuvent l’utiliser (projets, synchronisations, doublons) via MCP. Depuis cet ordinateur uniquement.",
+      "address": "Adresse",
+      "starting": "Ouverture…",
+      "copy": "Copier la configuration pour Claude Code",
+      "copied": "Commande copiée : collez-la dans un terminal",
+      "terminal": "Dans le terminal, même app fermée, il y a la commande opmd :"
     }
   },
   "tray": {

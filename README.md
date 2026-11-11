@@ -210,6 +210,35 @@ There you find the settings and the projects (`op-media-downloader-config.json`)
 
 The arrow keys move through the projects and the tabs; <kbd>Esc</kbd> closes menus and dialogs.
 
+## From the terminal and from AI agents
+
+Everything the app does with its projects is also a command, `opmd`, and a tool for AI agents through MCP (the Model Context Protocol): adding and editing projects, «Sincronizza», «Scarica», the failed files, the duplicates, the settings.
+
+```bash
+opmd list                                   # the projects and their state
+opmd add --label "Catalogo" --folder D:\Media\Catalogo --token-stdin
+opmd sync Catalogo                          # a project by its name or id
+opmd download Catalogo                      # follows the job to its end; Ctrl+C stops it cleanly
+opmd duplicates Catalogo --search nastri
+opmd settings concurrency=6
+opmd --help                                 # every command; --json prints the answers as JSON
+```
+
+- **With the app open** on the same projects, `opmd` hands each command to it: what it starts shows in the window and goes on there.
+- **With the app closed**, `opmd` works on its own, on the same projects and tokens: the app finds the results when it opens. Both can run at once: the settings file and each folder's lock keep them apart.
+- **On a server or a NAS**, where the app is not installed, `--data-dir DIR` (or `OPMD_DATA_DIR`) gives `opmd` projects of its own. Where the system has no credential store (a container, most NAS), `OPMD_NO_KEYRING=1` keeps the tokens in `DIR`'s settings file, readable by its owner only. A scheduled `opmd sync --all` and `opmd download` keep the folders up to date.
+- Exit codes: `0` done, `1` failed, `3` done with failed files, `130` stopped with Ctrl+C.
+
+**AI agents.** While the app is open it serves MCP on this computer only (Impostazioni › Agenti AI, on by default): «Copia configurazione per Claude Code» copies the command that adds it. Or let the agent start `opmd mcp`, which works with the app open or closed:
+
+```bash
+claude mcp add opmd -- opmd mcp
+```
+
+The tools are the operations of the app (`list_projects`, `sync_project`, `wait_for_project`, `download_project`, `get_duplicates`, `update_settings`…); those that delete files (`remove_project` with its files, `confirm_cleanup`) are marked as such, so the agent asks first. Tokens go in (a new project, a new token) and never come out: `opmd token PROJECT` prints one at the terminal only.
+
+`opmd` is built from this repository for now: `cargo build --release -p opmd` puts it in `target/release/`.
+
 ## Development
 
 Node.js 24 (`.node-version`), Yarn 1 and Rust stable (1.90 or later, through [rustup](https://rustup.rs)), with what [Tauri needs on each system](https://v2.tauri.app/start/prerequisites/): on Windows the Visual Studio Build Tools with the C++ workload (WebView2 comes with Windows 10 and 11), on macOS the Xcode Command Line Tools, on Linux `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `libxdo-dev` and `libssl-dev`. No token or account is needed.
@@ -218,7 +247,8 @@ Node.js 24 (`.node-version`), Yarn 1 and Rust stable (1.90 or later, through [ru
 yarn                     # install
 yarn dev                 # the app (tauri dev) with hot reload, on a data folder of its own
 yarn dev:renderer        # the interface alone in a browser, with the mockup's projects
-cargo test --workspace   # the service and the app
+cargo test --workspace   # the service, the projects, opmd and the app
+cargo run -p opmd -- --help
 yarn test                # the interface
 yarn typecheck
 yarn lint
@@ -234,7 +264,9 @@ yarn build               # the installers of this system go to target/release/bu
 
 ```text
 crates/op-media-service/   the download service: On Page API, transfers, folders, the sync engine (a library)
-src-tauri/                 the app: windows, tray, menus, notifications, settings and projects, the commands
+crates/op-media-projects/  the projects as the app, opmd and the MCP server share them: settings file, tokens, operations
+crates/opmd/               the command line and `opmd mcp`
+src-tauri/                 the app: windows, tray, menus, notifications, the commands of the page, its MCP server
 src/renderer/              the interface: Vue 3 and Tailwind CSS 4, in eight languages
 src/shared/                the types and states the interface shares with the app's commands
 ```

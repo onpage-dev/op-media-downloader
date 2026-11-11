@@ -147,6 +147,8 @@ export const tauriDesktop: DesktopApi = {
     copyText: text => call('app_copy_text', { text }),
     onCommand: listenCommands,
     openLicenses: () => call('app_open_licenses'),
+    agentAccess: () => call('app_agent_access'),
+    copyAgentConfig: () => call('app_copy_agent_config'),
     log: (level, message) => void call('app_log', { level, message }).catch(() => undefined),
     showMainWindow: command => void call('app_show_main_window', { command }).catch(() => undefined),
     quit: () => void call('app_quit').catch(() => undefined),

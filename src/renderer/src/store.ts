@@ -20,6 +20,7 @@ import type {
 import {
   DEFAULT_SETTINGS,
   type ActivityEntry,
+  type AgentAccess,
   type AppSettings,
   type AppStatus,
   type DestinationKind,
@@ -557,6 +558,25 @@ export function retryFailed(id?: ProjectId): void {
 export function openFolder(id?: ProjectId): void {
   const project = target(id)
   if (project) void run('open folder', () => desktop().folders.openProject(project.id))
+}
+/** «Agenti AI»: whether the app's MCP server is open, and its address */
+export async function agentAccess(): Promise<AgentAccess> {
+  try {
+    return await desktop().app.agentAccess()
+  } catch (error) {
+    logError('agent access', error, 'warn')
+    return { open: false }
+  }
+}
+/** The command that adds the app to Claude Code, to the clipboard (with the secret, which the page never sees) */
+export async function copyAgentConfig(): Promise<boolean> {
+  try {
+    await desktop().app.copyAgentConfig()
+    return true
+  } catch (error) {
+    fail('copy agent config', error)
+    return false
+  }
 }
 export function copyPath(id?: ProjectId): void {
   const project = target(id)

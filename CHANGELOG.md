@@ -39,9 +39,16 @@ A new app: a desktop sync manager for On Page media, written in Rust with Tauri 
 - Menu bar and shortcuts (macOS), keyboard shortcuts, drop a folder on the window to create a project.
 - A settings file that cannot be read is set aside and the app starts clean, saying where it went; a failure at start-up shows a message with the log instead of leaving the app running without a window.
 
+### Terminal and AI agents
+
+- `opmd`, the command line: everything the app does with its projects (add, edit, remove, «Sincronizza», «Scarica», «Riprova i falliti», «Conferma», stop, activity, failed files, duplicates, folder and token checks, settings), with progress and clean stops, JSON output and exit codes for scripts. With the app open it hands the commands to it; with the app closed it works on its own, on the same projects. With `--data-dir` it keeps projects of its own, for a server or a NAS without the app (`OPMD_NO_KEYRING` keeps the tokens in its settings file where there is no credential store).
+- An MCP server for AI agents with the same operations as tools (those that delete files marked as destructive): in the app while it is open (Impostazioni › Agenti AI, on this computer only, with a secret; a button copies the command for Claude Code), and `opmd mcp`, which an agent can start with the app open or closed.
+- The app and `opmd` share the settings file safely: changes are merged under a lock, and the app shows the other's changes within a second.
+
 ### Security
 
-- API tokens in the system's credential store (Windows Credential Manager, macOS Keychain, Secret Service on Linux), one entry per project, never in the settings file.
+- API tokens in the system's credential store (Windows Credential Manager, macOS Keychain, Secret Service on Linux), one entry per project, never in the settings file (unless the system has none: then the file is its owner's only on Unix).
+- The MCP server for agents listens on 127.0.0.1 only, refuses web pages (`Origin`) and requests without the app's secret; no tool ever answers a token.
 - The interface runs in the system's webview with a strict Content Security Policy; each of its commands has a permission of its own, granted to the app's windows only, and every argument is validated.
 - Only https links to On Page and GitHub open from the app.
 - A native binary: no Node.js runtime, no JavaScript outside the interface.

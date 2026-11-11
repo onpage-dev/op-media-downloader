@@ -692,6 +692,12 @@ const desktop: DesktopApi = {
     copyText: async text => navigator.clipboard?.writeText(text),
     onCommand: listener => commands.add(listener),
     openLicenses: () => command(async () => undefined),
+    agentAccess: async () =>
+      settings.agent_access ? { open: true, url: 'http://127.0.0.1:47821/mcp' } : { open: false },
+    copyAgentConfig: async () =>
+      void navigator.clipboard?.writeText(
+        'claude mcp add --transport http op-media-downloader http://127.0.0.1:47821/mcp',
+      ),
     log: (level, message) => console[level](message),
     // In a browser the panel and the window are one page: the command runs here
     showMainWindow: command => command && commands.emit(command),

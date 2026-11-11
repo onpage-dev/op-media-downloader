@@ -6,11 +6,13 @@ The app keeps a local or network folder in sync with the files of the media fiel
 
 One process, built with Tauri 2: Rust for everything but the interface, which runs in the system's webview (WebView2 on Windows, WKWebView on macOS, WebKitGTK on Linux).
 
-| Part         | Code                      | Owns                                                                                                                                                                                                                                                         |
-| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **App**      | `src-tauri`               | Windows (title bar drawn by the page, native controls on macOS), tray icon and panel, notifications, taskbar/Dock progress, macOS menu, settings and projects store (tokens in the system's credential store), the import from 1.x, the commands of the page |
-| **Service**  | `crates/op-media-service` | Everything that touches On Page or the folders: listing, scanning, planning, downloading, linking, removing, folder inspection, token checks. A library on its own Tokio runtime, meant for op-media-sync too                                                |
-| **Renderer** | `src/renderer`            | The sync-manager UI: toolbar, filters, jobs table, inspector, status bar, dialogs, tray panel view. `window.desktop` (`src/renderer/src/desktop/tauri.ts`) maps `src/shared/desktop-api.ts` to the app's commands and events                                 |
+| Part         | Code                       | Owns                                                                                                                                                                                                                             |
+| ------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App**      | `src-tauri`                | Windows (title bar drawn by the page, native controls on macOS), tray icon and panel, notifications, taskbar/Dock progress, macOS menu, the import from 1.x, the commands of the page, the MCP server while it is open           |
+| **Projects** | `crates/op-media-projects` | The projects as the app, `opmd` and the MCP server share them: the settings file and its projects (tokens in the system's credential store), every operation on a project, the checks of what comes from outside, the MCP server |
+| **opmd**     | `crates/opmd`              | The command line: the operations from a terminal or a script, in the app when it is open, else on its own; `opmd mcp` for AI agents                                                                                              |
+| **Service**  | `crates/op-media-service`  | Everything that touches On Page or the folders: listing, scanning, planning, downloading, linking, removing, folder inspection, token checks. A library on its own Tokio runtime, meant for op-media-sync too                    |
+| **Renderer** | `src/renderer`             | The sync-manager UI: toolbar, filters, jobs table, inspector, status bar, dialogs, tray panel view. `window.desktop` (`src/renderer/src/desktop/tauri.ts`) maps `src/shared/desktop-api.ts` to the app's commands and events     |
 
 Contracts: `src/shared/models.ts` (domain, the same JSON as `crates/op-media-service/src/models.rs`), `src/shared/desktop-api.ts` (renderer ⇄ app), `src/shared/status.ts` (one vocabulary of states for every surface; the app has its Rust twin for the tray and the notifications). Each command of the page has its own Tauri permission, granted to the app's two windows only (`src-tauri/capabilities`); the page loads nothing but its own files (CSP in `tauri.conf.json`).
 
@@ -116,6 +118,14 @@ The service (`crates/op-media-service`) handles every case below: `error.rs` nam
 - Counters per name, bytes from `Content-Length` or the known size, speed smoothed over ~5 s, ETA from the remaining bytes. State sent at most 4 times per second per project.
 - Activity: the last 1,000 events per project (downloading with progress, downloaded, linked, removed, failed, conflict), sent in batches every 250 ms; an event that left the 1,000 leaves the next batch too. Failed files are kept in full for «Riprova i falliti».
 - The counts of the plan's warnings (duplicates, name conflicts, removals to confirm) are read from the plan summary the app gets, so the two always agree.
+
+### The terminal and AI agents
+
+Every operation on the projects is one of `op_media_projects::ops`: a name, a description, JSON arguments (checked by `validate`, as the page's commands) and a JSON answer. They are the tools of the MCP server and what `opmd`'s commands run, so the window, the terminal and an agent can do the same things. Tokens go in and never come out (no operation answers one; `opmd token` reads the store itself).
+
+- **Who runs them.** The app serves MCP over Streamable HTTP on 127.0.0.1 while «Agenti AI» is on: the `Host` is checked (loopback only), a request with an `Origin` is refused (a web page), every request carries the secret kept in the settings file (`Authorization: Bearer`). It writes its address and the secret in `<data>/mcp.json` (its owner's only on Unix) and removes it when it quits. `opmd` and `opmd mcp` read it: with the app open they run every operation there (its window shows the jobs, and they go on there); without, they open the projects themselves and their jobs run in their process (`opmd` follows them to the end; Ctrl+C stops them, saving the registry).
+- **Two processes, one settings file.** Every change is written under a short lock of its own (`op-media-downloader-config.lock`), applied to the file as it is then (read again), so one never undoes the other's; reads take the other's changes, and the app looks every second and shows them (settings applied). Two jobs never share a folder: the folder's lock (`data/.lock`) holds across processes as across computers.
+- **What stays in a process.** A job's activity and failed files live in the memory of the process that ran it, as before a restart of the app: `opmd download` lists the failed files at its end.
 
 ### Service modules
 
