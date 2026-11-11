@@ -72,7 +72,7 @@ The main process never does file system work on project folders and never blocks
 
 Reuses the listing of the last «Sincronizza» when it is younger than 30 minutes (lists again otherwise), compares the folder again, then:
 
-1. **Download** the tokens, `concurrency` at a time (setting, default 4): Electron `net.fetch` (system proxy and PAC, like the browser), 30 s to the first byte, 60 s without data aborts; up to 4 attempts with backoff for network errors, timeouts, 5xx and 429; 404 is final (`not_found`). Each token is downloaded once, then linked to all its names. The disk work of a download (the temporary file, the writes, the flush, the rename) is never retried as network work: its errors go through the folder checks of the fault table, and the HTTP connection is closed at once.
+1. **Download** the tokens, `concurrency` at a time (setting, default 4): reqwest with rustls and the system's root certificates, the proxy of the environment (`HTTPS_PROXY`…) and of the system settings on Windows and macOS (PAC scripts are not read), 30 s to the first byte, 60 s without data aborts; up to 4 attempts with backoff for network errors, timeouts, 5xx and 429; 404 is final (`not_found`). Each token is downloaded once, then linked to all its names. The disk work of a download (the temporary file, the writes, the flush, the rename) is never retried as network work: its errors go through the folder checks of the fault table, and the HTTP connection is closed at once.
 2. **Link**: a hard link, or a copy where the folder does not take hard links (the project gets the `copies_instead_of_links` warning). Decided once per job by a probe link inside `data/` (a temporary file, linked, both removed); a name that cannot be linked fails alone.
 3. **Remove** what the plan allows.
 4. Checkpoint the manifest when 500 changes piled up and 5 s passed since the last write, or after 30 s with any change, never more often than ten times what the last write took (a big manifest on a slow share); at the end write it (3 attempts), release the lock and send the result.
@@ -89,7 +89,7 @@ Refused while a job of the project runs (`project_busy`); no job of the project 
 
 ### Faults of folders and disks
 
-Every case below has a fault-injection test (`src/engine/faults.test.ts`; the connection closed on a disk error in `download.test.ts`): after it, no name holds half a file, the issue is the right one, and the next run ends the work.
+The service (`crates/op-media-service`) handles every case below: `error.rs` names each file system error by its POSIX code as libuv does on every system (a Windows `ERROR_NETNAME_DELETED` is `ECONNRESET`, `ERROR_SHARING_VIOLATION` is `EBUSY`…) and decides what it means. After any of them no name holds half a file, the issue is the right one, and the next run ends the work. The cases that the fake On Page and a real folder can produce have an end-to-end test (`src/engine/tests.rs`: stop, cut connections, 429, 404, a broken or newer registry, another computer's lock, leftovers, conflicts, incomplete listings); the decisions on codes have unit tests. The fault-injection suite of 2.0 (a mocked file system: disk full in the middle of a write, a share that drops, EIO) is not ported yet.
 
 | Fault                                                                                                                                              | What happens                                                                                                                                                                                                                                                       |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -116,20 +116,23 @@ Every case below has a fault-injection test (`src/engine/faults.test.ts`; the co
 - Activity: the last 1,000 events per project (downloading with progress, downloaded, linked, removed, failed, conflict), sent in batches every 250 ms; an event that left the 1,000 leaves the next batch too. Failed files are kept in full for «Riprova i falliti».
 - The counts of the plan's warnings (duplicates, name conflicts, removals to confirm) are read from the plan summary main gets, so the two always agree.
 
-### Engine modules
+### Service modules
 
-| Module                                                  | Does                                                                                                                                          |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.ts`                                              | The utility process: `net.fetch`, the port to main; an uncaught exception is logged and ends the process (main starts a new one)              |
-| `engine.ts`, `timings.ts`                               | Routes the messages, keeps a slot per project, starts, stops and forgets jobs (one per project), answers the requests; the timings and limits |
-| `job.ts`                                                | A job (the user's stop and its own abort on a fatal error or a lost lock, as one signal), the project slot, what a job sees of the engine     |
-| `state.ts`                                              | The runtime main sees: phase, plan, progress, issues; throttled, activity in batches                                                          |
-| `flows/`                                                | `sync.ts`, `download.ts` (also «Riprova i falliti»), `cleanup.ts`; `steps.ts`: listing, compare, execution, results                           |
-| `folder-session.ts`                                     | A job's hold on the folder: checks, lock, manifest, scan and plan, the guard on every write, final save, release                              |
-| `listing-store.ts`                                      | The last listing in memory (30 minutes) and the gzip cache on disk                                                                            |
-| `listing.ts`, `names.ts`, `plan.ts`, `executor.ts`      | Read On Page, resolve the names, plan (pure), execute the plan                                                                                |
-| `duplicates.ts`, `delete-files.ts`, `folder-inspect.ts` | The duplicates tab, deleting a project's files, the folder checks of the project form                                                         |
-| `onpage.ts`, `http.ts`                                  | onpage-js behind our transport (fetch adapter, timeouts, retries)                                                                             |
+`crates/op-media-service`, a library the app embeds (and op-media-sync can):
+
+| Module                                                     | Does                                                                                                                                   |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine/mod.rs`                                            | `MediaService`: its own Tokio runtime, a slot per project, starts, stops and forgets jobs (one per project), answers the requests       |
+| `engine/slot.rs`                                           | A job (the user's stop and its own failure, one cancellation token), the project slot, the runtime the app sees: throttled, in batches |
+| `engine/flows.rs`, `engine/session.rs`                     | «Sincronizza», «Scarica» (also «Riprova i falliti»), «Conferma»; a job's hold on the folder: checks, lock, manifest, plan, final save  |
+| `sync/listing.rs`, `sync/names.rs`, `sync/plan.rs`, `sync/executor.rs` | Read On Page, resolve the names, plan (pure), execute the plan                                                             |
+| `sync/listing_store.rs`, `sync/remote_index.rs`            | The last listing in memory (30 minutes) and the gzip cache on disk                                                                     |
+| `sync/duplicates.rs`, `sync/activity.rs`, `sync/progress.rs` | The duplicates tab, the activity and the failed files, counters and speed                                                           |
+| `folder/`                                                  | Lock, manifest, scan, links or copies, the owner of `data/`, folder inspection, deleting a project's files                             |
+| `onpage.rs`, `transfer.rs`, `http.rs`, `fsx.rs`            | The On Page API (onpage-js's calls), one atomic download, retries, file system helpers                                                 |
+| `testing.rs`, `bin/fake_onpage.rs`                         | The fake On Page for tests and for trying the app (`cargo run -p op-media-service --features fake-server --bin fake-onpage`)           |
+
+A job that panics ends as an `unexpected` failure; the others go on.
 
 ## States
 
