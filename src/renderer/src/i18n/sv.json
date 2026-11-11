@@ -51,7 +51,8 @@
     "never": "aldrig",
     "no_results": "Inga projekt matchar de här filtren",
     "show_all": "Visa alla",
-    "label": "Projekt"
+    "label": "Projekt",
+    "resize": "Ändra bredden på kolumnen {column}"
   },
   "kind": {
     "local": "Lokal mapp",

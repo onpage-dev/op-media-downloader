@@ -51,7 +51,8 @@
     "never": "nunca",
     "no_results": "No hay proyectos con estos filtros",
     "show_all": "Mostrar todos",
-    "label": "Proyectos"
+    "label": "Proyectos",
+    "resize": "Cambiar el ancho de la columna {column}"
   },
   "kind": {
     "local": "Carpeta local",

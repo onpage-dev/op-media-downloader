@@ -51,7 +51,8 @@
     "never": "nie",
     "no_results": "Kein Projekt passt zu diesen Filtern",
     "show_all": "Alle anzeigen",
-    "label": "Projekte"
+    "label": "Projekte",
+    "resize": "Breite der Spalte {column} ändern"
   },
   "kind": {
     "local": "Lokaler Ordner",

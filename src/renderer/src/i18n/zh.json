@@ -51,7 +51,8 @@
     "never": "从未",
     "no_results": "没有符合这些筛选条件的项目",
     "show_all": "显示全部",
-    "label": "项目"
+    "label": "项目",
+    "resize": "调整“{column}”列的宽度"
   },
   "kind": {
     "local": "本地文件夹",

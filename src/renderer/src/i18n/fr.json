@@ -51,7 +51,8 @@
     "never": "jamais",
     "no_results": "Aucun projet ne correspond à ces filtres",
     "show_all": "Tout afficher",
-    "label": "Projets"
+    "label": "Projets",
+    "resize": "Redimensionner la colonne {column}"
   },
   "kind": {
     "local": "Dossier local",

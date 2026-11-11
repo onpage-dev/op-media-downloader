@@ -51,7 +51,8 @@
     "never": "never",
     "no_results": "No project matches these filters",
     "show_all": "Show all",
-    "label": "Projects"
+    "label": "Projects",
+    "resize": "Resize the {column} column"
   },
   "kind": {
     "local": "Local folder",
