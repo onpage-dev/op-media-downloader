@@ -28,7 +28,7 @@ A new app: a desktop sync manager for On Page media, written in Rust with Tauri 
 - The languages of On Page UI: Italian, English, German, Spanish, French, Russian, Swedish and Chinese; a new install starts in the system's language. Dates, sizes, speeds and durations are written the way each language writes them.
 - Errors in plain words, in the window and in the forms, never raw system messages.
 - Everything works with the keyboard: the projects table, menus, tabs and the language list; dialogs keep the focus inside, close with Esc and give it back. Shortcuts work with any keyboard layout.
-- Failed files and duplicate names come a page at a time, with a search: projects with tens of thousands of them stay fast.
+- Failed files and duplicate names come a page at a time, with a search: projects with tens of thousands of them stay fast. A name shared by many files shows its first 10 (**Show 100 more** for the next ones), and the rows show at once: the names of the items that use them arrive from On Page right after.
 
 ### Desktop integration
 
@@ -41,8 +41,8 @@ A new app: a desktop sync manager for On Page media, written in Rust with Tauri 
 
 ### Terminal and AI agents
 
-- `opmd`, the command line: everything the app does with its projects (add, edit, remove, «Sincronizza», «Scarica», «Riprova i falliti», «Conferma», stop, activity, failed files, duplicates, folder and token checks, settings), with progress and clean stops, JSON output and exit codes for scripts. With the app open it hands the commands to it; with the app closed it works on its own, on the same projects. With `--data-dir` it keeps projects of its own, for a server or a NAS without the app (`OPMD_NO_KEYRING` keeps the tokens in its settings file where there is no credential store).
-- An MCP server for AI agents with the same operations as tools (those that delete files marked as destructive): in the app while it is open (Impostazioni › Agenti AI, on this computer only, with a secret; a button copies the command for Claude Code), and `opmd mcp`, which an agent can start with the app open or closed.
+- `opmd`, the command line: everything the app does with its projects (add, edit, remove, **Sync**, **Download**, **Retry failed**, **Confirm**, stop, activity, failed files, duplicates, folder and token checks, settings), with progress and clean stops, JSON output and exit codes for scripts. With the app open it hands the commands to it; with the app closed it works on its own, on the same projects. With `--data-dir` it keeps projects of its own, for a server without the app (`OPMD_NO_KEYRING` keeps the tokens in its settings file where there is no credential store).
+- An MCP server for AI agents with the same operations as tools (those that delete files marked as destructive): in the app while it is open (_Settings › AI agents_, on this computer only, with a secret; a button copies the command for Claude Code), and `opmd mcp`, which an agent can start with the app open or closed.
 - The app and `opmd` share the settings file safely: changes are merged under a lock, and the app shows the other's changes within a second.
 - `opmd` comes with the app: on the PATH on Windows (the installer adds it and the uninstaller takes it off), in `/usr/bin` with the .deb, inside the app on macOS (the settings show the link to make). Each release also has `opmd` alone for Linux and Windows servers.
 

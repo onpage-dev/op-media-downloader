@@ -21,14 +21,14 @@ Give the app an On Page [API token](https://app.onpage.it/#/help/advanced-tools/
 
 ## Highlights
 
-- **Every project at a glance.** One window lists your projects with their state, progress, speed and time left, filtered by state or destination. Below, the inspector shows the live activity, the failed files (retry them in one click), the names shared by several files and the project's settings.
-- **Fast after the first sync.** The first sync reads the whole project; the next ones read only what changed on On Page since, thanks to a local cache. Projects with 100,000+ files stay responsive: the work runs in a process of its own.
-- **Your files are safe.** The app removes only the files it created and never overwrites a file it does not know. Large removals (a wrong token, a View that changed) wait for your confirmation, nothing is removed after an incomplete read of On Page, and a folder belongs to one On Page project: a token of another project stops before touching it.
-- **At home on network shares and external disks.** A full disk, a share that drops, an unplugged disk or a file open in another program stop the work cleanly, and the next sync goes on from there. A file gets its name only once it is complete and flushed to the disk: a name never holds half a file.
-- **One download per file.** A file used by many items is downloaded once and gets all its names as hard links, so it takes its space once.
-- **One computer at a time.** A lock in the folder keeps two computers from syncing it together, even when their clocks disagree.
-- **Network friendly.** The system proxy (PAC included), timeouts, retries with backoff, On Page's rate limits respected, 1 to 10 parallel downloads and a Stop that really stops.
-- **A proper desktop app.** A panel in the notification area (the menu bar on macOS), notifications, progress on the taskbar or the Dock, start with Windows or macOS, keyboard shortcuts, a folder dropped on the window starts a new project. Light and dark theme; Italian, English, German, Spanish, French, Russian, Swedish and Chinese.
+- **Your files are safe.** The app removes only the files it created and never overwrites one it does not know. Large removals (a wrong token, a View that changed) wait for your confirmation, nothing goes after an incomplete read of On Page, and a folder belongs to one On Page project: a token of another stops before touching it.
+- **Fast, even with 200,000 files.** A native app, written in Rust. Only the first sync reads the whole project: the next ones read what changed on On Page since. The work runs beside the window, never in its way: projects with hundreds of thousands of files and tens of thousands of shared names stay responsive.
+- **Every project at a glance.** One window lists your projects with their state, progress, speed and time left, filtered by state or destination. Below, the inspector shows the live activity, the failed files (retried in one click), the names shared by several files and the project's settings.
+- **At home on network shares and external disks.** A full disk, a share that drops, an unplugged disk or a file open in another program stop the work cleanly, and the next sync goes on from there. A file gets its name only once it is complete and on the disk: a name never holds half a file.
+- **One download per file, one computer per folder.** A file used by many items is downloaded once and gets all its names as hard links, taking its space once. A lock in the folder keeps two computers from syncing it together, even when their clocks disagree.
+- **Network friendly.** The system proxy, timeouts, retries with backoff, On Page's rate limits respected, 1 to 10 parallel downloads and a Stop that really stops.
+- **Scriptable, and ready for AI agents.** `opmd` does from a terminal everything the window does, with the app open or closed, and on a server without it. AI agents such as Claude use the same operations through MCP, on this computer only. [More below](#from-the-terminal-and-from-ai-agents).
+- **A proper desktop app.** A panel in the notification area (the menu bar on macOS), notifications, progress on the taskbar or the Dock, start with Windows or macOS, keyboard shortcuts, a folder dropped on the window starts a new project. Light and dark theme, in Italian, English, German, Spanish, French, Russian, Swedish and Chinese.
 
 ## Screenshots
 
@@ -80,7 +80,7 @@ flowchart LR
 2. **Download** carries out the plan: each file is downloaded once into `data/` (4 at a time, up to 10), then linked under all its names. **Stop** halts it at any moment; the next **Download** goes on from there.
 3. **Confirm** appears only when a sync would remove many files: more than 50, and more than a quarter of those the app created. You see the count before anything goes.
 
-Syncs start when you ask: **Sync**, **Sync all**, the panel in the notification area, the Windows jump list or the macOS menu.
+Syncs start when you ask: **Sync**, **Sync all**, the panel in the notification area, the macOS menu, `opmd` or an AI agent.
 
 ## Install
 
@@ -92,6 +92,8 @@ Download the installer for your system from the [latest release](https://github.
 | **macOS**, Apple silicon | `op-media-downloader-<version>-arm64.dmg`     | Signed and notarized: open it and drag the app to Applications.                                                          |
 | **macOS**, Intel         | `op-media-downloader-<version>-x64.dmg`       | As above.                                                                                                                |
 | **Linux**, x64           | `.AppImage` or `.deb`                         | AppImage: make it executable (`chmod +x`) and run it. Debian and Ubuntu: `sudo apt install ./op-media-downloader-*.deb`. |
+
+Every installer carries `opmd`, the command line ([below](#from-the-terminal-and-from-ai-agents)). For a server without the app, each release also has it alone: `opmd-<version>-linux-x86_64.tar.gz` and `opmd-<version>-windows-x64.zip`.
 
 Every release lists the SHA-256 checksums of its files in `SHA256SUMS.txt` and carries a build provenance attestation, which [GitHub CLI](https://cli.github.com) checks with `gh attestation verify <file> --repo onpage-dev/op-media-downloader`.
 
@@ -128,7 +130,7 @@ Catalogo piante/
 <details>
 <summary><b>A file is missing from the folder</b></summary>
 
-- **Two files with the same name.** When files on On Page share a name (upper and lower case count as the same), the first one is downloaded and the others are listed in the project's **Duplicates** tab. Rename them on On Page to get them all.
+- **Two files with the same name.** When files on On Page share a name (upper and lower case count as the same), the first one is downloaded and the others are listed in the project's **Duplicates** tab, each with the items that use it and a link to edit them on On Page. Rename them on On Page to get them all. A name shared by many files (a catalog generated every day, say) shows its first 10, and **Show 100 more** brings the next ones; the names of the items arrive from On Page a moment after the rows.
 - **It failed.** The **Failed** tab lists the files that could not be downloaded and why; **Retry failed** tries them again. _Settings › Downloads › Retry failed files by itself_ does it once, a minute after a download, for the files that failed because of the network.
 - **Its name changed.** Names follow the Windows rules on every system, since network shares are often Windows-backed: characters such as `\ / : * ? " < > |` become `_`, trailing dots and spaces go, and very long names are shortened, keeping the extension.
 
@@ -192,7 +194,7 @@ At start-up the app asks GitHub whether a newer version is out and says so in th
 | macOS   | `~/Library/Application Support/com.onpage.mediadownloader` |
 | Linux   | `~/.local/share/com.onpage.mediadownloader`                |
 
-There you find the settings and the projects (`op-media-downloader-config.json`), the cache of the last listings (`cache/`) and a log for support (`logs/main.log`). The API tokens are in the system's credential store, one entry per project, never in the file (except on a Linux without a credential store).
+There you find the settings and the projects (`op-media-downloader-config.json`), the cache of the last listings (`cache/`), the logs for support (`logs/main.log` for the app, `logs/opmd.log` for the command line) and, while the app is open with _Settings › AI agents_ on, the address of its MCP server for `opmd` (`mcp.json`). The API tokens are in the system's credential store, one entry per project, never in the file (except on a Linux without a credential store).
 
 </details>
 
@@ -212,7 +214,7 @@ The arrow keys move through the projects and the tabs; <kbd>Esc</kbd> closes men
 
 ## From the terminal and from AI agents
 
-Everything the app does with its projects is also a command, `opmd`, and a tool for AI agents through MCP (the Model Context Protocol): adding and editing projects, «Sincronizza», «Scarica», the failed files, the duplicates, the settings.
+Everything the app does with its projects is also a command, `opmd`, and a tool for AI agents through MCP (the Model Context Protocol): adding and editing projects, **Sync**, **Download**, **Retry failed**, **Confirm**, the activity, the failed files, the duplicates, the folder and token checks, the settings.
 
 ```bash
 opmd list                                   # the projects and their state
@@ -229,7 +231,7 @@ opmd --help                                 # every command; --json prints the a
 - **On a server**, where the app is not installed, `--data-dir DIR` (or `OPMD_DATA_DIR`) gives `opmd` projects of its own. Where the system has no credential store (a container, a server without a desktop), `OPMD_NO_KEYRING=1` keeps the tokens in `DIR`'s settings file, readable by its owner only. A scheduled `opmd sync --all` and `opmd download` keep the folders up to date.
 - Exit codes: `0` done, `1` failed, `3` done with failed files, `130` stopped with Ctrl+C.
 
-**AI agents.** While the app is open it serves MCP on this computer only (Impostazioni › Agenti AI, on by default): «Copia configurazione per Claude Code» copies the command that adds it. Or let the agent start `opmd mcp`, which works with the app open or closed:
+**AI agents.** While the app is open it serves MCP on this computer only, with a secret (_Settings › AI agents_, on by default): **Copy Claude Code setup** copies the command that adds it. Or let the agent start `opmd mcp`, which works with the app open or closed (**Copy setup with opmd** in the same place gives the command with its full path):
 
 ```bash
 claude mcp add opmd -- opmd mcp
@@ -237,7 +239,7 @@ claude mcp add opmd -- opmd mcp
 
 The tools are the operations of the app (`list_projects`, `sync_project`, `wait_for_project`, `download_project`, `get_duplicates`, `update_settings`…); those that delete files (`remove_project` with its files, `confirm_cleanup`) are marked as such, so the agent asks first. Tokens go in (a new project, a new token) and never come out: `opmd token PROJECT` prints one at the terminal only.
 
-**Where it is.** `opmd` comes with the app. On Windows the installer puts it on your PATH (a new terminal finds it); with the .deb it is in `/usr/bin`; on macOS it is inside the app, and Impostazioni › Agenti AI shows the command that links it to `/usr/local/bin` once. For servers each release also has `opmd` alone: `opmd-X.Y.Z-linux-x86_64.tar.gz` and `opmd-X.Y.Z-windows-x64.zip`. From the sources: `cargo build --release -p opmd`.
+**Where it is.** `opmd` comes with the app. On Windows the installer puts it on your PATH (a new terminal finds it); with the .deb it is in `/usr/bin`; on macOS it is inside the app, and _Settings › AI agents_ shows the command that links it to `/usr/local/bin` once. For servers each release also has `opmd` alone: `opmd-X.Y.Z-linux-x86_64.tar.gz` and `opmd-X.Y.Z-windows-x64.zip`. From the sources: `cargo build --release -p opmd`.
 
 ## Development
 
@@ -257,10 +259,10 @@ yarn format              # Prettier and, for Rust, cargo fmt; CI checks both
 yarn build               # the installers of this system, opmd inside, go to target/release/bundle/
 ```
 
-| Variable                                  | For development builds                                                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `OPMD_USER_DATA=<folder>`                 | Another data folder (by default `op-media-downloader-dev`, never the installed app's); its tokens have their own entries |
-| `OPMD_API_DOMAIN=http://127.0.0.1:<port>` | The fake On Page server: `cargo run -p op-media-service --features fake-server --bin fake-onpage -- --port 4310`         |
+| Variable                                  | For development builds                                                                                                                                                                   |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPMD_USER_DATA=<folder>`                 | Another data folder (by default `op-media-downloader-dev`, never the installed app's); its tokens have their own entries                                                                 |
+| `OPMD_API_DOMAIN=http://127.0.0.1:<port>` | The fake On Page server: `cargo run -p op-media-service --features fake-server --bin fake-onpage -- --port 4310` (`--things N`, `--duplicates N`, `--api-delay-ms N` for a slow On Page) |
 
 ```text
 crates/op-media-service/   the download service: On Page API, transfers, folders, the sync engine (a library)
