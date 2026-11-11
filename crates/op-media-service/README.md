@@ -11,16 +11,16 @@ op-media-service = { path = "../op-media-downloader/crates/op-media-service" }
 
 ## Layers
 
-| Module           | What it gives                                                                                                      | Reusable as is              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------- |
-| `http`           | Retry policies, exponential backoff with jitter, `Retry-After` within a limit, cancellation at every wait          | yes                         |
-| `onpage`         | The On Page API through a token, as onpage-js speaks it: schema, `things` queries (ids, pages), storage links      | yes (DAM calls to add)      |
-| `transfer`       | One URL to one file, atomically: temporary name, timeouts before the first byte and between chunks, size, flush    | yes                         |
-| `fsx`            | Atomic writes, renames that wait out antivirus locks, reachability with a timeout, free space                     | yes                         |
-| `folder`         | A synced folder: lock across computers (heartbeat, stale locks), registry `manifest.json`, scan, links or copies   | yes                         |
-| `sync`           | The Media Downloader flows: listing of media fields, safe names and duplicates, the plan, its execution            | Media Downloader's          |
-| `MediaService`   | The engine: one job per project, projects side by side, throttled state and batched activity as events            | Media Downloader's          |
-| `testing`        | A fake On Page (API and storage on one host) with switches for 429, 500, cut connections, silent servers, 404      | tests (`fake-server`)       |
+| Module         | What it gives                                                                                                    | Reusable as is         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `http`         | Retry policies, exponential backoff with jitter, `Retry-After` within a limit, cancellation at every wait        | yes                    |
+| `onpage`       | The On Page API through a token, as onpage-js speaks it: schema, `things` queries (ids, pages), storage links    | yes (DAM calls to add) |
+| `transfer`     | One URL to one file, atomically: temporary name, timeouts before the first byte and between chunks, size, flush  | yes                    |
+| `fsx`          | Atomic writes, renames that wait out antivirus locks, reachability with a timeout, free space                    | yes                    |
+| `folder`       | A synced folder: lock across computers (heartbeat, stale locks), registry `manifest.json`, scan, links or copies | yes                    |
+| `sync`         | The Media Downloader flows: listing of media fields, safe names and duplicates, the plan, its execution          | Media Downloader's     |
+| `MediaService` | The engine: one job per project, projects side by side, throttled state and batched activity as events           | Media Downloader's     |
+| `testing`      | A fake On Page (API and storage on one host) with switches for 429, 500, cut connections, silent servers, 404    | tests (`fake-server`)  |
 
 Everything runs on Tokio. `MediaService::new` starts a runtime of its own, so a network share that hangs never blocks
 the app; `MediaService::with_handle` runs on a runtime the caller gives.

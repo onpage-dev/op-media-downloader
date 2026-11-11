@@ -120,17 +120,17 @@ The service (`crates/op-media-service`) handles every case below: `error.rs` nam
 
 `crates/op-media-service`, a library the app embeds (and op-media-sync can):
 
-| Module                                                     | Does                                                                                                                                   |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `engine/mod.rs`                                            | `MediaService`: its own Tokio runtime, a slot per project, starts, stops and forgets jobs (one per project), answers the requests       |
-| `engine/slot.rs`                                           | A job (the user's stop and its own failure, one cancellation token), the project slot, the runtime the app sees: throttled, in batches |
-| `engine/flows.rs`, `engine/session.rs`                     | «Sincronizza», «Scarica» (also «Riprova i falliti»), «Conferma»; a job's hold on the folder: checks, lock, manifest, plan, final save  |
-| `sync/listing.rs`, `sync/names.rs`, `sync/plan.rs`, `sync/executor.rs` | Read On Page, resolve the names, plan (pure), execute the plan                                                             |
-| `sync/listing_store.rs`, `sync/remote_index.rs`            | The last listing in memory (30 minutes) and the gzip cache on disk                                                                     |
-| `sync/duplicates.rs`, `sync/activity.rs`, `sync/progress.rs` | The duplicates tab, the activity and the failed files, counters and speed                                                           |
-| `folder/`                                                  | Lock, manifest, scan, links or copies, the owner of `data/`, folder inspection, deleting a project's files                             |
-| `onpage.rs`, `transfer.rs`, `http.rs`, `fsx.rs`            | The On Page API (onpage-js's calls), one atomic download, retries, file system helpers                                                 |
-| `testing.rs`, `bin/fake_onpage.rs`                         | The fake On Page for tests and for trying the app (`cargo run -p op-media-service --features fake-server --bin fake-onpage`)           |
+| Module                                                                 | Does                                                                                                                                   |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine/mod.rs`                                                        | `MediaService`: its own Tokio runtime, a slot per project, starts, stops and forgets jobs (one per project), answers the requests      |
+| `engine/slot.rs`                                                       | A job (the user's stop and its own failure, one cancellation token), the project slot, the runtime the app sees: throttled, in batches |
+| `engine/flows.rs`, `engine/session.rs`                                 | «Sincronizza», «Scarica» (also «Riprova i falliti»), «Conferma»; a job's hold on the folder: checks, lock, manifest, plan, final save  |
+| `sync/listing.rs`, `sync/names.rs`, `sync/plan.rs`, `sync/executor.rs` | Read On Page, resolve the names, plan (pure), execute the plan                                                                         |
+| `sync/listing_store.rs`, `sync/remote_index.rs`                        | The last listing in memory (30 minutes) and the gzip cache on disk                                                                     |
+| `sync/duplicates.rs`, `sync/activity.rs`, `sync/progress.rs`           | The duplicates tab, the activity and the failed files, counters and speed                                                              |
+| `folder/`                                                              | Lock, manifest, scan, links or copies, the owner of `data/`, folder inspection, deleting a project's files                             |
+| `onpage.rs`, `transfer.rs`, `http.rs`, `fsx.rs`                        | The On Page API (onpage-js's calls), one atomic download, retries, file system helpers                                                 |
+| `testing.rs`, `bin/fake_onpage.rs`                                     | The fake On Page for tests and for trying the app (`cargo run -p op-media-service --features fake-server --bin fake-onpage`)           |
 
 A job that panics ends as an `unexpected` failure; the others go on.
 

@@ -15,8 +15,6 @@ export default defineConfigWithVueTs(
       'target/**',
       'src-tauri/**',
       'crates/**',
-      // The Electron engine, until its tests are ported to op-media-service
-      'src/engine/**',
       'src/renderer/src/lib/icons/pro.generated.ts',
     ],
   },
