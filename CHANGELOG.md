@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.0.0 (unreleased)
+
+The same app, rebuilt in Rust with Tauri: a smaller, native app on Windows, macOS and Linux, with the download management in a library that other On Page apps can use.
+
+### Download service
+
+- The sync engine is now `op-media-service` (`crates/op-media-service`), a Rust library on its own Tokio runtime: the On Page API client, atomic downloads with timeouts and retries, the folder lock and registry, the listing, the plan and its execution. The same rules as 2.0 (only what the app created is removed, large removals wait for a confirmation, one writer per folder, nothing half-written under a name, one On Page project per folder). op-media-sync will build on it.
+- A job that fails unexpectedly ends with an error on its project; the other projects go on.
+- Network: the system's proxy settings and certificates; proxy auto-configuration scripts (PAC) are no longer read.
+- The fake On Page server for tests and manual runs is part of the service (`cargo run -p op-media-service --features fake-server --bin fake-onpage`).
+
+### App
+
+- Tauri 2 instead of Electron: the system's webview, a native binary, a much smaller download.
+- API tokens in the system's credential store (Windows Credential Manager, macOS Keychain, Secret Service on Linux), one entry per project.
+- On its first start 3.0 copies the projects, settings and caches of 1.x and 2.0 and moves their tokens to the credential store; the old app's folder is left as it is. The 3.0 installer installs beside the old app.
+- The title bar's window controls are drawn by the app on Windows and Linux.
+- Not in 3.0: the Windows jump list, and a click on a notification opening its project (it opens the app).
+
 ## 2.0.0
 
 A new app: a desktop sync manager for On Page media, rebuilt around a sync engine that runs in its own process.

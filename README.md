@@ -95,9 +95,9 @@ Download the installer for your system from the [latest release](https://github.
 
 Every release lists the SHA-256 checksums of its files in `SHA256SUMS.txt` and carries a build provenance attestation, which [GitHub CLI](https://cli.github.com) checks with `gh attestation verify <file> --repo onpage-dev/op-media-downloader`.
 
-### Upgrading from 1.x
+### Upgrading from 1.x or 2.0
 
-Install 2.0 over 1.x: on Windows the installer replaces it. On its first start 2.0 imports your projects, folders and settings, and moves the API tokens to the system's encrypted storage. Files already downloaded are reused: nothing is downloaded again. Version 1.x cannot read the migrated settings, so going back is not supported.
+On its first start 3.0 copies the projects, folders and settings of 1.x or 2.0 (their folder is left as it is) and keeps the API tokens in the system's credential store: Windows Credential Manager, the macOS Keychain, the Secret Service on Linux. A 2.0 token that cannot be read on this computer is asked again in the project's settings. Files already downloaded are reused: nothing is downloaded again. The 3.0 installer does not replace the old app: once 3.0 has started and shows your projects, uninstall 1.x or 2.0.
 
 ## Getting started
 
@@ -172,7 +172,7 @@ A folder holds the files of one On Page project and remembers which one; two com
 <details>
 <summary><b>Proxy and firewall</b></summary>
 
-The app uses the system's network settings, proxy and PAC included, like the browser. It talks to On Page, for the API and the files, and to GitHub for the update check.
+The app uses the system's proxy (the settings of Windows and macOS, or the `HTTPS_PROXY` and `NO_PROXY` variables) and the certificates the system trusts; proxy auto-configuration scripts (PAC) are not read. It talks to On Page, for the API and the files, and to GitHub for the update check.
 
 </details>
 
@@ -186,13 +186,13 @@ At start-up the app asks GitHub whether a newer version is out and says so in th
 <details>
 <summary><b>Where does the app keep its data?</b></summary>
 
-| System  | Folder                                              |
-| ------- | --------------------------------------------------- |
-| Windows | `%APPDATA%\op-media-downloader`                     |
-| macOS   | `~/Library/Application Support/op-media-downloader` |
-| Linux   | `~/.config/op-media-downloader`                     |
+| System  | Folder                                                     |
+| ------- | ---------------------------------------------------------- |
+| Windows | `%APPDATA%\com.onpage.mediadownloader`                     |
+| macOS   | `~/Library/Application Support/com.onpage.mediadownloader` |
+| Linux   | `~/.local/share/com.onpage.mediadownloader`                |
 
-There you find the settings and the projects (`op-media-downloader-config.json`, with the API tokens encrypted by the system's credential store), the cache of the last listings (`cache/`) and a log for support (`logs/main.log`).
+There you find the settings and the projects (`op-media-downloader-config.json`), the cache of the last listings (`cache/`) and a log for support (`logs/main.log`). The API tokens are in the system's credential store, one entry per project, never in the file (except on a Linux without a credential store).
 
 </details>
 
@@ -212,33 +212,34 @@ The arrow keys move through the projects and the tabs; <kbd>Esc</kbd> closes men
 
 ## Development
 
-Node.js 24 (`.node-version`) and Yarn 1. No token or account is needed.
+Node.js 24 (`.node-version`), Yarn 1 and Rust stable (1.90 or later, through [rustup](https://rustup.rs)), with what [Tauri needs on each system](https://v2.tauri.app/start/prerequisites/): on Windows the Visual Studio Build Tools with the C++ workload (WebView2 comes with Windows 10 and 11), on macOS the Xcode Command Line Tools, on Linux `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `libxdo-dev` and `libssl-dev`. No token or account is needed.
 
 ```bash
-yarn              # install
-yarn dev          # the app with hot reload, on a data folder of its own
-yarn test         # engine, main and renderer tests
+yarn                     # install
+yarn dev                 # the app (tauri dev) with hot reload, on a data folder of its own
+yarn dev:renderer        # the interface alone in a browser, with the mockup's projects
+cargo test --workspace   # the service and the app
+yarn test                # the interface
 yarn typecheck
 yarn lint
-yarn format       # Prettier; CI runs yarn format:check
-yarn build:win    # or build:mac, build:linux: the installers go to dist/
+cargo clippy --workspace --all-targets -- -D warnings
+yarn format              # Prettier and, for Rust, cargo fmt; CI checks both
+yarn build               # the installers of this system go to target/release/bundle/
 ```
 
-| Variable                                  | For development builds                                                                |
-| ----------------------------------------- | ------------------------------------------------------------------------------------- |
-| `OPMD_USER_DATA=<folder>`                 | Another data folder (by default `op-media-downloader-dev`, never the installed app's) |
-| `OPMD_API_DOMAIN=http://127.0.0.1:<port>` | A fake On Page server, see `src/engine/testing`                                       |
+| Variable                                  | For development builds                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `OPMD_USER_DATA=<folder>`                 | Another data folder (by default `op-media-downloader-dev`, never the installed app's); its tokens have their own entries |
+| `OPMD_API_DOMAIN=http://127.0.0.1:<port>` | The fake On Page server: `cargo run -p op-media-service --features fake-server --bin fake-onpage -- --port 4310`         |
 
 ```text
-src/
-├── main/       main process: windows, tray, menus, settings and projects
-├── engine/     the sync engine, in its own process: reads, plans, downloads, links
-├── preload/    window.desktop: the renderer's only way to the main process
-├── renderer/   the interface: Vue 3 and Tailwind CSS 4, in eight languages
-└── shared/     the contracts between the processes
+crates/op-media-service/   the download service: On Page API, transfers, folders, the sync engine (a library)
+src-tauri/                 the app: windows, tray, menus, notifications, settings and projects, the commands
+src/renderer/              the interface: Vue 3 and Tailwind CSS 4, in eight languages
+src/shared/                the types and states the interface shares with the app's commands
 ```
 
-Built with Electron 45, Vue 3.5, TypeScript 6, Tailwind CSS 4, electron-vite 6 with Vite 8, and Vitest 5. The sync engine's safety rules, flows and fault handling are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); read it and [CONTRIBUTING.md](CONTRIBUTING.md) before changing the engine. Security reports: [SECURITY.md](SECURITY.md).
+Built with Tauri 2.12 and Rust, Vue 3.5, TypeScript 6, Tailwind CSS 4, Vite 8 and Vitest 5. The service's safety rules, flows and fault handling are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), its layers (and how op-media-sync can use them) in [its README](crates/op-media-service/README.md); read them and [CONTRIBUTING.md](CONTRIBUTING.md) before changing the service. Security reports: [SECURITY.md](SECURITY.md).
 
 **Icons.** Without a token the app uses the closest Font Awesome Free icons. With an On Page Font Awesome Pro token (`FONTAWESOME_NPM_AUTH_TOKEN`, or `//npm.fontawesome.com/:_authToken` in your user `.npmrc`), `yarn` (or `yarn icons`) generates the Pro light icons of the On Page design system in `src/renderer/src/lib/icons/pro.generated.ts`. That file is never committed: Font Awesome Pro icons may be embedded in the app, not published in an open-source repository.
 
@@ -247,9 +248,9 @@ Built with Electron 45, Vue 3.5, TypeScript 6, Tailwind CSS 4, electron-vite 6 w
 <details>
 <summary>For maintainers</summary>
 
-Bump `version` in `package.json`, then push a tag `vX.Y.Z`. The release workflow builds Windows, macOS (x64 and arm64) and Linux, signs and notarizes the macOS DMGs, attaches the installers with their SHA-256 checksums and build provenance to a draft release and publishes it last, so the app's update check never points at a release without installers. The Windows installer is not code-signed yet: Windows shows "unknown publisher".
+Bump `version` in `package.json` and in `Cargo.toml` (`[workspace.package]`), then push a tag `vX.Y.Z`. The release workflow builds Windows, macOS (x64 and arm64) and Linux, signs and notarizes the macOS DMGs, attaches the installers with their SHA-256 checksums and build provenance to a draft release and publishes it last, so the app's update check never points at a release without installers. The Windows installer is not code-signed yet: Windows shows "unknown publisher".
 
-Don't create the release on GitHub's Releases page: GitHub would publish it at once, without installers, and the workflow would then fail because the release already exists. The workflow stops if the tag is not `v` followed by the version in `package.json`. A version with a hyphen (`2.1.0-beta.1`) is published as a prerelease, which the update check skips.
+Don't create the release on GitHub's Releases page: GitHub would publish it at once, without installers, and the workflow would then fail because the release already exists. The workflow stops if the tag is not `v` followed by the version in `package.json` and in `Cargo.toml`. A version with a hyphen (`2.1.0-beta.1`) is published as a prerelease, which the update check skips.
 
 Secrets (organization or repository):
 
