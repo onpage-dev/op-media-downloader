@@ -519,7 +519,12 @@
       "starting": "Öppnar…",
       "copy": "Kopiera inställning för Claude Code",
       "copied": "Kommandot kopierat: klistra in det i en terminal",
-      "terminal": "I terminalen, även när appen är stängd, finns kommandot opmd:"
+      "terminal": "I terminalen, även när appen är stängd, finns kommandot opmd:",
+      "opmd_title": "Kommandot opmd",
+      "opmd_text": "Fungerar även när appen är stängd: i terminalen (opmd --help) eller startat av en agent (opmd mcp).",
+      "opmd_copy": "Kopiera inställning med opmd",
+      "opmd_link": "För att använda det i alla terminaler, länka det en gång:",
+      "copy_command": "Kopiera kommandot"
     }
   },
   "tray": {

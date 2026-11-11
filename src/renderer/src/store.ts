@@ -578,6 +578,16 @@ export async function copyAgentConfig(): Promise<boolean> {
     return false
   }
 }
+/** Text to the clipboard (not a secret): true when it got there */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await desktop().app.copyText(text)
+    return true
+  } catch (error) {
+    fail('copy text', error)
+    return false
+  }
+}
 export function copyPath(id?: ProjectId): void {
   const project = target(id)
   if (project) void run('copy path', () => desktop().app.copyText(project.folder))

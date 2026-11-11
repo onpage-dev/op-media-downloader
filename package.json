@@ -15,7 +15,7 @@
   "scripts": {
     "dev": "tauri dev",
     "dev:renderer": "vite",
-    "build": "yarn run typecheck && node scripts/notices.mjs && tauri build",
+    "build": "yarn run typecheck && node scripts/notices.mjs && tauri build --config src-tauri/tauri.bundle.conf.json",
     "build:renderer": "vite build",
     "tauri": "tauri",
     "typecheck": "yarn run typecheck:node && yarn run typecheck:web",

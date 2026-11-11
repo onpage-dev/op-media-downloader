@@ -74,20 +74,24 @@ jobs:
           yarn test
           cargo test --workspace --locked
 
-      # Not code-signed yet: Windows shows "unknown publisher" until a certificate is set up
+      # Not code-signed yet: Windows shows "unknown publisher" until a certificate is set up. The installer carries
+      # opmd (built before the bundle) and puts it on the user's PATH; opmd alone is attached too, for servers
       - name: Build for Windows
         shell: bash
         run: |
           node scripts/notices.mjs
-          yarn tauri build --ci
+          yarn tauri build --ci --config src-tauri/tauri.bundle.conf.json
           version=$(node -p "require('./package.json').version")
           mkdir dist-release
           cp target/release/bundle/nsis/*-setup.exe "dist-release/op-media-downloader-$version-x64-setup.exe"
+          7z a "dist-release/opmd-$version-windows-x64.zip" ./target/release/opmd.exe
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows
-          path: dist-release/*.exe
+          path: |
+            dist-release/*.exe
+            dist-release/*.zip
           if-no-files-found: error
 
   build-mac:
@@ -142,7 +146,7 @@ jobs:
             exit 1
           fi
           node scripts/notices.mjs
-          yarn tauri build --ci --target "$TARGET"
+          yarn tauri build --ci --config src-tauri/tauri.bundle.conf.json --target "$TARGET"
           version=$(node -p "require('./package.json').version")
           mkdir dist-release
           cp target/$TARGET/release/bundle/dmg/*.dmg "dist-release/op-media-downloader-$version-$ARCH.dmg"
@@ -199,14 +203,16 @@ jobs:
           FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
         run: node scripts/pro-icons.mjs --required
 
+      # The .deb installs opmd in /usr/bin; opmd alone is attached too, for servers without a desktop
       - name: Build for Linux
         run: |
           node scripts/notices.mjs
-          yarn tauri build --ci
+          yarn tauri build --ci --config src-tauri/tauri.bundle.conf.json
           version=$(node -p "require('./package.json').version")
           mkdir dist-release
           cp target/release/bundle/appimage/*.AppImage "dist-release/op-media-downloader-$version-x86_64.AppImage"
           cp target/release/bundle/deb/*.deb "dist-release/op-media-downloader-$version-amd64.deb"
+          tar -czf "dist-release/opmd-$version-linux-x86_64.tar.gz" -C target/release opmd
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -214,6 +220,7 @@ jobs:
           path: |
             dist-release/*.AppImage
             dist-release/*.deb
+            dist-release/*.tar.gz
           if-no-files-found: error
 
   release:

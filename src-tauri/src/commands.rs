@@ -179,12 +179,22 @@ pub fn settings_set(app: AppHandle, shell: State<'_, Shell>, patch: Value) -> An
 pub struct AgentAccess {
     open: bool,
     url: Option<String>,
+    /// `opmd` installed beside the app (not in development, nor inside an AppImage, whose path changes)
+    opmd: Option<String>,
 }
 
 #[tauri::command]
 pub fn app_agent_access(shell: State<'_, Shell>) -> AgentAccess {
     let url = shell.agents.lock().as_ref().map(|server| server.control.url.clone());
-    AgentAccess { open: url.is_some(), url }
+    AgentAccess { open: url.is_some(), url, opmd: opmd_beside_the_app() }
+}
+
+fn opmd_beside_the_app() -> Option<String> {
+    if std::env::var_os("APPIMAGE").is_some() {
+        return None;
+    }
+    let opmd = std::env::current_exe().ok()?.parent()?.join(if cfg!(windows) { "opmd.exe" } else { "opmd" });
+    opmd.is_file().then(|| opmd.display().to_string())
 }
 
 /// Copies the command that adds the app's server to Claude Code, with its

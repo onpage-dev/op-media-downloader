@@ -88,7 +88,7 @@ jobs:
       - name: Test the app and the service
         run: cargo test --workspace --locked
 
-      # bash on every system, as the release; no signing identity: the bundles are unsigned
+      # bash on every system, as the release; no signing identity: the bundles are unsigned. opmd goes in beside the app
       - name: Package (unsigned, not published)
         shell: bash
-        run: yarn tauri build --ci
+        run: yarn tauri build --ci --config src-tauri/tauri.bundle.conf.json

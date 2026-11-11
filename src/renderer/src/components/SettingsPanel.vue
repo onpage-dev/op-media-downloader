@@ -18,6 +18,7 @@ import {
   app,
   checkForUpdates,
   copyAgentConfig,
+  copyText,
   notify,
   openLicenses,
   openRelease,
@@ -104,6 +105,15 @@ watch(
 )
 async function copyConfig(): Promise<void> {
   if (await copyAgentConfig()) notify(t('settings.agents.copied'), 'success')
+}
+/** `opmd mcp` for an agent: it starts it, with the app open or closed */
+const opmdConfig = computed(() => (agents.value.opmd ? `claude mcp add opmd -- "${agents.value.opmd}" mcp` : ''))
+/** macOS: the link that puts opmd on the PATH (the Windows installer and the .deb do it themselves) */
+const opmdLink = computed(() =>
+  os == 'darwin' && agents.value.opmd ? `sudo ln -sf "${agents.value.opmd}" /usr/local/bin/opmd` : '',
+)
+async function copy(text: string): Promise<void> {
+  if (await copyText(text)) notify(t('settings.agents.copied'), 'success')
 }
 /** «2.0.1» in a sentence, «v2.0.1» on its own */
 const bare = (version: string): string => version.replace(/^v/, '')
@@ -264,7 +274,26 @@ const v = (version: string): string => `v${bare(version)}`
                 {{ t('settings.agents.copy') }}
               </UiButton>
             </div>
-            <div class="flex flex-col gap-xs py-lg text-secondary">
+            <div v-if="agents.opmd" class="flex flex-col gap-sm py-lg">
+              <div class="flex items-center gap-lg">
+                <div class="min-w-0 flex-1">
+                  <div class="font-medium">{{ t('settings.agents.opmd_title') }}</div>
+                  <div class="text-secondary">{{ t('settings.agents.opmd_text') }}</div>
+                  <div class="select-all break-all font-mono text-sm text-secondary">{{ agents.opmd }}</div>
+                </div>
+                <UiButton class="shrink-0" :icon="icons.faCopy" @click="copy(opmdConfig)">
+                  {{ t('settings.agents.opmd_copy') }}
+                </UiButton>
+              </div>
+              <div v-if="opmdLink" class="flex flex-col gap-xs text-secondary">
+                {{ t('settings.agents.opmd_link') }}
+                <div class="flex items-center gap-sm">
+                  <code class="min-w-0 flex-1 select-all break-all font-mono text-sm text-text">{{ opmdLink }}</code>
+                  <IconButton :icon="icons.faCopy" :label="t('settings.agents.copy_command')" @click="copy(opmdLink)" />
+                </div>
+              </div>
+            </div>
+            <div v-else class="flex flex-col gap-xs py-lg text-secondary">
               {{ t('settings.agents.terminal') }}
               <code class="select-all font-mono text-sm text-text">opmd --help</code>
             </div>

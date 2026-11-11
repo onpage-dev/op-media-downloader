@@ -693,7 +693,13 @@ const desktop: DesktopApi = {
     onCommand: listener => commands.add(listener),
     openLicenses: () => command(async () => undefined),
     agentAccess: async () =>
-      settings.agent_access ? { open: true, url: 'http://127.0.0.1:47821/mcp' } : { open: false },
+      settings.agent_access
+        ? {
+            open: true,
+            url: 'http://127.0.0.1:47821/mcp',
+            opmd: 'C:\\Program Files\\On Page Media Downloader\\opmd.exe',
+          }
+        : { open: false, opmd: 'C:\\Program Files\\On Page Media Downloader\\opmd.exe' },
     copyAgentConfig: async () =>
       void navigator.clipboard?.writeText(
         'claude mcp add --transport http op-media-downloader http://127.0.0.1:47821/mcp',

@@ -12,6 +12,7 @@
 
 mod backend;
 mod render;
+mod user_path;
 
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
@@ -188,6 +189,13 @@ enum Command {
     /// MCP server on stdin/stdout for AI agents (e.g. claude mcp add opmd -- opmd mcp): the same
     /// operations, run in the app when it is open, else here
     Mcp,
+    /// The Windows installer: puts opmd's folder on the user's PATH, or takes it off
+    #[command(hide = true)]
+    Path {
+        #[arg(value_parser = ["add", "remove"])]
+        action: String,
+        dir: PathBuf,
+    },
 }
 
 #[derive(Args)]
@@ -220,6 +228,10 @@ struct PageArgs {
 
 fn main() {
     let cli = Cli::parse();
+    // The installer's step: no projects, no log
+    if let Command::Path { action, dir } = &cli.command {
+        std::process::exit(user_path_command(action, dir));
+    }
     let paths = match &cli.data_dir {
         Some(dir) => AppPaths::at(dir.clone()),
         None => AppPaths::resolve(cfg!(debug_assertions)),
@@ -416,7 +428,7 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
             print(&settings, &render::settings);
         }
         Command::Status => print(&backend.call("get_status", json!({})).await?, &render::status),
-        Command::Info | Command::Mcp => unreachable!("answered in run"),
+        Command::Info | Command::Mcp | Command::Path { .. } => unreachable!("answered before"),
     }
     Ok(OK)
 }
@@ -647,6 +659,33 @@ async fn info(cli: &Cli, paths: &AppPaths, backend: &Backend) -> i32 {
         );
     }
     OK
+}
+
+#[cfg(windows)]
+fn user_path_command(action: &str, dir: &std::path::Path) -> i32 {
+    let dir = absolute(dir);
+    let changed = if action == "add" { user_path::add(&dir) } else { user_path::remove(&dir) };
+    match changed {
+        Ok(true) => {
+            println!(
+                "{} the PATH: {dir} (a new terminal finds it)",
+                if action == "add" { "Added to" } else { "Removed from" }
+            );
+            OK
+        }
+        Ok(false) => OK,
+        Err(error) => {
+            eprintln!("opmd: {error}");
+            FAILED
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn user_path_command(_action: &str, dir: &std::path::Path) -> i32 {
+    let _ = (user_path::with_dir, user_path::without_dir);
+    eprintln!("opmd: on this system link it yourself, e.g. sudo ln -sf \"{}/opmd\" /usr/local/bin/opmd", dir.display());
+    FAILED
 }
 
 fn fail(message: &str) -> ! {

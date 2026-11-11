@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeBuildCommand": "yarn build:renderer && node scripts/opmd-sidecar.mjs"
+  },
+  "bundle": {
+    "externalBin": ["binaries/opmd"],
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    }
+  }
+}

@@ -426,4 +426,6 @@ export interface AppStatus {
 export interface AgentAccess {
   open: boolean
   url?: string
+  /** `opmd` installed beside the app: its path (none in development) */
+  opmd?: string
 }

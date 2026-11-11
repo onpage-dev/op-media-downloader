@@ -226,7 +226,7 @@ opmd --help                                 # every command; --json prints the a
 
 - **With the app open** on the same projects, `opmd` hands each command to it: what it starts shows in the window and goes on there.
 - **With the app closed**, `opmd` works on its own, on the same projects and tokens: the app finds the results when it opens. Both can run at once: the settings file and each folder's lock keep them apart.
-- **On a server or a NAS**, where the app is not installed, `--data-dir DIR` (or `OPMD_DATA_DIR`) gives `opmd` projects of its own. Where the system has no credential store (a container, most NAS), `OPMD_NO_KEYRING=1` keeps the tokens in `DIR`'s settings file, readable by its owner only. A scheduled `opmd sync --all` and `opmd download` keep the folders up to date.
+- **On a server**, where the app is not installed, `--data-dir DIR` (or `OPMD_DATA_DIR`) gives `opmd` projects of its own. Where the system has no credential store (a container, a server without a desktop), `OPMD_NO_KEYRING=1` keeps the tokens in `DIR`'s settings file, readable by its owner only. A scheduled `opmd sync --all` and `opmd download` keep the folders up to date.
 - Exit codes: `0` done, `1` failed, `3` done with failed files, `130` stopped with Ctrl+C.
 
 **AI agents.** While the app is open it serves MCP on this computer only (Impostazioni › Agenti AI, on by default): «Copia configurazione per Claude Code» copies the command that adds it. Or let the agent start `opmd mcp`, which works with the app open or closed:
@@ -237,7 +237,7 @@ claude mcp add opmd -- opmd mcp
 
 The tools are the operations of the app (`list_projects`, `sync_project`, `wait_for_project`, `download_project`, `get_duplicates`, `update_settings`…); those that delete files (`remove_project` with its files, `confirm_cleanup`) are marked as such, so the agent asks first. Tokens go in (a new project, a new token) and never come out: `opmd token PROJECT` prints one at the terminal only.
 
-`opmd` is built from this repository for now: `cargo build --release -p opmd` puts it in `target/release/`.
+**Where it is.** `opmd` comes with the app. On Windows the installer puts it on your PATH (a new terminal finds it); with the .deb it is in `/usr/bin`; on macOS it is inside the app, and Impostazioni › Agenti AI shows the command that links it to `/usr/local/bin` once. For servers each release also has `opmd` alone: `opmd-X.Y.Z-linux-x86_64.tar.gz` and `opmd-X.Y.Z-windows-x64.zip`. From the sources: `cargo build --release -p opmd`.
 
 ## Development
 
@@ -254,7 +254,7 @@ yarn typecheck
 yarn lint
 cargo clippy --workspace --all-targets -- -D warnings
 yarn format              # Prettier and, for Rust, cargo fmt; CI checks both
-yarn build               # the installers of this system go to target/release/bundle/
+yarn build               # the installers of this system, opmd inside, go to target/release/bundle/
 ```
 
 | Variable                                  | For development builds                                                                                                   |
@@ -280,7 +280,7 @@ Built with Tauri 2.12 and Rust, Vue 3.5, TypeScript 6, Tailwind CSS 4, Vite 8 an
 <details>
 <summary>For maintainers</summary>
 
-Bump `version` in `package.json` and in `Cargo.toml` (`[workspace.package]`), then push a tag `vX.Y.Z`. The release workflow builds Windows, macOS (x64 and arm64) and Linux, signs and notarizes the macOS DMGs, attaches the installers with their SHA-256 checksums and build provenance to a draft release and publishes it last, so the app's update check never points at a release without installers. The Windows installer is not code-signed yet: Windows shows "unknown publisher".
+Bump `version` in `package.json` and in `Cargo.toml` (`[workspace.package]`), then push a tag `vX.Y.Z`. The release workflow builds Windows, macOS (x64 and arm64) and Linux, signs and notarizes the macOS DMGs, attaches the installers (each with `opmd` inside, built by `scripts/opmd-sidecar.mjs` through `src-tauri/tauri.bundle.conf.json`) and `opmd` alone for Linux and Windows servers, with their SHA-256 checksums and build provenance to a draft release and publishes it last, so the app's update check never points at a release without installers. The Windows installer is not code-signed yet: Windows shows "unknown publisher".
 
 Don't create the release on GitHub's Releases page: GitHub would publish it at once, without installers, and the workflow would then fail because the release already exists. The workflow stops if the tag is not `v` followed by the version in `package.json` and in `Cargo.toml`. A version with a hyphen (`2.1.0-beta.1`) is published as a prerelease, which the update check skips.
 

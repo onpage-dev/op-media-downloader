@@ -519,7 +519,12 @@
       "starting": "Abriendo…",
       "copy": "Copiar configuración para Claude Code",
       "copied": "Comando copiado: pégalo en un terminal",
-      "terminal": "Desde el terminal, también con la app cerrada, está el comando opmd:"
+      "terminal": "Desde el terminal, también con la app cerrada, está el comando opmd:",
+      "opmd_title": "El comando opmd",
+      "opmd_text": "Funciona también con la app cerrada: desde el terminal (opmd --help) o iniciado por un agente (opmd mcp).",
+      "opmd_copy": "Copiar configuración con opmd",
+      "opmd_link": "Para usarlo desde cualquier terminal, enlázalo una vez:",
+      "copy_command": "Copiar el comando"
     }
   },
   "tray": {

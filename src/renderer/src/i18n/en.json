@@ -519,7 +519,12 @@
       "starting": "Opening…",
       "copy": "Copy Claude Code setup",
       "copied": "Command copied: paste it in a terminal",
-      "terminal": "From the terminal, also with the app closed, there is the opmd command:"
+      "terminal": "From the terminal, also with the app closed, there is the opmd command:",
+      "opmd_title": "The opmd command",
+      "opmd_text": "Works with the app closed too: from the terminal (opmd --help) or started by an agent (opmd mcp).",
+      "opmd_copy": "Copy setup with opmd",
+      "opmd_link": "To use it from any terminal, link it once:",
+      "copy_command": "Copy the command"
     }
   },
   "tray": {
