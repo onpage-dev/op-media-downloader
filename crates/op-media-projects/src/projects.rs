@@ -27,6 +27,11 @@ pub enum ProjectsEvent {
     Changed(Vec<ProjectView>),
     Activity(ProjectId, Vec<ActivityEntry>),
     Result(Box<ProjectView>, Box<SyncResult>),
+    /// Settings another process saved (`opmd settings set`)
+    Settings {
+        next: Box<AppSettings>,
+        previous: Box<AppSettings>,
+    },
     /// A removed project whose files could not be deleted: its label, and the error code
     DeleteFailed {
         label: String,
@@ -68,6 +73,8 @@ const DELETE_ATTEMPTS: u32 = 3;
 const FOLDER_CHECK: Duration = Duration::from_secs(10);
 /// The page hears of the projects at most this often; the first change after a quiet moment at once
 const CHANGE_INTERVAL: Duration = Duration::from_millis(100);
+/// How often the settings file is looked at for another process's changes
+const STORE_WATCH: Duration = Duration::from_secs(1);
 
 #[derive(Default)]
 struct State {
@@ -437,6 +444,29 @@ impl ProjectService {
 
     pub fn configure_service(&self, concurrency: Option<u32>) {
         self.service.configure(concurrency, Some(self.project_folders()));
+    }
+
+    /// Another process (`opmd` beside the app, or the app beside `opmd mcp`)
+    /// may change the projects: looked at every second, and shown when it did
+    pub fn watch_store(self: &Arc<Self>) {
+        let me = Arc::downgrade(self);
+        let mut settings = self.store.settings();
+        self.runtime.spawn(async move {
+            loop {
+                tokio::time::sleep(STORE_WATCH).await;
+                let Some(me) = me.upgrade() else { return };
+                if !me.store.take_external_change() {
+                    continue;
+                }
+                let next = me.store.settings();
+                me.configure_service(Some(next.concurrency));
+                if next != settings {
+                    let previous = std::mem::replace(&mut settings, next.clone());
+                    (me.notify)(ProjectsEvent::Settings { next: Box::new(next), previous: Box::new(previous) });
+                }
+                me.changed();
+            }
+        });
     }
 
     /// The folders of the projects, and of the removed ones whose files are being deleted

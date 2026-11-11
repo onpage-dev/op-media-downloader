@@ -150,6 +150,7 @@ fn on_projects_event(app: &AppHandle, event: ProjectsEvent) {
             notify_result(app, &view, &result);
         }
         ProjectsEvent::DeleteFailed { label, code } => notify_delete_failed(app, &label, &code),
+        ProjectsEvent::Settings { next, previous } => apply_settings(app, &next, &previous),
     }
 }
 

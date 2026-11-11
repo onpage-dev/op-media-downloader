@@ -90,5 +90,6 @@ pub fn open(options: OpenOptions) -> Result<Opened, String> {
             pump.on_service_event(event);
         }
     });
+    projects.watch_store();
     Ok(Opened { store, projects })
 }

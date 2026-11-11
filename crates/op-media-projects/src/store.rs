@@ -2,11 +2,15 @@
 //! the window bounds, in `op-media-downloader-config.json` (the same shape as
 //! the Electron app's file, version 2, migrated from 1.x on first start).
 //!
-//! The app is the only writer: the file is read once and written atomically
-//! (temporary file, then rename) at every change. Every value read back is
-//! checked (a hand-edited or half-written file must not break the app), and
-//! a file that cannot be parsed is set aside: the app starts without projects
-//! and tells the user where the old file is.
+//! The app and `opmd` can use the same file at the same time. Every change
+//! is written atomically (temporary file, then rename) under a short lock of
+//! its own (`op-media-downloader-config.lock`): the file is read again and the
+//! change applied to what is there, so one never undoes the other's. Reads
+//! take the file again when another process changed it (`take_external_change`
+//! tells the app to show it). Every value read back is checked (a hand-edited
+//! or half-written file must not break the app), and a file that cannot be
+//! parsed is set aside: the app starts without projects and tells the user
+//! where the old file is.
 //!
 //! Tokens live in the system's credential store (Windows Credential Manager,
 //! macOS Keychain, the Secret Service on Linux), one entry per project, and in
@@ -17,6 +21,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::SystemTime;
 
 use op_media_service::{FolderInfo, Issue, OnPageProject, PlanSummary, ProjectId, SyncResult};
 use parking_lot::Mutex;
@@ -30,6 +36,8 @@ use crate::{error, info, warn};
 
 pub const STORE_FILE: &str = "op-media-downloader-config.json";
 const STORE_NAME: &str = "op-media-downloader-config";
+/// Held while the file is read and written again: the app and `opmd` take turns
+const LOCK_FILE: &str = "op-media-downloader-config.lock";
 const STORE_VERSION: i64 = 2;
 /// The 1.x keys: `storage_data` held the projects with their tokens in clear, `user_properties` the settings
 const V1_KEYS: [&str; 2] = ["storage_data", "user_properties"];
@@ -135,7 +143,12 @@ pub struct StoreOptions {
 
 pub struct AppStore {
     file: PathBuf,
+    lock_file: PathBuf,
     data: Mutex<Map<String, Value>>,
+    /// The file as this process last read or wrote it: another process changed it when it differs
+    stamp: Mutex<Option<Stamp>>,
+    /// Read again after another process's change, since the app last asked
+    external_change: AtomicBool,
     default_language: AppLanguage,
     vault: Box<dyn TokenVault>,
     legacy: Option<SafeStorage>,
@@ -149,9 +162,14 @@ impl AppStore {
     pub fn open(options: StoreOptions) -> AppStore {
         let _ = fs::create_dir_all(&options.dir);
         let file = options.dir.join(STORE_FILE);
+        let lock_file = options.dir.join(LOCK_FILE);
+        let lock = FileLock::take(&lock_file);
         let (data, set_aside) = read_store(&file);
         let store = AppStore {
+            stamp: Mutex::new(stamp_of(&file)),
+            external_change: AtomicBool::new(false),
             file,
+            lock_file,
             data: Mutex::new(data),
             default_language: options.default_language,
             vault: options.vault,
@@ -160,12 +178,36 @@ impl AppStore {
             set_aside,
         };
         store.migrate();
+        drop(lock);
         store
+    }
+
+    /// Another process (the app, `opmd`) wrote the file since this one last
+    /// read it: it is read again. Cheap when nothing changed (the file's size
+    /// and time); a file that cannot be read now is left for the next time
+    fn refresh(&self) {
+        let now = stamp_of(&self.file);
+        if now == *self.stamp.lock() {
+            return;
+        }
+        let Some(current) = read_current(&self.file) else { return };
+        *self.data.lock() = current;
+        *self.stamp.lock() = now;
+        // Their tokens may have changed too: read again when asked
+        self.tokens.lock().clear();
+        self.external_change.store(true, Ordering::Relaxed);
+    }
+
+    /// True once after the file was read again because another process changed it
+    pub fn take_external_change(&self) -> bool {
+        self.refresh();
+        self.external_change.swap(false, Ordering::Relaxed)
     }
 
     /* ---------------------------------------------------------------- settings */
 
     pub fn settings(&self) -> AppSettings {
+        self.refresh();
         let fallback = AppSettings { language: self.default_language, ..DEFAULT_SETTINGS };
         clean_settings(self.data.lock().get("settings"), &fallback)
     }
@@ -179,6 +221,7 @@ impl AppStore {
     /* ---------------------------------------------------------------- projects */
 
     pub fn projects(&self) -> Vec<StoredProject> {
+        self.refresh();
         let data = self.data.lock();
         let mut projects: Vec<StoredProject> = match data.get("projects") {
             Some(Value::Object(map)) => map.iter().filter_map(|(id, value)| read_project(id, value)).collect(),
@@ -189,6 +232,7 @@ impl AppStore {
     }
 
     pub fn project(&self, id: &str) -> Option<StoredProject> {
+        self.refresh();
         let data = self.data.lock();
         data.get("projects")?.as_object()?.get(id).and_then(|value| read_project(id, value))
     }
@@ -218,15 +262,10 @@ impl AppStore {
     }
 
     pub fn remove_project(&self, id: &str) {
-        let removed = {
-            let mut data = self.data.lock();
-            let removed =
-                data.get_mut("projects").and_then(Value::as_object_mut).and_then(|map| map.remove(id)).is_some();
-            if removed {
-                self.flush(&data);
-            }
-            removed
-        };
+        let mut removed = false;
+        self.write(|data| {
+            removed = data.get_mut("projects").and_then(Value::as_object_mut).and_then(|map| map.remove(id)).is_some();
+        });
         if removed {
             self.vault.delete(id);
             self.tokens.lock().remove(id);
@@ -300,6 +339,12 @@ impl AppStore {
         if let Some(token) = self.tokens.lock().get(&project.id) {
             return token.clone();
         }
+        if project.token_keyring {
+            // A project another process saved, or whose token it changed: read once
+            let token = self.vault.get(&project.id).ok().flatten().unwrap_or_default();
+            self.tokens.lock().insert(project.id.clone(), token.clone());
+            return token;
+        }
         project.token_plain.clone().unwrap_or_default()
     }
 
@@ -331,8 +376,19 @@ impl AppStore {
 
     /* ---------------------------------------------------------------- file */
 
+    /// One change, applied to the file as it is now (another process may have
+    /// written it since it was read) and written back, all under the lock
     fn write(&self, change: impl FnOnce(&mut Map<String, Value>)) {
+        let _lock = FileLock::take(&self.lock_file);
         let mut data = self.data.lock();
+        // Always read again: a file system whose times are coarse could hide a write that just happened
+        if let Some(current) = read_current(&self.file)
+            && current != *data
+        {
+            *data = current;
+            self.tokens.lock().clear();
+            self.external_change.store(true, Ordering::Relaxed);
+        }
         change(&mut data);
         self.flush(&data);
     }
@@ -341,6 +397,7 @@ impl AppStore {
         if let Err(error) = write_atomic(&self.file, data) {
             error!("The settings file cannot be written: {error}");
         }
+        *self.stamp.lock() = stamp_of(&self.file);
     }
 
     /* ---------------------------------------------------------------- migration */
@@ -417,6 +474,46 @@ fn read_store(file: &Path) -> (Map<String, Value>, Option<PathBuf>) {
                 }
             }
             (Map::new(), Some(aside))
+        }
+    }
+}
+
+/// The file's size and modification time: another process wrote it when they change
+type Stamp = (u64, Option<SystemTime>);
+
+fn stamp_of(file: &Path) -> Option<Stamp> {
+    fs::metadata(file).ok().map(|meta| (meta.len(), meta.modified().ok()))
+}
+
+/// The file as it is now, when it is there and can be parsed (a damaged one is set aside at start only)
+fn read_current(file: &Path) -> Option<Map<String, Value>> {
+    match serde_json::from_str(&fs::read_to_string(file).ok()?).ok()? {
+        Value::Object(map) => Some(map),
+        _ => None,
+    }
+}
+
+/// An exclusive lock on a file, released when dropped (or when the process
+/// ends). Without one (a file system that has no locks) the write goes on
+struct FileLock(Option<fs::File>);
+
+impl FileLock {
+    fn take(path: &Path) -> FileLock {
+        let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(path);
+        match file {
+            Ok(file) if file.lock().is_ok() => FileLock(Some(file)),
+            _ => {
+                warn!("The settings file cannot be locked: written without the lock");
+                FileLock(None)
+            }
+        }
+    }
+}
+
+impl Drop for FileLock {
+    fn drop(&mut self) {
+        if let Some(file) = &self.0 {
+            let _ = file.unlock();
         }
     }
 }
@@ -734,5 +831,40 @@ pub mod tests {
         store.remove_project("p1");
         assert!(store.project("p1").is_none());
         assert!(vault.tokens.lock().is_empty());
+    }
+
+    #[test]
+    fn two_processes_share_the_file_without_undoing_each_other() {
+        // The app and opmd: two stores on one folder, one credential store
+        let dir = tempfile::tempdir().unwrap();
+        let vault = std::sync::Arc::new(MemoryVault::default());
+        let app = open(dir.path(), vault.clone());
+        let cli = open(dir.path(), vault.clone());
+
+        // opmd adds a project with its token: the app sees both, and hears of it once
+        let mut p1 = project("p1", "/a");
+        p1.token_keyring = cli.store_token("p1", "token-1").token_keyring;
+        cli.save_project(&p1).unwrap();
+        assert!(app.take_external_change());
+        assert!(!app.take_external_change());
+        let seen = app.project("p1").unwrap();
+        assert_eq!(app.token(&seen), "token-1");
+
+        // Each changes its own things, one after the other: nothing is lost
+        app.save_project(&project("p2", "/b")).unwrap();
+        cli.patch_project("p1", |p| p.label = "Renamed".into()).unwrap();
+        app.set_settings(&AppSettings { concurrency: 7, ..app.settings() });
+        cli.remove_project("p2");
+        for store in [&app, &cli] {
+            let ids: Vec<String> = store.projects().into_iter().map(|p| p.id).collect();
+            assert_eq!(ids, ["p1"]);
+            assert_eq!(store.project("p1").unwrap().label, "Renamed");
+            assert_eq!(store.settings().concurrency, 7);
+        }
+
+        // A new token saved by the other process is read again
+        cli.store_token("p1", "token-2");
+        cli.patch_project("p1", |p| p.label = "Again".into());
+        assert_eq!(app.token(&app.project("p1").unwrap()), "token-2");
     }
 }
