@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-get-activity"
+description = "Enables the sync_get_activity command without any pre-configured scope."
+commands.allow = ["sync_get_activity"]
+
+[[permission]]
+identifier = "deny-sync-get-activity"
+description = "Denies the sync_get_activity command without any pre-configured scope."
+commands.deny = ["sync_get_activity"]

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/op-media-service"]
+members = ["crates/op-media-service", "src-tauri"]
 
 [workspace.package]
 version = "3.0.0"

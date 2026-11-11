@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-folders-inspect"
+description = "Enables the folders_inspect command without any pre-configured scope."
+commands.allow = ["folders_inspect"]
+
+[[permission]]
+identifier = "deny-folders-inspect"
+description = "Denies the folders_inspect command without any pre-configured scope."
+commands.deny = ["folders_inspect"]

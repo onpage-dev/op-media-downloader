@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "On Page Media Downloader",
+  "mainBinaryName": "On Page Media Downloader",
+  "identifier": "com.onpage.mediadownloader",
+  "build": {
+    "beforeDevCommand": "yarn dev:renderer",
+    "beforeBuildCommand": "yarn build:renderer",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist/renderer"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": {
+        "default-src": "'none'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob: https://storage.onpage.it",
+        "font-src": "'self' data:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "base-uri": "'none'",
+        "form-action": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob: https:",
+        "font-src": "'self' data:",
+        "connect-src": "'self' ipc: http://ipc.localhost ws: wss:"
+      },
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "dmg", "app", "appimage", "deb"],
+    "publisher": "On Page",
+    "copyright": "On Page®",
+    "category": "Utility",
+    "shortDescription": "On Page Media Downloader",
+    "longDescription": "Keeps a local or network folder in sync with the media files of an On Page project",
+    "homepage": "https://app.onpage.it/#/",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "resources": { "../THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt" },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "languages": ["Italian", "English", "German", "Spanish", "French", "Russian", "Swedish", "SimpChinese"]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "entitlements": "../build/entitlements.mac.plist",
+      "hardenedRuntime": true
+    },
+    "linux": {
+      "deb": { "section": "utils" }
+    }
+  },
+  "plugins": {}
+}
