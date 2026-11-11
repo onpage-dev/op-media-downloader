@@ -1,0 +1,51 @@
+[package]
+name = "op-media-service"
+description = "Download management for On Page media: the On Page API client, atomic transfers with retries, folder locks and registries, and the sync engine of On Page Media Downloader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# The fake On Page server (API and storage on one host) for tests and manual runs
+fake-server = ["dep:axum"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+parking_lot.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "stream", "json", "http2", "charset", "macos-system-configuration"] }
+sha1 = "0.10"
+sha2 = "0.10"
+hex = "0.4"
+flate2 = "1"
+rand = "0.9"
+unicode-normalization = "0.1"
+same-file = "1"
+gethostname = "1"
+regex = "1"
+axum = { version = "0.8", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_Threading", "Win32_System_SystemInformation"] }
+
+[dev-dependencies]
+tempfile = "3"
+axum = "0.8"
+tokio = { workspace = true, features = ["test-util"] }
+
+[[bin]]
+name = "fake-onpage"
+path = "src/bin/fake_onpage.rs"
+required-features = ["fake-server"]
