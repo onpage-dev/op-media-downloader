@@ -99,6 +99,7 @@ pub fn page_query(value: &Value) -> PageQuery {
         offset: whole(page.get("offset")).unwrap_or(0).clamp(0, 1_000_000_000) as usize,
         limit: whole(page.get("limit")).unwrap_or(50).clamp(1, 200) as usize,
         query: page.get("query").and_then(Value::as_str).map(|q| q.chars().take(limits::QUERY).collect()),
+        labels: page.get("labels").and_then(Value::as_bool).unwrap_or(true),
     }
 }
 

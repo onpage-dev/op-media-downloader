@@ -411,8 +411,9 @@ impl MediaService {
         }
     }
 
-    /// A page of the duplicate names; thing labels are read for that page only.
-    /// Errors are codes (`code` or `code: detail`)
+    /// A page of the duplicate names; thing labels are read for that page only,
+    /// and only when `page.labels` (else the page answers at once, see
+    /// `labels_pending`). Errors are codes (`code` or `code: detail`)
     pub async fn duplicates(&self, project: ServiceProject, page: PageQuery) -> Result<DuplicatePage, String> {
         let engine = self.engine.clone();
         let task = self.engine.handle.spawn(async move {

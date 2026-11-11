@@ -169,7 +169,9 @@ impl Duplicates {
     }
 }
 
-/// A page of the groups that match the query, with the labels of their things
+/// A page of the groups that match the query, with the labels of their things:
+/// read from On Page first when `page.labels`, else only those already known
+/// (the page draws at once, the labels come with a second call)
 pub async fn duplicates_page(
     duplicates: &Duplicates,
     page: &PageQuery,
@@ -186,15 +188,19 @@ pub async fn duplicates_page(
     let groups: Vec<&DuplicateRaw> = matching.into_iter().skip(page.offset).take(page.limit.max(1)).collect();
     let language_variants = duplicates.language_variants;
     if groups.is_empty() {
-        return DuplicatePage { total, language_variants, groups: Vec::new() };
+        return DuplicatePage { total, language_variants, groups: Vec::new(), labels_pending: false };
     }
     let uses: Vec<&FileUse> =
         groups.iter().flat_map(|g| &g.variants).flat_map(|v| v.uses.iter().take(MAX_USES)).collect();
-    duplicates.read_labels(&uses, api, log).await;
+    if page.labels {
+        duplicates.read_labels(&uses, api, log).await;
+    }
 
     let schema = &duplicates.schema;
     let lang = schema.lang();
     let labels = duplicates.labels.lock();
+    // Only without `labels`: after a read, what On Page did not answer stays without
+    let labels_pending = !page.labels && uses.iter().any(|use_| !labels.contains_key(&use_.thing_id));
     let describe_use = |use_: &FileUse| DuplicateUse {
         resource_label: schema
             .resource(use_.resource_id)
@@ -212,6 +218,7 @@ pub async fn duplicates_page(
     DuplicatePage {
         total,
         language_variants,
+        labels_pending,
         groups: groups
             .into_iter()
             .map(|group| DuplicateGroup {

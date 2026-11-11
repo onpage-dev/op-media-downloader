@@ -49,7 +49,8 @@ const size = (v: DuplicateVariant): string =>
         class="truncate text-accent-fg hover:underline"
         @click="openOnPage(use.edit_url)"
       >
-        {{ use.resource_label }} › {{ use.field_label }} · {{ use.thing_label }} #{{ use.thing_id
+        {{ use.resource_label }} › {{ use.field_label }} · {{ use.thing_label ? `${use.thing_label} ` : '' }}#{{
+          use.thing_id
         }}{{ use.lang ? ` (${use.lang})` : '' }}
       </button>
     </span>

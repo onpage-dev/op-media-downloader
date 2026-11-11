@@ -582,15 +582,14 @@ const desktop: DesktopApi = {
       return clone({ total: all.length, entries: all.slice(page.offset, page.offset + page.limit) })
     },
     getDuplicates: async (id, page) => {
-      // A big project reads its listing cache first: the tab shows that it is loading
-      await later(400)
+      // The rows come from the computer at once; the labels of the things from On Page, slowly
+      const labels = page.labels ?? true
+      await later(labels ? 1500 : 30)
       const query = page.query?.toLowerCase()
       const all = (duplicates[id] ?? []).filter(g => !query || g.name.toLowerCase().includes(query))
-      return clone({
-        total: all.length,
-        language_variants: 0,
-        groups: all.slice(page.offset, page.offset + page.limit),
-      })
+      const groups = clone(all.slice(page.offset, page.offset + page.limit))
+      if (!labels) for (const use of groups.flatMap(g => g.variants).flatMap(v => v.uses)) delete use.thing_label
+      return { total: all.length, language_variants: 0, groups, labels_pending: !labels && groups.length > 0 }
     },
   },
   folders: {

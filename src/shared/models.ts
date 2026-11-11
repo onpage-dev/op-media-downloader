@@ -309,6 +309,12 @@ export interface PageQuery {
   limit: number
   /** Part of the name, any case */
   query?: string
+  /**
+   * Duplicates: false answers at once with the labels of the things already
+   * known (`labels_pending` says some are missing); true (the default) reads
+   * them from On Page first
+   */
+  labels?: boolean
 }
 
 export interface DuplicatePage {
@@ -317,6 +323,8 @@ export interface DuplicatePage {
   /** Of all the groups: names whose files are one field of one item in different languages */
   language_variants: number
   groups: DuplicateGroup[]
+  /** Some things of the page have labels not read yet (asked with `labels: false`) */
+  labels_pending?: boolean
 }
 
 export interface FailedPage {

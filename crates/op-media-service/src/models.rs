@@ -481,10 +481,18 @@ pub struct PageQuery {
     /// Part of the name, any case
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub query: Option<String>,
+    /// Duplicates: the labels of the things not known yet are read from On Page
+    /// before the answer; without, the page answers at once with those it knows
+    #[serde(default = "yes")]
+    pub labels: bool,
 }
 
 fn default_limit() -> usize {
     50
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -494,6 +502,9 @@ pub struct DuplicatePage {
     /// Of all the groups: names whose files are one field of one item in different languages
     pub language_variants: u64,
     pub groups: Vec<DuplicateGroup>,
+    /// Some things of the page have labels not read yet (asked without `labels`)
+    #[serde(default)]
+    pub labels_pending: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

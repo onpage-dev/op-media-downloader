@@ -26,6 +26,7 @@ import {
   type DuplicateGroup,
   type FailedEntry,
   type FolderInfo,
+  type PageQuery,
   type ProjectId,
   type ProjectView,
   type TokenCheck,
@@ -376,12 +377,8 @@ async function loadTab(id: ProjectId, tab: InspectorTab, entering: boolean): Pro
     // hold the window), the next ones come back from the service as the end comes near
     const list: PagedList<FailedEntry | DuplicateGroup> | undefined = app[tab][id]
     if (entering && list?.items.length && !list.stale && !list.error) {
-      if (list.items.length > PAGE_SIZE || list.loading) {
-        // A page still on its way was asked for the longer list: dropped
-        list.version++
-        list.loading = false
-        list.items = markRaw(list.items.slice(0, PAGE_SIZE))
-      }
+      // A page still on its way for the longer list is dropped when it comes (loadPage)
+      if (list.items.length > PAGE_SIZE) list.items = markRaw(list.items.slice(0, PAGE_SIZE))
       return
     }
     await loadPage(tab, id, true)
@@ -410,20 +407,49 @@ async function loadPage(kind: PagedKind, id: ProjectId, reset: boolean): Promise
   list.loading = true
   list.error = false
   if (reset) list.stale = false
+  const query = { offset: reset ? 0 : list.items.length, limit: PAGE_SIZE, query: list.query || undefined }
+  let labels = false
   try {
-    const query = { offset: reset ? 0 : list.items.length, limit: PAGE_SIZE, query: list.query || undefined }
     const page =
-      kind == 'failed' ? await desktop().sync.getFailed(id, query) : await desktop().sync.getDuplicates(id, query)
-    if (version != list.version) return
+      kind == 'failed'
+        ? await desktop().sync.getFailed(id, query)
+        : // The rows at once, from what the computer has: the labels of the things follow from On Page
+          await desktop().sync.getDuplicates(id, { ...query, labels: false })
+    // A new search, or the list cut back to its first page (back on the tab) since it was asked
+    if (version != list.version || query.offset != (reset ? 0 : list.items.length)) return
     const items = 'groups' in page ? page.groups : page.entries
     list.items = markRaw(reset ? items : [...list.items, ...items])
     list.total = page.total
-    if ('language_variants' in page) list.language_variants = page.language_variants
+    if ('language_variants' in page) {
+      list.language_variants = page.language_variants
+      labels = !!page.labels_pending
+    }
   } catch (error) {
     logError(`load ${kind}`, error, 'warn')
     if (version == list.version) list.error = true
   } finally {
     if (version == list.version) list.loading = false
+  }
+  if (labels) void fillLabels(id, query, version)
+}
+
+/** The same page again with the labels of its things, in place of its rows drawn without them */
+async function fillLabels(id: ProjectId, query: PageQuery, version: number): Promise<void> {
+  try {
+    const page = await desktop().sync.getDuplicates(id, { ...query, labels: true })
+    const list = app.duplicates[id]
+    if (!list || version != list.version) return
+    const { offset } = query
+    const shown = list.items.slice(offset, offset + page.groups.length)
+    // Rows cut away since (back on the tab): their labels come with them when they are asked again
+    if (shown.length != page.groups.length || shown.some((group, n) => group.name != page.groups[n].name)) return
+    list.items = markRaw([
+      ...list.items.slice(0, offset),
+      ...page.groups,
+      ...list.items.slice(offset + page.groups.length),
+    ])
+  } catch (error) {
+    logError('load duplicate labels', error, 'warn')
   }
 }
 

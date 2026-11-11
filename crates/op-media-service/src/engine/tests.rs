@@ -235,7 +235,11 @@ async fn sync_download_sync_again_and_only_ours_removed() {
 
     // Activity and duplicates for the inspector
     assert!(h.service.activity("p1", None).iter().any(|a| a.outcome == ActivityOutcome::Removed));
-    let page = h.service.duplicates(h.project(&folder), PageQuery { offset: 0, limit: 50, query: None }).await.unwrap();
+    let page = h
+        .service
+        .duplicates(h.project(&folder), PageQuery { offset: 0, limit: 50, query: None, labels: true })
+        .await
+        .unwrap();
     assert_eq!((page.total, page.language_variants, page.groups.len()), (2, 0, 2));
     let chosen = &page.groups[0].variants[0];
     assert!(chosen.chosen);
@@ -245,7 +249,10 @@ async fn sync_download_sync_again_and_only_ours_removed() {
     assert!(chosen.uses[0].edit_url.ends_with("#/things/edit/1001/77/1/12"), "{}", chosen.uses[0].edit_url);
     let searched = h
         .service
-        .duplicates(h.project(&folder), PageQuery { offset: 0, limit: 50, query: Some("PRODOTTO-2".into()) })
+        .duplicates(
+            h.project(&folder),
+            PageQuery { offset: 0, limit: 50, query: Some("PRODOTTO-2".into()), labels: true },
+        )
         .await
         .unwrap();
     assert_eq!(searched.total, 1);
@@ -348,14 +355,14 @@ async fn failures_are_listed_and_retry_fixes_them() {
     });
     let result = h.run(|s| s.download(h.project(&folder))).await;
     assert_eq!((result.outcome, result.failed), (SyncOutcome::Completed, 2));
-    let failed = h.service.failed("p1", &PageQuery { offset: 0, limit: 50, query: None });
+    let failed = h.service.failed("p1", &PageQuery { offset: 0, limit: 50, query: None, labels: true });
     let reasons: HashSet<FailureCode> = failed.entries.iter().map(|e| e.reason).collect();
     assert_eq!(reasons, HashSet::from([FailureCode::HttpError, FailureCode::NotFound]));
     assert!(h.issue_codes().contains(&IssueCode::FailedFiles));
     h.fake.with(|state| state.storage.clear());
     let result = h.run(|s| s.retry_failed(h.project(&folder))).await;
     assert_eq!((result.outcome, result.failed, result.downloaded), (SyncOutcome::Completed, 0, 2));
-    assert_eq!(h.service.failed("p1", &PageQuery { offset: 0, limit: 50, query: None }).total, 0);
+    assert_eq!(h.service.failed("p1", &PageQuery { offset: 0, limit: 50, query: None, labels: true }).total, 0);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -585,7 +592,7 @@ async fn leftovers_are_cleared_and_foreign_names_are_conflicts() {
     assert!(list_dir(&folder.join(DATA_DIR)).iter().all(|n| !n.ends_with(".download")));
     assert_eq!(h.last_state().plan.unwrap().conflicts, 1);
     assert!(h.issue_codes().contains(&IssueCode::NameConflicts));
-    let failed = h.service.failed("p1", &PageQuery { offset: 0, limit: 50, query: None });
+    let failed = h.service.failed("p1", &PageQuery { offset: 0, limit: 50, query: None, labels: true });
     assert_eq!(failed.entries[0].reason, FailureCode::NameConflict);
 }
 
@@ -611,7 +618,7 @@ async fn large_project_duplicates_timings() {
     let started = std::time::Instant::now();
     let result = h.run(|s| s.sync(project.clone(), false)).await;
     eprintln!("sync: {:?} ({:?}, {} names)", started.elapsed(), result.outcome, result.total);
-    let page = PageQuery { offset: 0, limit: 50, query: None };
+    let page = PageQuery { offset: 0, limit: 50, query: None, labels: true };
     for round in ["first page, listing in memory", "same page again"] {
         let started = std::time::Instant::now();
         let resolved = h.service.engine.listings.resolved(&project.id, &project.token).await.unwrap();
@@ -639,7 +646,10 @@ async fn large_project_duplicates_timings() {
     eprintln!("after a restart, old cache: {:?}", started.elapsed());
     let started = std::time::Instant::now();
     h.service
-        .duplicates(project.clone(), PageQuery { offset: 0, limit: 50, query: Some("prodotto-61".into()) })
+        .duplicates(
+            project.clone(),
+            PageQuery { offset: 0, limit: 50, query: Some("prodotto-61".into()), labels: true },
+        )
         .await
         .unwrap();
     eprintln!("a search: {:?}", started.elapsed());
@@ -651,7 +661,7 @@ async fn duplicates_open_from_their_own_file_and_remember_labels() {
     let folder = h.folder("Doppi");
     let project = h.project(&folder);
     h.run(|s| s.sync(project.clone(), false)).await;
-    let page = PageQuery { offset: 0, limit: 50, query: None };
+    let page = PageQuery { offset: 0, limit: 50, query: None, labels: true };
     let api_hits = || h.fake.with(|state| state.hits.api);
     let label = |page: &DuplicatePage| page.groups[0].variants[0].uses[0].thing_label.clone();
 
@@ -662,11 +672,18 @@ async fn duplicates_open_from_their_own_file_and_remember_labels() {
     h.service.duplicates(project.clone(), page.clone()).await.unwrap();
     assert_eq!(api_hits(), hits, "the labels are remembered");
 
-    // A restart: the memory is gone, the small file answers; no schema from On Page, only the labels
+    // A restart: the memory is gone, the small file answers; no schema from On Page, only the labels.
+    // Asked without them, the page answers at once and says they are still to read
     h.service.engine.listings.forget(&project.id);
+    let quick = PageQuery { labels: false, ..page.clone() };
+    let first_draw = h.service.duplicates(project.clone(), quick.clone()).await.unwrap();
+    assert_eq!((first_draw.total, label(&first_draw), first_draw.labels_pending), (2, None, true));
+    assert_eq!(api_hits(), hits, "no On Page for the first draw");
     let again = h.service.duplicates(project.clone(), page.clone()).await.unwrap();
-    assert_eq!((again.total, label(&again).as_deref()), (2, Some("Prodotto 1")));
+    assert_eq!((again.total, label(&again).as_deref(), again.labels_pending), (2, Some("Prodotto 1"), false));
     assert_eq!(api_hits(), hits + 1);
+    let known = h.service.duplicates(project.clone(), quick).await.unwrap();
+    assert_eq!((label(&known).as_deref(), known.labels_pending), (Some("Prodotto 1"), false));
 
     // A cache written before that file existed: still answered, from the names and the schema
     h.service.engine.listings.writes_done(&project.id).await;
