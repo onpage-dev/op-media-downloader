@@ -17,18 +17,18 @@
 
 ![The main window: six projects, one of them downloading to a network folder](docs/screenshots/main.png)
 
-Give the app an On Page [API token](https://app.onpage.it/#/help/advanced-tools/api) and a folder. It downloads every file of the project's media fields, only what the token's View shows, and from then on each sync brings the folder back in line with On Page: new files arrive, renamed files get their new name, removed files go. Layout tools, websites, shared drives and colleagues always find the latest images and documents, under their On Page names.
+Give the app an On Page [API token](https://app.onpage.it/#/help/advanced-tools/api) and a folder. It downloads the files of the project's media fields (only what the token's View shows) and from then on each sync brings the folder back in line with On Page: new files arrive, renamed ones get their new name, removed ones go. Layout tools, websites, shared drives and colleagues always find the latest images and documents under their On Page names.
 
 ## Highlights
 
-- **Your files are safe.** The app removes only the files it created and never overwrites one it does not know. Large removals (a wrong token, a View that changed) wait for your confirmation, nothing goes after an incomplete read of On Page, and a folder belongs to one On Page project: a token of another stops before touching it.
-- **Fast, even with 200,000 files.** A native app, written in Rust. Only the first sync reads the whole project: the next ones read what changed on On Page since. The work runs beside the window, never in its way: projects with hundreds of thousands of files and tens of thousands of shared names stay responsive.
-- **Every project at a glance.** One window lists your projects with their state, progress, speed and time left, filtered by state or destination. Below, the inspector shows the live activity, the failed files (retried in one click), the names shared by several files and the project's settings.
-- **At home on network shares and external disks.** A full disk, a share that drops, an unplugged disk or a file open in another program stop the work cleanly, and the next sync goes on from there. A file gets its name only once it is complete and on the disk: a name never holds half a file.
-- **One download per file, one computer per folder.** A file used by many items is downloaded once and gets all its names as hard links, taking its space once. A lock in the folder keeps two computers from syncing it together, even when their clocks disagree.
-- **Network friendly.** The system proxy, timeouts, retries with backoff, On Page's rate limits respected, 1 to 10 parallel downloads and a Stop that really stops.
-- **Scriptable, and ready for AI agents.** `opmd` does from a terminal everything the window does, with the app open or closed, and on a server without it. AI agents such as Claude use the same operations through MCP, on this computer only. [More below](#from-the-terminal-and-from-ai-agents).
-- **A proper desktop app.** A panel in the notification area (the menu bar on macOS), notifications, progress on the taskbar or the Dock, start with Windows or macOS, keyboard shortcuts, a folder dropped on the window starts a new project. Light and dark theme, in Italian, English, German, Spanish, French, Russian, Swedish and Chinese.
+- **Your files are safe.** The app removes only what it created, never overwrites a file it does not know, and asks before large removals.
+- **Fast, even with 200,000 files.** Native, written in Rust: after the first sync only what changed on On Page is read, and the window never waits for the work.
+- **Every project at a glance.** State, progress, speed and time left for every project; live activity, failed files, duplicate names and settings for the selected one.
+- **At home on network shares and external disks.** A full disk, a share that drops, an unplugged disk or a file open in another program stop the work cleanly, and the next sync goes on from there. A name never holds half a file.
+- **One download per file, one computer per folder.** A file used by many items is downloaded once and linked under all its names; a lock keeps two computers from syncing a folder together.
+- **Network friendly.** The system proxy, retries with backoff, On Page's rate limits respected, 1 to 10 parallel downloads, a Stop that really stops.
+- **Scriptable, and ready for AI agents.** `opmd` does from a terminal everything the window does, with or without the app; AI agents use the same operations through [MCP](#from-the-terminal-and-from-ai-agents).
+- **A proper desktop app.** Notification area panel, notifications, taskbar and Dock progress, start at login, shortcuts, drag and drop. Light and dark, in eight languages.
 
 ## Screenshots
 
@@ -76,36 +76,33 @@ flowchart LR
     confirm -.-> folder
 ```
 
-1. **Sync** reads the project on On Page (after the first time, only what changed), looks at the folder and makes a plan: the files to download, the names to link or rename and the names to remove. When nothing needs downloading the plan is applied right away; otherwise the project waits under _To download_, with the number of files to download.
-2. **Download** carries out the plan: each file is downloaded once into `data/` (4 at a time, up to 10), then linked under all its names. **Stop** halts it at any moment; the next **Download** goes on from there.
-3. **Confirm** appears only when a sync would remove many files: more than 50, and more than a quarter of those the app created. You see the count before anything goes.
+1. **Sync** reads the project (after the first time, only what changed), looks at the folder and plans the files to download, the names to link or rename and those to remove. With nothing to download the plan is applied at once; otherwise the project waits under _To download_.
+2. **Download** carries it out: each file once into `data/` (4 at a time, up to 10), then linked under all its names. **Stop** halts it; the next **Download** goes on from there.
+3. **Confirm** appears only when a sync would remove more than 50 files and more than a quarter of those the app created. You see the count first.
 
-Syncs start when you ask: **Sync**, **Sync all**, the panel in the notification area, the macOS menu, `opmd` or an AI agent.
+Syncs start when you ask: **Sync**, **Sync all**, the notification area panel, the macOS menu, `opmd` or an AI agent.
 
 ## Install
 
-Download the installer for your system from the [latest release](https://github.com/onpage-dev/op-media-downloader/releases/latest).
+From the [latest release](https://github.com/onpage-dev/op-media-downloader/releases/latest):
 
-| System                   | File                                          | Notes                                                                                                                    |
-| ------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Windows** 10 and 11    | `op-media-downloader-<version>-x64-setup.exe` | Not code-signed yet: if SmartScreen says _Windows protected your PC_, choose **More info › Run anyway**.                 |
-| **macOS**, Apple silicon | `op-media-downloader-<version>-arm64.dmg`     | Signed and notarized: open it and drag the app to Applications.                                                          |
-| **macOS**, Intel         | `op-media-downloader-<version>-x64.dmg`       | As above.                                                                                                                |
-| **Linux**, x64           | `.AppImage` or `.deb`                         | AppImage: make it executable (`chmod +x`) and run it. Debian and Ubuntu: `sudo apt install ./op-media-downloader-*.deb`. |
+| System                   | File                                                                   | Notes                                                                                                   |
+| ------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Windows** 10 and 11    | `op-media-downloader-<version>-x64-setup.exe`                          | Not code-signed yet: if SmartScreen stops it, **More info › Run anyway**.                               |
+| **macOS**, Apple silicon | `op-media-downloader-<version>-arm64.dmg`                              | Signed and notarized: drag the app to Applications.                                                     |
+| **macOS**, Intel         | `op-media-downloader-<version>-x64.dmg`                                | As above.                                                                                               |
+| **Linux**, x64           | `.AppImage` or `.deb`                                                  | AppImage: `chmod +x` and run it. Debian and Ubuntu: `sudo apt install ./op-media-downloader-*.deb`.     |
+| **Servers**, without app | `opmd-<version>-linux-x86_64.tar.gz`, `opmd-<version>-windows-x64.zip` | The [command line](#from-the-terminal-and-from-ai-agents) alone. The installers above already carry it. |
 
-Every installer carries `opmd`, the command line ([below](#from-the-terminal-and-from-ai-agents)). For a server without the app, each release also has it alone: `opmd-<version>-linux-x86_64.tar.gz` and `opmd-<version>-windows-x64.zip`.
+Each release lists the SHA-256 checksums of its files in `SHA256SUMS.txt` and has a build provenance attestation: `gh attestation verify <file> --repo onpage-dev/op-media-downloader`.
 
-Every release lists the SHA-256 checksums of its files in `SHA256SUMS.txt` and carries a build provenance attestation, which [GitHub CLI](https://cli.github.com) checks with `gh attestation verify <file> --repo onpage-dev/op-media-downloader`.
-
-### Upgrading from 1.x
-
-On its first start 2.0 copies the projects, folders and settings of 1.x (its folder is left as it is) and keeps the API tokens in the system's credential store: Windows Credential Manager, the macOS Keychain, the Secret Service on Linux. Files already downloaded are reused: nothing is downloaded again. The 2.0 installer does not replace 1.x: once 2.0 has started and shows your projects, uninstall 1.x.
+**Upgrading from 1.x.** At its first start 2.0 copies the projects, folders and settings of 1.x (leaving its folder as it is), moves the API tokens to the system's credential store (Windows Credential Manager, macOS Keychain, Secret Service on Linux) and reuses the files already downloaded. The installer does not replace 1.x: uninstall it once 2.0 shows your projects.
 
 ## Getting started
 
-1. In On Page, create an [API token](https://app.onpage.it/#/help/advanced-tools/api) for the project. Its View decides which items, and so which files, the app sees.
-2. In the app, **New project** (<kbd>Ctrl</kbd>+<kbd>N</kbd>, <kbd>⌘</kbd><kbd>N</kbd> on macOS): paste the token, which is verified on the spot, then pick the folder, or drop it on the window. The app checks it: local, network or external disk, free space, hard link support, not a drive root, the user folder or a system folder, not where another project already downloads.
-3. **Sync** shows what will change; **Download** does it. From then on, sync whenever you want the folder up to date.
+1. In On Page, create an [API token](https://app.onpage.it/#/help/advanced-tools/api) for the project: its View decides which items, and so which files, the app sees.
+2. **New project** (<kbd>Ctrl</kbd>+<kbd>N</kbd>, <kbd>⌘</kbd><kbd>N</kbd> on macOS): paste the token (verified on the spot) and pick the folder, or drop it on the window. The app checks it: local, network or external disk, free space, hard links, not a drive root, the user folder, a system folder or another project's folder.
+3. **Sync** shows what will change; **Download** does it. Sync whenever you want the folder up to date.
 
 ## Your folder
 
@@ -121,67 +118,67 @@ Catalogo piante/
 └── scheda-tecnica.pdf
 ```
 
-- **Your own files can live there too.** The app never modifies, renames or deletes them, not even when you delete the project. A file that already has the name of one coming from On Page is never overwritten: the app takes it over only when it is clearly the same file, otherwise it reports a conflict and leaves it alone.
-- **Work on copies.** A file used under several names is one file on the disk: editing it changes it under every name, and inside `data/` too.
-- **Hard links save space.** A file used by ten items takes its space once. Disks formatted as FAT32 or exFAT and some network shares do not support them: there the app copies instead, every file takes twice the space, and the folder check and the project say so.
+- **Your own files can live there too.** The app never modifies, renames or deletes them, not even with the project. A file with the name of one coming from On Page is taken over only when it is clearly the same file; otherwise it is reported as a conflict and left alone.
+- **Work on copies.** A file used under several names is one file on the disk: editing it changes it everywhere, `data/` included.
+- **Hard links save space.** FAT32, exFAT and some network shares do not support them: there the app copies, each file takes twice the space, and the folder check says so.
 
 ## Good to know
 
 <details>
 <summary><b>A file is missing from the folder</b></summary>
 
-- **Two files with the same name.** When files on On Page share a name (upper and lower case count as the same), the first one is downloaded and the others are listed in the project's **Duplicates** tab, each with the items that use it and a link to edit them on On Page. Rename them on On Page to get them all. A name shared by many files (a catalog generated every day, say) shows its first 10, and **Show 100 more** brings the next ones; the names of the items arrive from On Page a moment after the rows.
-- **It failed.** The **Failed** tab lists the files that could not be downloaded and why; **Retry failed** tries them again. _Settings › Downloads › Retry failed files by itself_ does it once, a minute after a download, for the files that failed because of the network.
-- **Its name changed.** Names follow the Windows rules on every system, since network shares are often Windows-backed: characters such as `\ / : * ? " < > |` become `_`, trailing dots and spaces go, and very long names are shortened, keeping the extension.
+- **Two files with the same name** (upper and lower case count as the same): the first is downloaded, the others are listed in the **Duplicates** tab with the items that use them and links to edit those on On Page. Rename them there to get them all. A name with many files shows the first 10, then **Show 100 more**; the item names arrive from On Page just after.
+- **It failed.** The **Failed** tab says why; **Retry failed** tries again. _Settings › Downloads › Retry failed files by itself_ does it once, a minute after a download, for network failures.
+- **Its name changed.** Names follow the Windows rules on every system (network shares are often Windows-backed): `\ / : * ? " < > |` become `_`, trailing dots and spaces go, very long names are shortened keeping the extension.
 
 </details>
 
 <details>
 <summary><b>Why does the app ask before removing files?</b></summary>
 
-When a sync would remove more than 50 files and more than a quarter of the files the app created, it stops and waits for **Confirm**: a wrong token, a View that changed or a project read only in part must not empty your folder. The confirmation covers exactly the files you were shown. With _Keep old local files that are no longer on On Page_ on, in the project's settings, nothing is ever removed.
+A wrong token, a View that changed or a project read only in part must not empty your folder: past 50 files and a quarter of those the app created, a sync waits for **Confirm**, which covers exactly the files you were shown. With _Keep old local files that are no longer on On Page_ (in the project's settings) nothing is ever removed.
 
 </details>
 
 <details>
 <summary><b>"Some collections were not read"</b></summary>
 
-Part of the project could not be read from On Page, for instance because of the network. The new files of the rest are downloaded, but nothing is removed until a sync reads everything.
+Part of the project could not be read, for instance because of the network. The new files of the rest are downloaded, but nothing is removed until a sync reads everything.
 
 </details>
 
 <details>
 <summary><b>"Folder in use"</b></summary>
 
-Another computer is syncing the same folder, and only one at a time can. If that computer crashed or lost the network, its lock is taken over after a few minutes without news from it.
+Another computer is syncing the folder, and only one at a time can. If it crashed or lost the network, its lock is taken over after a few minutes without news from it.
 
 </details>
 
 <details>
 <summary><b>"Folder of another On Page project"</b></summary>
 
-A folder holds the files of one On Page project and remembers which one; two computers can share it as long as their tokens are of that project. When you choose the folder yourself for a token of another project (a new project on that folder, or another token or folder in the project's settings), the form says so and the folder follows the new project: the files the app downloaded for the old one leave at the next sync, with the usual confirmation if they are many, or stay with _Keep old local files that are no longer on On Page_. When the folder changed project any other way, for instance from another computer, the sync stops without touching anything: choose another folder, or **Use this folder** to switch it.
+A folder holds the files of one On Page project; computers whose tokens are of that project can share it. If you choose it for a token of another project (a new project, or another token or folder in the settings), the form says so and the folder follows: the old project's files leave at the next sync (with the usual confirmation if many) or stay with _Keep old local files that are no longer on On Page_. If it changed project any other way, for instance from another computer, the sync stops without touching it: choose another folder, or **Use this folder**.
 
 </details>
 
 <details>
 <summary><b>Deleting a project</b></summary>
 
-**Delete** removes the project from the app. With _Also delete the downloaded files_, the files the app created go too: anything else in the folder stays, and the folder itself goes only if it is left empty. A folder another On Page project took over since is left as it is.
+**Delete** removes it from the app. With _Also delete the downloaded files_ the files the app created go too; anything else stays, and the folder goes only if left empty (not if another On Page project took it over).
 
 </details>
 
 <details>
 <summary><b>Proxy and firewall</b></summary>
 
-The app uses the system's proxy (the settings of Windows and macOS, or the `HTTPS_PROXY` and `NO_PROXY` variables) and the certificates the system trusts; proxy auto-configuration scripts (PAC) are not read. It talks to On Page, for the API and the files, and to GitHub for the update check.
+The app uses the system's proxy (Windows and macOS settings, or `HTTPS_PROXY` and `NO_PROXY`; PAC scripts are not read) and the certificates the system trusts. It talks to On Page (API and files) and to GitHub (update check).
 
 </details>
 
 <details>
 <summary><b>Updates</b></summary>
 
-At start-up the app asks GitHub whether a newer version is out and says so in the status bar and in _Settings › Updates_. Download it from the [Releases](https://github.com/onpage-dev/op-media-downloader/releases) page: the app never installs anything by itself. _Check for updates_ turns the check off.
+At start-up the app asks GitHub for a newer version and says so in the status bar and in _Settings › Updates_; download it from [Releases](https://github.com/onpage-dev/op-media-downloader/releases), the app never installs anything by itself. _Check for updates_ turns the check off.
 
 </details>
 
@@ -194,7 +191,10 @@ At start-up the app asks GitHub whether a newer version is out and says so in th
 | macOS   | `~/Library/Application Support/com.onpage.mediadownloader` |
 | Linux   | `~/.local/share/com.onpage.mediadownloader`                |
 
-There you find the settings and the projects (`op-media-downloader-config.json`), the cache of the last listings (`cache/`), the logs for support (`logs/main.log` for the app, `logs/opmd.log` for the command line) and, while the app is open with _Settings › AI agents_ on, the address of its MCP server for `opmd` (`mcp.json`). The API tokens are in the system's credential store, one entry per project, never in the file (except on a Linux without a credential store).
+- `op-media-downloader-config.json`: settings and projects. The API tokens are in the system's credential store, not here (unless there is none).
+- `cache/`: the last listings, for fast syncs.
+- `logs/main.log` and `logs/opmd.log`: for support.
+- `mcp.json`: where the app's MCP server is, while it is open with _Settings › AI agents_ on.
 
 </details>
 
@@ -214,7 +214,7 @@ The arrow keys move through the projects and the tabs; <kbd>Esc</kbd> closes men
 
 ## From the terminal and from AI agents
 
-Everything the app does with its projects is also a command, `opmd`, and a tool for AI agents through MCP (the Model Context Protocol): adding and editing projects, **Sync**, **Download**, **Retry failed**, **Confirm**, the activity, the failed files, the duplicates, the folder and token checks, the settings.
+`opmd` does everything the window does with the projects: add and edit them, **Sync**, **Download**, **Retry failed**, **Confirm**, activity, failed files, duplicates, folder and token checks, settings.
 
 ```bash
 opmd list                                   # the projects and their state
@@ -223,23 +223,22 @@ opmd sync Catalogo                          # a project by its name or id
 opmd download Catalogo                      # follows the job to its end; Ctrl+C stops it cleanly
 opmd duplicates Catalogo --search nastri
 opmd settings concurrency=6
-opmd --help                                 # every command; --json prints the answers as JSON
+opmd --help                                 # every command; --json for scripts
 ```
 
-- **With the app open** on the same projects, `opmd` hands each command to it: what it starts shows in the window and goes on there.
-- **With the app closed**, `opmd` works on its own, on the same projects and tokens: the app finds the results when it opens. Both can run at once: the settings file and each folder's lock keep them apart.
-- **On a server**, where the app is not installed, `--data-dir DIR` (or `OPMD_DATA_DIR`) gives `opmd` projects of its own. Where the system has no credential store (a container, a server without a desktop), `OPMD_NO_KEYRING=1` keeps the tokens in `DIR`'s settings file, readable by its owner only. A scheduled `opmd sync --all` and `opmd download` keep the folders up to date.
-- Exit codes: `0` done, `1` failed, `3` done with failed files, `130` stopped with Ctrl+C.
+- **App open:** `opmd` hands each command to it, so the window shows the job.
+- **App closed:** `opmd` works on its own, on the same projects and tokens. Both can run at once: the settings file and each folder's lock keep them apart.
+- **Server without the app:** `--data-dir DIR` (or `OPMD_DATA_DIR`) gives it projects of its own; `OPMD_NO_KEYRING=1` keeps the tokens in that folder's settings file (owner-only) where there is no credential store. Schedule `opmd sync --all` and `opmd download`.
+- **Exit codes:** `0` done, `1` failed, `3` done with failed files, `130` stopped.
+- **Where it is:** on the PATH on Windows (set by the installer), in `/usr/bin` with the .deb, inside the app on macOS (_Settings › AI agents_ shows the one-time link to `/usr/local/bin`). From the sources: `cargo build --release -p opmd`.
 
-**AI agents.** While the app is open it serves MCP on this computer only, with a secret (_Settings › AI agents_, on by default): **Copy Claude Code setup** copies the command that adds it. Or let the agent start `opmd mcp`, which works with the app open or closed (**Copy setup with opmd** in the same place gives the command with its full path):
+**AI agents (MCP).** While the app is open it serves MCP on this computer only, with a secret (_Settings › AI agents_, on by default; **Copy Claude Code setup** gives the command). Or let the agent start `opmd mcp`, which works with the app open or closed (**Copy setup with opmd** gives it with the full path, for where `opmd` is not on the PATH):
 
 ```bash
 claude mcp add opmd -- opmd mcp
 ```
 
-The tools are the operations of the app (`list_projects`, `sync_project`, `wait_for_project`, `download_project`, `get_duplicates`, `update_settings`…); those that delete files (`remove_project` with its files, `confirm_cleanup`) are marked as such, so the agent asks first. Tokens go in (a new project, a new token) and never come out: `opmd token PROJECT` prints one at the terminal only.
-
-**Where it is.** `opmd` comes with the app. On Windows the installer puts it on your PATH (a new terminal finds it); with the .deb it is in `/usr/bin`; on macOS it is inside the app, and _Settings › AI agents_ shows the command that links it to `/usr/local/bin` once. For servers each release also has `opmd` alone: `opmd-X.Y.Z-linux-x86_64.tar.gz` and `opmd-X.Y.Z-windows-x64.zip`. From the sources: `cargo build --release -p opmd`.
+The tools are the app's operations (`list_projects`, `sync_project`, `wait_for_project`, `download_project`, `get_duplicates`, `update_settings`…). Those that delete files (`remove_project` with its files, `confirm_cleanup`) are marked, so the agent asks first. Tokens go in, never out: only `opmd token PROJECT` prints one, at the terminal.
 
 ## Development
 
