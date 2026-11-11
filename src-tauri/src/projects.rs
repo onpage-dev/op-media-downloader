@@ -199,7 +199,7 @@ impl ProjectService {
         };
         self.store.save_project(&project)?;
         self.configure_service(None);
-        self.changed();
+        self.changed_now();
         info!("Project {id} created");
         if input.sync_now {
             self.start_job(&id, JobKind::Sync, false, false)?;
@@ -276,7 +276,7 @@ impl ProjectService {
         }
         self.store.save_project(&next)?;
         self.configure_service(None);
-        self.changed();
+        self.changed_now();
         Ok(self.to_view(&next))
     }
 
@@ -298,7 +298,7 @@ impl ProjectService {
         }
         self.store.remove_project(id);
         self.configure_service(None);
-        self.changed();
+        self.changed_now();
         info!("Project {id} removed{}", if delete_files { ": deleting its files" } else { "" });
         let me = self.clone();
         let id = id.to_string();
@@ -356,7 +356,7 @@ impl ProjectService {
             runtime.phase = JobPhase::Stopping;
         }
         self.service.stop(id);
-        self.changed();
+        self.changed_now();
     }
 
     /// Stops every job and waits for the service to save its work
@@ -669,7 +669,7 @@ impl ProjectService {
         runtime.job = Some(job);
         runtime.issues.retain(|issue| issue.code != IssueCode::Interrupted);
         self.state.lock().runtimes.insert(project.id.clone(), runtime);
-        self.changed();
+        self.changed_now();
     }
 
     fn service_project(&self, project: &StoredProject) -> ServiceProject {
@@ -724,6 +724,16 @@ impl ProjectService {
                 return;
             }
         }
+    }
+
+    /// A change the user made (a click, a form): the page hears of it at once
+    fn changed_now(self: &Arc<Self>) {
+        self.changes.notify_waiters();
+        let me = self.clone();
+        tauri::async_runtime::spawn(async move {
+            *me.last_change.lock() = Some(Instant::now());
+            (me.notify)(ProjectsEvent::Changed(me.views()));
+        });
     }
 
     /// The page hears of a change at once when it heard of none in the last
