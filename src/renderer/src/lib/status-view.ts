@@ -71,6 +71,43 @@ export function fileCounts(project: ProjectView): [number, number | undefined] |
 }
 
 /**
+ * The tiles of the inspector: while a job runs its counters; else the last
+ * result, unless a later comparison with the folder (a «Sincronizza» that
+ * left files to download) knows better. A folder emptied by hand since the
+ * last run is what the plan says, never «already there» from that run
+ */
+export function inspectorCounts(project: ProjectView): {
+  downloaded: number
+  present: number
+  failed: number
+  total: number | undefined
+} {
+  const { progress, plan, last_result, issues } = project.runtime
+  if (progress && progress.total > 0) {
+    return {
+      downloaded: progress.downloaded,
+      present: progress.already_present,
+      failed: progress.failed,
+      total: progress.total,
+    }
+  }
+  if (plan && (!last_result || plan.created_at > last_result.ended_at)) {
+    return {
+      downloaded: 0,
+      present: plan.up_to_date,
+      failed: issues.find(i => i.code == 'failed_files')?.count ?? 0,
+      total: plan.remote_names,
+    }
+  }
+  return {
+    downloaded: last_result?.downloaded ?? 0,
+    present: last_result?.already_present ?? 0,
+    failed: last_result?.failed ?? 0,
+    total: last_result?.total ?? plan?.remote_names,
+  }
+}
+
+/**
  * The tone's classes, the one source for every part of the app: a mark (icon,
  * dot) or the words of a warning (`TONE_FG`), a fill (`TONE_SOFT`), a dot
  * (`TONE_DOT`), a toast's border (`TONE_LINE`); the icon of a notice

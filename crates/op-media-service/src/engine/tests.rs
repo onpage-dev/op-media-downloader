@@ -831,3 +831,28 @@ async fn an_update_lists_now_and_marks_the_folder_synced() {
     assert!(h.issue_codes().contains(&IssueCode::ListingIncomplete));
     assert_eq!(read(&data).await.unwrap(), updated);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_folder_deleted_by_hand_is_downloaded_again() {
+    let h = Harness::new(10, 0).await;
+    let folder = h.folder("Catalogo");
+    let names = h.remote_names();
+    h.run(|s| s.sync(h.project(&folder), false)).await;
+    let result = h.run(|s| s.download(h.project(&folder))).await;
+    assert_eq!(result.downloaded, names.len() as u64);
+
+    // The user deletes the whole folder, data/ and manifest included
+    std::fs::remove_dir_all(&folder).unwrap();
+    let result = h.run(|s| s.sync(h.project(&folder), false)).await;
+    eprintln!("SYNC after delete: {result:?}");
+    eprintln!("PLAN: {:?}", h.last_state().plan);
+    assert_eq!(result.already_present, 0, "{result:?}");
+    assert_eq!(h.last_state().plan.unwrap().to_download_names, names.len() as u64);
+
+    let result = h.run(|s| s.download(h.project(&folder))).await;
+    eprintln!("DOWNLOAD after delete: {result:?}");
+    assert_eq!((result.outcome, result.already_present), (SyncOutcome::Completed, 0), "{result:?}");
+    for name in names.keys() {
+        assert!(folder.join(name).is_file(), "{name}");
+    }
+}
