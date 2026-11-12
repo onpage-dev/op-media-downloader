@@ -1,9 +1,10 @@
 name: Release
 
 # Push a tag `vX.Y.Z` (the version of package.json and of the Cargo workspace):
-# the installers are built, attached to a draft release with their checksums
-# and provenance, and the release is published last, so the in-app update
-# check never points at a release without installers. A version with a hyphen
+# the installers are built and attached to a draft release with their checksums
+# and provenance, its notes the version's section of CHANGELOG.md. A maintainer
+# checks the installers and publishes it from GitHub's Releases page: the
+# in-app update check never sees a draft. A version with a hyphen
 # (3.1.0-beta.1) becomes a prerelease, which the update check skips. The builds
 # restore no dependency cache: a cache saved by another run must never end up
 # in an installer.
@@ -233,6 +234,13 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      # The notes only: CHANGELOG.md
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: assets
@@ -246,13 +254,16 @@ jobs:
         with:
           subject-path: 'assets/*'
 
-      - name: Draft release with the installers, then publish it
+      # A draft: a maintainer publishes it once the installers are checked
+      - name: Draft release with the installers
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          version="${TAG#v}"
           prerelease=false
           case "$TAG" in *-*) prerelease=true ;; esac
-          gh release create "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes \
+          awk -v heading="## $version" '$0 == heading { on = 1; next } on && /^## / { exit } on' CHANGELOG.md > notes.md
+          if [ -s notes.md ]; then notes=(--notes-file notes.md); else notes=(--generate-notes); fi
+          gh release create "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --title "$version" "${notes[@]}" \
             --draft --prerelease="$prerelease"
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
