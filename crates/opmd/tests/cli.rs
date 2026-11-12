@@ -367,3 +367,159 @@ async fn a_server_keeps_every_project_up_to_date_round_after_round() {
     assert!(file.contains("Round 2 done") && file.contains("needs attention"));
     fake.close();
 }
+
+/// One request as On Page (or a person checking the address) makes it: the status code
+async fn request(address: &str, method: &str, path: &str, body: &str) -> u16 {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let mut stream = tokio::net::TcpStream::connect(address).await.unwrap();
+    stream.write_all(request.as_bytes()).await.unwrap();
+    let mut answer = String::new();
+    let _ = stream.read_to_string(&mut answer).await;
+    answer.split_whitespace().nth(1).and_then(|code| code.parse().ok()).unwrap_or(0)
+}
+
+/// `opmd run --listen`: On Page's calls bring the projects of their On Page
+/// project up to date, a burst of calls in one sync; a call for another On
+/// Page project asks On Page nothing; a wrong secret is not even a path
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn on_page_calls_bring_its_projects_up_to_date() {
+    use std::collections::BTreeMap;
+
+    use op_media_service::testing::{FakeFile, FakeValue, token};
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
+    let fake = FakeOnPage::start(sample_project(6, 0, "hook"), "hook-token", 0).await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("data");
+    let opmd = Opmd { data: &data, fake: &fake };
+    let folders = [dir.path().join("Uno"), dir.path().join("Due")];
+    for (label, folder) in ["Uno", "Due"].iter().zip(&folders) {
+        opmd.ok(&["add", "--label", label, "--folder", &folder.display().to_string(), "--token-env", "TEST_TOKEN"])
+            .await;
+    }
+
+    // What to give On Page: the URL, and the collections to observe with their file fields
+    let hook = opmd.json(&["webhook", "--public-url", "https://media.example.com/"]).await;
+    let old_path = hook["path"].as_str().unwrap().to_string();
+    assert_eq!(old_path.len(), "/onpage/".len() + 64, "{hook}");
+    assert_eq!(hook["url"], format!("https://media.example.com{old_path}"));
+    let onpage = hook["onpage_projects"].as_array().unwrap();
+    assert_eq!(onpage.len(), 1, "{hook}");
+    assert_eq!(onpage[0]["id"], 77);
+    assert_eq!(onpage[0]["for"], serde_json::json!(["Uno", "Due"]));
+    let human = opmd.ok(&["webhook"]).await;
+    assert!(human.contains(&format!("<this server's public address>{old_path}")), "{human}");
+    assert!(
+        human.contains("Prodotti: Foto principale, Galleria") && human.contains("Schede tecniche: Scheda PDF"),
+        "{human}"
+    );
+    // An address without HTTPS: the secret would travel in the clear
+    let plain = opmd.run(&["webhook", "--public-url", "http://media.example.com"]).await;
+    assert!(String::from_utf8_lossy(&plain.stderr).contains("not HTTPS"));
+    // A new secret: the old URL stops working
+    let path = opmd.json(&["webhook", "--new-secret"]).await["path"].as_str().unwrap().to_string();
+    assert_ne!(path, old_path);
+
+    let mut server = tokio::process::Command::new(env!("CARGO_BIN_EXE_opmd"))
+        .args(["run", "--listen", "127.0.0.1:0", "--settle", "1s"])
+        .env("OPMD_DATA_DIR", &data)
+        .env("OPMD_NO_KEYRING", "1")
+        .env("OPMD_API_DOMAIN", &fake.url)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    let mut lines = BufReader::new(server.stdout.take().unwrap()).lines();
+    let mut seen: Vec<String> = Vec::new();
+    let mut until = async |what: &str, seen: &mut Vec<String>| -> String {
+        tokio::time::timeout(std::time::Duration::from_secs(60), async {
+            while let Some(line) = lines.next_line().await.unwrap() {
+                seen.push(line.clone());
+                if line.contains(what) {
+                    return line;
+                }
+            }
+            panic!("opmd run ended before «{what}»: {seen:#?}");
+        })
+        .await
+        .unwrap_or_else(|_| panic!("no «{what}»: {seen:#?}"))
+    };
+
+    let listening = until("Listening for On Page's calls on http://", &mut seen).await;
+    let address = listening.split("http://").nth(1).unwrap().split('/').next().unwrap().to_string();
+    // The rounds are the safety net: one a day
+    assert!(until("Keeping every project up to date", &mut seen).await.contains("every 1d and when On Page calls"));
+    until("Round 1 done", &mut seen).await;
+    for folder in &folders {
+        assert!(folder.join("prodotto-3.jpg").exists());
+    }
+
+    // Only the secret's path answers; a person can check it in a browser
+    assert_eq!(request(&address, "GET", &path, "").await, 200);
+    assert_eq!(request(&address, "POST", &old_path, "{}").await, 404);
+    assert_eq!(request(&address, "POST", "/onpage/", "{}").await, 404);
+    assert_eq!(request(&address, "GET", "/", "").await, 404);
+    assert_eq!(request(&address, "PUT", &path, "{}").await, 405);
+
+    // A product leaves On Page and a new one comes; On Page calls three times in a row
+    fake.with(|state| {
+        state.project.things.retain(|thing| thing.id != 1003);
+        let mut new = state.project.things[0].clone();
+        new.id = 1099;
+        new.label = Some("Nuovo".into());
+        let photo =
+            FakeFile { token: token("hook-new"), name: "nuovo.jpg".into(), size: Some(1234), ..FakeFile::default() };
+        new.files = BTreeMap::from([("foto".to_string(), FakeValue::Files(vec![photo]))]);
+        state.project.things.push(new);
+    });
+    let call = r#"{"observer_id": 5, "schema_id": 77, "resource_id": 1, "updates": {"creations": [1099], "edits": [1099], "deletions": [1003]}}"#;
+    for _ in 0..3 {
+        assert_eq!(request(&address, "POST", &path, call).await, 202);
+    }
+    until("Done in", &mut seen).await;
+    let log = seen.join("\n");
+    assert!(log.contains("On Page called: On Page project 77, collection 1: 1 created, 1 deleted"), "{log}");
+    assert_eq!(log.matches("Syncing what changed on On Page: Uno, Due").count(), 1, "one sync for the burst: {log}");
+    for folder in &folders {
+        assert!(folder.join("nuovo.jpg").exists(), "{log}");
+        assert!(!folder.join("prodotto-3.jpg").exists(), "{log}");
+    }
+
+    // Another On Page project's call: On Page is not even asked
+    let asked = fake.state.lock().hits.api;
+    assert_eq!(request(&address, "POST", &path, r#"{"schema_id": 999}"#).await, 202);
+    until("No project here downloads On Page project 999", &mut seen).await;
+    assert_eq!(fake.state.lock().hits.api, asked);
+
+    // A body that is not as documented still rings, for every project
+    assert_eq!(request(&address, "POST", &path, "not json").await, 202);
+    until("Syncing what changed on On Page: Uno, Due", &mut seen).await;
+    until("Done in", &mut seen).await;
+
+    // A flood of calls for thousands of On Page projects (whoever got the secret): one sync, a
+    // log that does not drown
+    let from = seen.len();
+    for schema in 0..200 {
+        let body = format!(r#"{{"schema_id": {}, "updates": {{"edits": [1]}}}}"#, 10_000 + schema);
+        assert_eq!(request(&address, "POST", &path, &body).await, 202);
+    }
+    until("Done in", &mut seen).await;
+    let flood = seen[from..].join("\n");
+    assert_eq!(flood.matches("Syncing what changed on On Page: Uno, Due").count(), 1, "{flood}");
+    assert!(flood.matches("On Page called").count() <= 20, "{flood}");
+    assert!(flood.contains("more calls came, not written one by one"), "{flood}");
+
+    server.start_kill().unwrap();
+    let _ = server.wait().await;
+    // The secret is in no log
+    let secret = path.trim_start_matches("/onpage/");
+    let file = std::fs::read_to_string(data.join("logs").join("opmd.log")).unwrap();
+    assert!(file.contains("Syncing what changed") && !file.contains(secret));
+    assert!(!seen.join("\n").contains(secret));
+    fake.close();
+}

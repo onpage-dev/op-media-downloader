@@ -70,12 +70,7 @@ impl Backend {
             default_language: op_media_projects::models::system_language(&preferred),
             // OPMD_NO_KEYRING: the tokens in the settings file (a container, a NAS without a credential store)
             keyring_service: keyring_service(),
-            // Development builds only, as the app: a fake On Page server
-            api_domain: if cfg!(debug_assertions) {
-                std::env::var("OPMD_API_DOMAIN").ok().filter(|d| !d.is_empty())
-            } else {
-                None
-            },
+            api_domain: api_domain(),
             runtime: tokio::runtime::Handle::current(),
             notify: Box::new(|_| {}),
         })?;
@@ -122,6 +117,11 @@ impl Backend {
     pub fn reveal_token(&self, reference: &str) -> Result<String, String> {
         op_media_projects::read_token(&self.paths, keyring_service(), reference)
     }
+}
+
+/// Development builds only, as the app: a fake On Page server
+pub fn api_domain() -> Option<String> {
+    if cfg!(debug_assertions) { std::env::var("OPMD_API_DOMAIN").ok().filter(|d| !d.is_empty()) } else { None }
 }
 
 fn keyring_service() -> Option<String> {

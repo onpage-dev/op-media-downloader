@@ -15,9 +15,11 @@ mod render;
 mod serve;
 mod stop;
 mod user_path;
+mod webhook;
 
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -195,15 +197,33 @@ enum Command {
     /// MCP server on stdin/stdout for AI agents (e.g. claude mcp add opmd -- opmd mcp): the same
     /// operations, run in the app when it is open, else here
     Mcp,
-    /// Keeps every project up to date, a round every --every, until Ctrl+C or a stop of the
-    /// service (systemd, docker stop): for a server
+    /// Keeps every project up to date, a round every --every (and when On Page calls, with
+    /// --listen), until Ctrl+C or a stop of the service (systemd, docker stop): for a server
     Run {
-        /// How often: 30m, 2h, 1d… (at least 1m)
-        #[arg(long, default_value = "30m", value_parser = serve::parse_every, value_name = "INTERVAL")]
-        every: Duration,
+        /// How often every project is brought up to date: 1h, 6h, 1d… (at least 15m: each round
+        /// asks On Page; by default 1h, 1d with --listen)
+        #[arg(long, value_parser = serve::parse_every, value_name = "INTERVAL")]
+        every: Option<Duration>,
+        /// Also listen for On Page's webhooks, to sync a project as soon as its files change: a
+        /// port (this computer only, behind a proxy) or ADDRESS:PORT, e.g. 0.0.0.0:47822 for every
+        /// interface (opmd webhook)
+        #[arg(long, value_parser = serve::parse_listen, value_name = "[ADDRESS:]PORT")]
+        listen: Option<SocketAddr>,
+        /// How long On Page's calls must stop before the sync: a burst of edits makes one
+        #[arg(long, hide = true, default_value = "30s", value_parser = serve::parse_duration)]
+        settle: Duration,
         /// Stop after this many rounds
         #[arg(long, hide = true)]
         rounds: Option<u32>,
+    },
+    /// The URL to give On Page's webhooks (opmd run --listen) and the collections to observe
+    Webhook {
+        /// This server's address as On Page reaches it, e.g. https://media.example.com: the whole URL
+        #[arg(long, value_name = "URL")]
+        public_url: Option<String>,
+        /// A new secret: the old URL stops working (give On Page the new one)
+        #[arg(long)]
+        new_secret: bool,
     },
     /// The Windows installer: puts opmd's folder on the user's PATH, or takes it off
     #[command(hide = true)]
@@ -279,7 +299,15 @@ async fn run(cli: Cli, paths: AppPaths) -> i32 {
                 Err(error) => fail(&error),
             };
         }
-        Command::Run { every, rounds } => return serve::serve(&backend, &paths.data, *every, *rounds).await,
+        Command::Run { every, listen, settle, rounds } => {
+            // With the webhooks the rounds are a safety net for the calls that never came
+            let every = every.unwrap_or(Duration::from_secs(if listen.is_some() { 86_400 } else { 3600 }));
+            let listen = listen.map(|address| serve::Listen { address, quiet: *settle });
+            return serve::serve(&backend, &paths.data, every, *rounds, listen).await;
+        }
+        Command::Webhook { public_url, new_secret } => {
+            return webhook_command(&cli, &paths, &backend, public_url.as_deref(), *new_secret).await;
+        }
         _ => {}
     }
     match execute(&cli, &backend).await {
@@ -371,7 +399,7 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
         }
         Command::Download { project, all, wait } => {
             if *all {
-                let (ends, interrupted) = update_all(backend, wait).await?;
+                let (ends, interrupted) = update_projects(backend, None, wait).await?;
                 if cli.json {
                     let views: Vec<&Value> = ends.iter().map(|(end, _)| end).collect();
                     println!("{}", serde_json::to_string_pretty(&views).unwrap_or_default());
@@ -467,7 +495,9 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
             print(&settings, &render::settings);
         }
         Command::Status => print(&backend.call("get_status", json!({})).await?, &render::status),
-        Command::Info | Command::Mcp | Command::Run { .. } | Command::Path { .. } => unreachable!("answered before"),
+        Command::Info | Command::Mcp | Command::Run { .. } | Command::Webhook { .. } | Command::Path { .. } => {
+            unreachable!("answered before")
+        }
     }
     Ok(OK)
 }
@@ -509,17 +539,25 @@ async fn job(
     Ok(exit_code(&end, ended, interrupted))
 }
 
-/// Every project brought up to date and followed to the end: a «Sincronizza»
-/// (what changed on On Page: a «Scarica» alone would reuse a listing of the
-/// last 30 minutes, which a long-running process or the app may hold), then a
-/// «Scarica» where files are missing. Each project as it ended, and whether
-/// its jobs left a result; whether the user or the system stopped them
-async fn update_all(backend: &Backend, wait: &WaitArgs) -> Result<(Vec<(Value, bool)>, bool), String> {
+/// Every project (or `only` these) brought up to date and followed to the
+/// end: a «Sincronizza» (what changed on On Page: a «Scarica» alone would
+/// reuse a listing of the last 30 minutes, which a long-running process or the
+/// app may hold), then a «Scarica» where files are missing. Each project as it
+/// ended, and whether its jobs left a result; whether the user or the system
+/// stopped them
+async fn update_projects(
+    backend: &Backend,
+    only: Option<&[String]>,
+    wait: &WaitArgs,
+) -> Result<(Vec<(Value, bool)>, bool), String> {
     let projects = backend.call("list_projects", json!({})).await?;
     let mut ids = Vec::new();
     let mut before: HashMap<String, Value> = HashMap::new();
     for project in projects.as_array().into_iter().flatten() {
         let Some(id) = project["id"].as_str() else { continue };
+        if only.is_some_and(|only| !only.iter().any(|chosen| chosen == id)) {
+            continue;
+        }
         before.insert(id.to_string(), project["runtime"]["last_result"]["ended_at"].clone());
         ids.push(id.to_string());
     }
@@ -738,6 +776,115 @@ fn confirm(yes: bool, question: &str) -> Result<(), String> {
 /// Folders as absolute paths: the projects keep them so
 fn absolute(path: &std::path::Path) -> String {
     std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf()).display().to_string()
+}
+
+/// `opmd webhook`: the URL to give On Page, and per On Page project the
+/// collections with files and their fields, which the observers watch
+async fn webhook_command(cli: &Cli, paths: &AppPaths, backend: &Backend, public_url: Option<&str>, renew: bool) -> i32 {
+    let secret = match webhook::secret(&paths.data, renew) {
+        Ok(secret) => secret,
+        Err(error) => {
+            eprintln!("opmd: {error}");
+            return FAILED;
+        }
+    };
+    let path = format!("{}{secret}", webhook::PREFIX);
+    let url = public_url.map(|base| format!("{}{path}", base.trim().trim_end_matches('/')));
+    if public_url.is_some_and(|base| !base.trim().to_lowercase().starts_with("https://")) {
+        eprintln!("opmd: warning: the address is not HTTPS: the secret would travel in the clear (put HTTPS in front)");
+    }
+    let projects = match backend.call("list_projects", json!({})).await {
+        Ok(projects) => projects,
+        Err(error) => {
+            eprintln!("opmd: {}", error_message(&error));
+            return FAILED;
+        }
+    };
+    // Each On Page project once, read with the token of its first project
+    let mut groups: Vec<(Option<i64>, Vec<&Value>)> = Vec::new();
+    for project in projects.as_array().into_iter().flatten() {
+        let onpage = project["onpage_project"]["id"].as_i64();
+        match groups.iter_mut().find(|(id, _)| onpage.is_some() && *id == onpage) {
+            Some((_, members)) => members.push(project),
+            None => groups.push((onpage, vec![project])),
+        }
+    }
+    let domain = backend::api_domain().unwrap_or_else(|| op_media_service::onpage::DEFAULT_DOMAIN.to_string());
+    let mut onpage_projects = Vec::new();
+    for (_, members) in &groups {
+        let labels: Vec<&str> = members.iter().filter_map(|project| project["label"].as_str()).collect();
+        let first = members[0]["id"].as_str().unwrap_or("");
+        let read = match backend.reveal_token(first) {
+            Ok(token) => webhook::collections(&token, &domain).await,
+            Err(error) => Err(error),
+        };
+        match read {
+            // Projects never synced say their On Page project only now
+            Ok(onpage) => match onpage_projects.iter_mut().find(|known: &&mut Value| known["id"] == onpage["id"]) {
+                Some(known) => {
+                    if let Some(names) = known["for"].as_array_mut() {
+                        names.extend(labels.iter().map(|label| json!(label)));
+                    }
+                }
+                None => {
+                    let mut onpage = onpage;
+                    onpage["for"] = json!(labels);
+                    onpage_projects.push(onpage);
+                }
+            },
+            Err(error) => onpage_projects.push(json!({ "for": labels, "error": error })),
+        }
+    }
+    let answer = json!({ "path": path, "url": url, "onpage_projects": onpage_projects });
+    if cli.json {
+        println!("{}", serde_json::to_string_pretty(&answer).unwrap_or_default());
+        return OK;
+    }
+    match &url {
+        Some(url) => println!("The URL for On Page: {url}"),
+        None => println!("The URL for On Page: <this server's public address>{path}"),
+    }
+    println!(
+        "Keep it private: whoever has it can make opmd sync, nothing more (opmd webhook --new-secret changes it)."
+    );
+    println!(
+        "opmd run --listen answers at it; On Page calls public HTTPS addresses only (a reverse proxy or a tunnel)."
+    );
+    if onpage_projects.is_empty() {
+        println!(
+            "\nNo projects yet: add one with opmd add, then run opmd webhook again for the collections to observe."
+        );
+        return OK;
+    }
+    println!(
+        "\nIn On Page, Connections → Create connection → Webhook, for each collection below: an observer on\n\
+         creation, update and deletion with only the fields listed, then Add webhook with the URL (a debounce\n\
+         of 60 seconds turns a burst of edits into one call)."
+    );
+    for onpage in &onpage_projects {
+        let names = onpage["for"].as_array().into_iter().flatten().filter_map(Value::as_str).collect::<Vec<_>>();
+        println!();
+        if let Some(error) = onpage["error"].as_str() {
+            println!("{}: the collections could not be read ({})", names.join(", "), error_message(error));
+            continue;
+        }
+        println!(
+            "{} (On Page project {}), for {}:",
+            onpage["label"].as_str().unwrap_or(""),
+            onpage["id"],
+            names.join(", ")
+        );
+        let collections = onpage["collections"].as_array().into_iter().flatten().collect::<Vec<_>>();
+        if collections.is_empty() {
+            println!("  no collection with files");
+        }
+        for collection in collections {
+            let fields: Vec<&str> =
+                collection["fields"].as_array().into_iter().flatten().filter_map(|f| f["label"].as_str()).collect();
+            println!("  {}: {}", collection["label"].as_str().unwrap_or(""), fields.join(", "));
+        }
+    }
+    OK
 }
 
 async fn info(cli: &Cli, paths: &AppPaths, backend: &Backend) -> i32 {

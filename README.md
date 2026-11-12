@@ -27,7 +27,7 @@ Give the app an On Page [API token](https://app.onpage.it/#/help/advanced-tools/
 - **At home on network shares and external disks.** A full disk, a share that drops, an unplugged disk or a file open in another program stop the work cleanly, and the next sync goes on from there. A name never holds half a file.
 - **One download per file, one computer per folder.** A file used by many items is downloaded once and linked under all its names; a lock keeps two computers from syncing a folder together.
 - **Network friendly.** The system proxy, retries with backoff, On Page's rate limits respected, 1 to 10 parallel downloads, a Stop that really stops.
-- **Scriptable, and ready for AI agents.** `opmd` does from a terminal everything the window does, with or without the app; AI agents use the same operations through [MCP](#from-the-terminal-and-from-ai-agents).
+- **Scriptable, for servers and AI agents.** `opmd` does from a terminal everything the window does, with or without the app, keeps a [server's folders](#on-a-server) up to date on its own, and gives AI agents the same operations through [MCP](#ai-agents-mcp).
 - **A proper desktop app.** Notification area panel, notifications, taskbar and Dock progress, start at login, shortcuts, drag and drop. Light and dark, in eight languages.
 
 ## Screenshots
@@ -80,19 +80,19 @@ flowchart LR
 2. **Download** carries it out: each file once into `data/` (4 at a time, up to 10), then linked under all its names. **Stop** halts it; the next **Download** goes on from there.
 3. **Confirm** appears only when a sync would remove more than 50 files and more than a quarter of those the app created. You see the count first.
 
-Syncs start when you ask: **Sync**, **Sync all**, the notification area panel, the macOS menu, `opmd` or an AI agent.
+Syncs start when you ask (**Sync**, **Sync all**, the notification area panel, the macOS menu, `opmd` or an AI agent) or, on a server, on their own ([`opmd run`](#on-a-server)).
 
 ## Install
 
 From the [latest release](https://github.com/onpage-dev/op-media-downloader/releases/latest):
 
-| System                   | File                                                                   | Notes                                                                                                   |
-| ------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Windows** 10 and 11    | `op-media-downloader-<version>-x64-setup.exe`                          | Not code-signed yet: if SmartScreen stops it, **More info › Run anyway**.                               |
-| **macOS**, Apple silicon | `op-media-downloader-<version>-arm64.dmg`                              | Signed and notarized: drag the app to Applications.                                                     |
-| **macOS**, Intel         | `op-media-downloader-<version>-x64.dmg`                                | As above.                                                                                               |
-| **Linux**, x64           | `.AppImage` or `.deb`                                                  | AppImage: `chmod +x` and run it. Debian and Ubuntu: `sudo apt install ./op-media-downloader-*.deb`.     |
-| **Servers**, without app | `opmd-<version>-linux-x86_64.tar.gz`, `opmd-<version>-windows-x64.zip` | The [command line](#from-the-terminal-and-from-ai-agents) alone. The installers above already carry it. |
+| System                   | File                                                                   | Notes                                                                                               |
+| ------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Windows** 10 and 11    | `op-media-downloader-<version>-x64-setup.exe`                          | Not code-signed yet: if SmartScreen stops it, **More info › Run anyway**.                           |
+| **macOS**, Apple silicon | `op-media-downloader-<version>-arm64.dmg`                              | Signed and notarized: drag the app to Applications.                                                 |
+| **macOS**, Intel         | `op-media-downloader-<version>-x64.dmg`                                | As above.                                                                                           |
+| **Linux**, x64           | `.AppImage` or `.deb`                                                  | AppImage: `chmod +x` and run it. Debian and Ubuntu: `sudo apt install ./op-media-downloader-*.deb`. |
+| **Servers**, without app | `opmd-<version>-linux-x86_64.tar.gz`, `opmd-<version>-windows-x64.zip` | The [command line](#on-a-server) alone. The installers above already carry it.                      |
 
 Each release lists the SHA-256 checksums of its files in `SHA256SUMS.txt` and has a build provenance attestation: `gh attestation verify <file> --repo onpage-dev/op-media-downloader`.
 
@@ -195,6 +195,7 @@ At start-up the app asks GitHub for a newer version and says so in the status ba
 - `cache/`: the last listings, for fast syncs.
 - `logs/main.log` and `logs/opmd.log`: for support.
 - `mcp.json`: where the app's MCP server is, while it is open with _Settings › AI agents_ on.
+- `opmd-webhook.json`: the secret of the [webhooks' URL](#on-pages-webhooks), once `opmd webhook` or `opmd run --listen` made it (owner-only).
 
 </details>
 
@@ -212,7 +213,9 @@ At start-up the app asks GitHub for a newer version and says so in the status ba
 
 The arrow keys move through the projects and the tabs; <kbd>Esc</kbd> closes menus and dialogs.
 
-## From the terminal and from AI agents
+## Command line, servers and AI agents
+
+### The command line
 
 `opmd` does everything the window does with the projects: add and edit them, **Sync**, **Download**, **Retry failed**, **Confirm**, activity, failed files, duplicates, folder and token checks, settings.
 
@@ -228,13 +231,17 @@ opmd --help                                 # every command; --json for scripts
 
 - **App open:** `opmd` hands each command to it, so the window shows the job.
 - **App closed:** `opmd` works on its own, on the same projects and tokens. Both can run at once: the settings file and each folder's lock keep them apart.
-- **Server without the app:** `--data-dir DIR` (or `OPMD_DATA_DIR`) gives it projects of its own; `OPMD_NO_KEYRING=1` keeps the tokens in that folder's settings file (owner-only) where there is no credential store. `opmd download --all` brings every project up to date once (for cron); `opmd run --every 30m` keeps doing it, a round at a time, until it is stopped ([below](#a-server-that-keeps-folders-up-to-date)).
 - **Exit codes:** `0` done, `1` failed, `3` done with failed files, `130` stopped.
 - **Where it is:** on the PATH on Windows (set by the installer), in `/usr/bin` with the .deb, inside the app on macOS (_Settings › AI agents_ shows the one-time link to `/usr/local/bin`). From the sources: `cargo build --release -p opmd`.
 
-#### A server that keeps folders up to date
+### On a server
 
-`opmd run --every 30m` (at least `1m`) brings every project up to date at each round: what changed on On Page is read, what is missing is downloaded, renames and removals within the safety limit are applied, failed files are tried again. One line per project and round goes to the output and to `logs/opmd.log`. A round that fails (On Page out of reach, a folder that does not answer) only writes a `WARNING`: the next one tries again. Large removals still wait for a person: the log says which command confirms them (`opmd cleanup PROJECT --yes`). Ctrl+C, `systemctl stop` or `docker stop` (SIGTERM) end the running jobs cleanly. Only one `opmd run` works on a data folder.
+Without the app, `opmd` keeps projects of its own: `--data-dir DIR` (or `OPMD_DATA_DIR`) is its data folder, and `OPMD_NO_KEYRING=1` keeps the tokens in that folder's settings file (owner-only) where there is no credential store. Each project is then brought up to date the same way: what changed on On Page is read, what is missing is downloaded, renames and removals within the safety limit are applied, failed files are tried again.
+
+- **Once**, for instance from cron: `opmd download --all`.
+- **On its own:** `opmd run` does it at every round, every hour by default (`--every 6h`, at least `15m`: each round asks On Page about every project) until Ctrl+C, `systemctl stop` or `docker stop` (SIGTERM), which end the running jobs cleanly. Only one `opmd run` works on a data folder.
+
+Each round writes a line per project to the output and to `logs/opmd.log`. A round that fails (On Page out of reach, a folder that does not answer) only writes a `WARNING`: the next one tries again. Large removals still wait for a person: the log names the command that confirms them (`opmd cleanup PROJECT --yes`).
 
 ```ini
 # /etc/systemd/system/opmd.service, then: systemctl enable --now opmd
@@ -248,7 +255,7 @@ User=opmd
 # systemd creates /var/lib/opmd for that user
 StateDirectory=opmd
 Environment=OPMD_DATA_DIR=/var/lib/opmd OPMD_NO_KEYRING=1
-ExecStart=/usr/local/bin/opmd run --every 30m
+ExecStart=/usr/local/bin/opmd run
 Restart=on-failure
 
 [Install]
@@ -257,7 +264,20 @@ WantedBy=multi-user.target
 
 Create the user once (`useradd --system opmd`), start the service (it creates the data folder), then add the projects with the same data folder: `sudo -u opmd OPMD_DATA_DIR=/var/lib/opmd OPMD_NO_KEYRING=1 opmd add --label NAME --folder /srv/media/NAME --token-stdin`.
 
-**AI agents (MCP).** While the app is open it serves MCP on this computer only, with a secret (_Settings › AI agents_, on by default; **Copy Claude Code setup** gives the command). Or let the agent start `opmd mcp`, which works with the app open or closed (**Copy setup with opmd** gives it with the full path, for where `opmd` is not on the PATH):
+#### On Page's webhooks
+
+With `--listen`, On Page calls `opmd` when a project's files change, and the project is brought up to date shortly after instead of at the next round; the rounds then come once a day (`--every` still sets them), for a call that never came. On Page's webhooks are in preview: free for now, paid once launched.
+
+1. **Listen:** `opmd run --listen 47822` (in the unit: `ExecStart=/usr/local/bin/opmd run --listen 47822`) listens on this computer only; `0.0.0.0:47822` listens on every interface, for a container.
+2. **Put HTTPS in front:** On Page calls public addresses only, and the URL carries a secret. A reverse proxy or a tunnel does it, for instance Caddy's `media.example.com { reverse_proxy /onpage/* 127.0.0.1:47822 }`. The URL opened in a browser says whether `opmd` answers.
+3. **Get the URL:** `opmd webhook --public-url https://media.example.com` prints it, and for each On Page project the collections with files and their fields. Whoever has the URL can make `opmd` sync, nothing more; `--new-secret` changes it.
+4. **Set up On Page:** **Connections › Create Connection › Webhook**, for each of those collections: an observer on creation, update and deletion with only those fields, then **Add webhook** with the URL and a debounce of about 60 seconds.
+
+A call only says which On Page project changed. Its projects here are synced (only what changed, as at every round) once the calls stop for 30 seconds, so a burst of edits, or a call delivered twice, makes one sync; a call for an On Page project no project here downloads asks On Page nothing. Nothing else a call says is trusted: the sync reads the changes from On Page with the project's token. Slow and surplus connections are cut, so an attack can at worst delay a sync to the daily round, never stop `opmd`.
+
+### AI agents (MCP)
+
+While the app is open it serves MCP on this computer only, with a secret (_Settings › AI agents_, on by default; **Copy Claude Code setup** gives the command). Or let the agent start `opmd mcp`, which works with the app open or closed (**Copy setup with opmd** gives it with the full path, for where `opmd` is not on the PATH):
 
 ```bash
 claude mcp add opmd -- opmd mcp
@@ -291,7 +311,7 @@ yarn build               # the installers of this system, opmd inside, go to tar
 ```text
 crates/op-media-service/   the download service: On Page API, transfers, folders, the sync engine (a library)
 crates/op-media-projects/  the projects as the app, opmd and the MCP server share them: settings file, tokens, operations
-crates/opmd/               the command line and `opmd mcp`
+crates/opmd/               the command line, `opmd run` for servers and `opmd mcp`
 src-tauri/                 the app: windows, tray, menus, notifications, the commands of the page, its MCP server
 src/renderer/              the interface: Vue 3 and Tailwind CSS 4, in eight languages
 src/shared/                the types and states the interface shares with the app's commands
