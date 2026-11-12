@@ -27,7 +27,7 @@ tauri-plugin-autostart = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "json", "macos-system-configuration"] }
-keepawake = "0.5"
+keepawake = "0.6"
 regex = "1"
 sys-locale = "0.3"
 
