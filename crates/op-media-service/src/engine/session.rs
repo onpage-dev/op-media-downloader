@@ -104,7 +104,11 @@ impl FolderSession {
             )
             .into());
         }
-        if let Err(error) = tokio::fs::create_dir_all(&data_dir).await {
+        let created = async {
+            fault!(CreateDir, &data_dir);
+            tokio::fs::create_dir_all(&data_dir).await
+        };
+        if let Err(error) = created.await {
             let parent = folder.parent().map(Path::to_path_buf).unwrap_or_else(|| folder.clone());
             let issue = if !path_exists(&folder).await && !path_exists(&parent).await {
                 JobError::with_detail(IssueCode::FolderUnreachable, "The folder cannot be reached", error.to_string())

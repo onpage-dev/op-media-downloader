@@ -60,7 +60,15 @@ where
 /// a moment. On a network share the antivirus can hold a new file for
 /// seconds: 10 tries over ~8 s.
 pub async fn rename_with_retry(from: &Path, to: &Path, tries: u32, cancel: Option<&CancellationToken>) -> Result<()> {
-    with_lock_retry(|| fs::rename(from, to), tries, cancel).await
+    with_lock_retry(
+        || async {
+            fault!(Rename, to);
+            fs::rename(from, to).await
+        },
+        tries,
+        cancel,
+    )
+    .await
 }
 
 /// File systems and shares that cannot flush say so this way: not an error of the data
@@ -141,6 +149,7 @@ pub async fn replace_file(path: &Path, data: &[u8]) -> Result<()> {
 
 /// Removes a file; a file that is already gone is fine (false)
 pub async fn unlink_quiet(path: &Path) -> io::Result<bool> {
+    fault!(Remove, path);
     match fs::remove_file(path).await {
         Ok(()) => Ok(true),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
@@ -165,7 +174,13 @@ pub async fn reachable(path: &Path, timeout: Duration, cancel: Option<&Cancellat
         return Err(Error::Aborted);
     }
     let target = path.to_path_buf();
-    let stat = tokio::task::spawn_blocking(move || std::fs::metadata(target).is_ok());
+    let stat = tokio::task::spawn_blocking(move || {
+        #[cfg(any(test, feature = "fake-server"))]
+        if crate::faults::check(crate::faults::Op::Stat, &target).is_err() {
+            return false;
+        }
+        std::fs::metadata(target).is_ok()
+    });
     let waited = async {
         match tokio::time::timeout(timeout, stat).await {
             Ok(Ok(answered)) => answered,
@@ -184,6 +199,10 @@ pub async fn reachable(path: &Path, timeout: Duration, cancel: Option<&Cancellat
 /// Free bytes for this user (quotas included on Windows); None when the file
 /// system does not say
 pub async fn free_space(dir: &Path) -> Option<u64> {
+    #[cfg(any(test, feature = "fake-server"))]
+    if let Some(bytes) = crate::faults::free_space(dir) {
+        return Some(bytes);
+    }
     let dir = dir.to_path_buf();
     tokio::task::spawn_blocking(move || free_space_sync(&dir)).await.ok().flatten()
 }
@@ -231,6 +250,10 @@ fn free_space_sync(_dir: &Path) -> Option<u64> {
 /// leftover the next run clears)
 pub async fn can_write(dir: &Path) -> bool {
     let probe = dir.join(format!(".opmd-probe-{}.tmp", random_hex(4)));
+    #[cfg(any(test, feature = "fake-server"))]
+    if crate::faults::check(crate::faults::Op::Create, &probe).is_err() {
+        return false;
+    }
     if fs::write(&probe, b"").await.is_err() {
         return false;
     }

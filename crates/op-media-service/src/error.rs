@@ -151,8 +151,24 @@ fn describe_chain(error: &dyn std::error::Error) -> String {
 
 /* ------------------------------------------------------------------ codes */
 
+/// A file system error a test made up (`faults`), named by its POSIX code:
+/// it reads the same on every system
+#[derive(Debug)]
+pub struct InjectedFault(pub &'static str);
+
+impl fmt::Display for InjectedFault {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (injected)", self.0)
+    }
+}
+
+impl std::error::Error for InjectedFault {}
+
 /// The POSIX name of a file system or socket error, as libuv gives it
 pub fn io_code(error: &io::Error) -> Option<&'static str> {
+    if let Some(fault) = error.get_ref().and_then(|inner| inner.downcast_ref::<InjectedFault>()) {
+        return Some(fault.0);
+    }
     if let Some(raw) = error.raw_os_error()
         && let Some(code) = os_code(raw)
     {

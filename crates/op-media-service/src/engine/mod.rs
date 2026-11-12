@@ -2,6 +2,8 @@
 //! service's own runtime. The flows are in `flows`, the folder work in
 //! `session`, what the user of the service sees in `slot`.
 
+#[cfg(test)]
+mod fault_tests;
 mod flows;
 mod session;
 mod slot;

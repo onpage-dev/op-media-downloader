@@ -35,7 +35,11 @@ pub async fn probe_hard_links(data_dir: &Path) -> Option<bool> {
     if tokio::fs::write(&file, b"").await.is_err() {
         return None;
     }
-    let result = match tokio::fs::hard_link(&file, &link).await {
+    let linked = async {
+        fault!(Link, &link);
+        tokio::fs::hard_link(&file, &link).await
+    };
+    let result = match linked.await {
         Ok(()) => Some(true),
         Err(error) => io_code(&error).filter(|c| LINKS_UNSUPPORTED.contains(c)).map(|_| false),
     };
@@ -50,7 +54,9 @@ async fn copy_to(blob: &Path, dest: &Path, exclusive: bool) -> Result<()> {
     let dir = dest.parent().unwrap_or(Path::new("."));
     let temp = dir.join(format!("{TEMP_PREFIX}{}", random_hex(6)));
     let result: Result<()> = async {
+        fault!(Copy, &temp);
         tokio::fs::copy(blob, &temp).await?;
+        fault!(Flush, &temp);
         flush_file(&temp).await?;
         // The name was free when the plan was made: a file that appeared since is someone else's
         if exclusive && path_exists(dest).await {
@@ -67,7 +73,11 @@ async fn copy_to(blob: &Path, dest: &Path, exclusive: bool) -> Result<()> {
 
 async fn link_or_copy(blob: &Path, dest: &Path, hardlinks: Option<bool>, exclusive: bool) -> Result<PlaceMode> {
     if hardlinks != Some(false) {
-        match with_lock_retry(|| tokio::fs::hard_link(blob, dest), 4, None).await {
+        let link = || async {
+            fault!(Link, dest);
+            tokio::fs::hard_link(blob, dest).await
+        };
+        match with_lock_retry(link, 4, None).await {
             Ok(()) => return Ok(PlaceMode::Link),
             Err(error) => {
                 // NTFS takes 1023 names per file: this content gets a copy, the others

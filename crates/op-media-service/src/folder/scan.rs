@@ -37,6 +37,7 @@ pub struct FolderScan {
 pub async fn read_entries(dir: &Path) -> Result<Vec<(String, EntryType)>> {
     let dir = dir.to_path_buf();
     tokio::task::spawn_blocking(move || -> std::io::Result<Vec<(String, EntryType)>> {
+        fault!(ReadDir, &dir);
         let iter = match std::fs::read_dir(&dir) {
             Ok(iter) => iter,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),

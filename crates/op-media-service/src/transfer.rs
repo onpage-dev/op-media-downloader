@@ -90,6 +90,8 @@ async fn transfer(options: &Download<'_>, temp: &Path) -> Result<u64> {
     }
 
     // Opening the file is disk work: no network timer meanwhile
+    #[cfg(any(test, feature = "fake-server"))]
+    crate::faults::check(crate::faults::Op::Create, temp).map_err(Error::Disk)?;
     let file = tokio::fs::File::create(temp).await.map_err(Error::Disk)?;
     let mut writer = BufWriter::with_capacity(WRITE_BUFFER, file);
     let mut written: u64 = 0;
@@ -104,6 +106,8 @@ async fn transfer(options: &Download<'_>, temp: &Path) -> Result<u64> {
         })
         .await?;
         let Some(chunk) = chunk else { break };
+        #[cfg(any(test, feature = "fake-server"))]
+        crate::faults::check_write(temp, written + chunk.len() as u64).map_err(Error::Disk)?;
         or_cancel(cancel, async { writer.write_all(&chunk).await.map_err(Error::Disk) }).await?;
         written += chunk.len() as u64;
         (options.on_bytes)(chunk.len() as u64);
@@ -118,6 +122,8 @@ async fn transfer(options: &Download<'_>, temp: &Path) -> Result<u64> {
     }
     writer.flush().await.map_err(Error::Disk)?;
     let file = writer.into_inner();
+    #[cfg(any(test, feature = "fake-server"))]
+    crate::faults::check(crate::faults::Op::Flush, temp).map_err(Error::Disk)?;
     flush_to_disk(&file).await.map_err(Error::Disk)?;
     drop(file);
     rename_with_retry(temp, options.target, 10, cancel).await.map_err(disk)?;

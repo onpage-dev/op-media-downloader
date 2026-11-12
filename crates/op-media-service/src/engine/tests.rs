@@ -1,7 +1,7 @@
 //! The engine end to end, against the fake On Page: the flows, the safety
-//! rules and the faults that matter most. The fault-injection cases of the
-//! file system that need a mocked disk are covered by the unit tests of the
-//! modules (manifest, lock, link, executor's decisions in error.rs).
+//! rules and the network faults. The disk faults (a disk that fills up, a
+//! share that drops, a read-only folder…) are in `fault_tests.rs`, on the
+//! same harness.
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -22,7 +22,7 @@ const FAST: RetryPolicy = RetryPolicy {
     max_retry_after: Duration::from_millis(50),
 };
 
-fn timings() -> Timings {
+pub(super) fn timings() -> Timings {
     Timings {
         state_interval: Duration::from_millis(5),
         activity_interval: Duration::from_millis(5),
@@ -39,9 +39,9 @@ fn timings() -> Timings {
     }
 }
 
-struct Harness {
-    fake: FakeOnPage,
-    service: MediaService,
+pub(super) struct Harness {
+    pub(super) fake: FakeOnPage,
+    pub(super) service: MediaService,
     events: Arc<Mutex<Vec<ServiceEvent>>>,
     /// The results as they come, and a bell for each: waiting never reads the events again
     results: Arc<Mutex<Vec<SyncResult>>>,
@@ -51,7 +51,7 @@ struct Harness {
 }
 
 impl Harness {
-    async fn new(things: usize, duplicates: usize) -> Harness {
+    pub(super) async fn new(things: usize, duplicates: usize) -> Harness {
         Harness::with_timings(things, duplicates, timings()).await
     }
 
@@ -84,11 +84,11 @@ impl Harness {
         Harness { fake, service, events, results, result_bell, root: tempfile::tempdir().unwrap(), _cache: cache }
     }
 
-    fn folder(&self, name: &str) -> PathBuf {
+    pub(super) fn folder(&self, name: &str) -> PathBuf {
         self.root.path().join(name)
     }
 
-    fn project(&self, folder: &Path) -> ServiceProject {
+    pub(super) fn project(&self, folder: &Path) -> ServiceProject {
         ServiceProject {
             id: "p1".into(),
             label: "Prova".into(),
@@ -101,7 +101,7 @@ impl Harness {
     }
 
     /// Starts a job and waits for its result
-    async fn run(&self, start: impl FnOnce(&MediaService)) -> SyncResult {
+    pub(super) async fn run(&self, start: impl FnOnce(&MediaService)) -> SyncResult {
         let before = self.results.lock().len();
         start(&self.service);
         tokio::time::timeout(Duration::from_secs(600), async {
@@ -120,7 +120,7 @@ impl Harness {
         .expect("the job ended")
     }
 
-    fn last_state(&self) -> ProjectRuntime {
+    pub(super) fn last_state(&self) -> ProjectRuntime {
         self.events
             .lock()
             .iter()
@@ -132,12 +132,12 @@ impl Harness {
             .expect("a state")
     }
 
-    fn issue_codes(&self) -> Vec<IssueCode> {
+    pub(super) fn issue_codes(&self) -> Vec<IssueCode> {
         self.last_state().issues.iter().map(|i| i.code).collect()
     }
 
     /// Every file the sample serves, by the name the folder will show (the first of a name wins)
-    fn remote_names(&self) -> BTreeMap<String, FakeFile> {
+    pub(super) fn remote_names(&self) -> BTreeMap<String, FakeFile> {
         let mut out: BTreeMap<String, FakeFile> = BTreeMap::new();
         let mut keys = HashSet::new();
         self.fake.with(|state| {
@@ -173,7 +173,7 @@ impl Harness {
     }
 }
 
-fn list_dir(dir: &Path) -> Vec<String> {
+pub(super) fn list_dir(dir: &Path) -> Vec<String> {
     let mut names: Vec<String> = match std::fs::read_dir(dir) {
         Ok(entries) => entries.map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect(),
         Err(_) => Vec::new(),

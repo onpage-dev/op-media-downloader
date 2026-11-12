@@ -20,6 +20,19 @@
 //! one writer per folder, nothing half-written under a name…) are in
 //! `docs/ARCHITECTURE.md`.
 
+/// A disk fault a test armed for this operation (`faults`): `?` returns it
+/// as the disk's error. Nothing in release builds
+#[cfg(any(test, feature = "fake-server"))]
+macro_rules! fault {
+    ($op:ident, $path:expr) => {
+        crate::faults::check(crate::faults::Op::$op, $path)?
+    };
+}
+#[cfg(not(any(test, feature = "fake-server")))]
+macro_rules! fault {
+    ($op:ident, $path:expr) => {};
+}
+
 pub mod error;
 pub mod folder;
 pub mod fsx;
@@ -34,6 +47,10 @@ mod engine;
 /// The fake On Page server: tests, and `cargo run -p op-media-service --features fake-server --bin fake-onpage`
 #[cfg(any(test, feature = "fake-server"))]
 pub mod testing;
+
+/// Disk faults on demand for the tests (a disk full mid-write, a share that drops…)
+#[cfg(any(test, feature = "fake-server"))]
+pub mod faults;
 
 pub use engine::{EventSink, MediaService, ServiceConfig, ServiceEvent, Timings};
 pub use models::*;
