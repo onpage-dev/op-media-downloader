@@ -24,7 +24,7 @@ aes = "0.8"
 aes-gcm = "0.10"
 cbc = "0.1"
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
-sha1 = "0.10"
+sha1 = "0.11"
 url = "2"
 tokio-util.workspace = true
 rmcp = { version = "3.9", default-features = false, features = ["server", "client", "macros", "transport-io", "transport-streamable-http-server", "transport-streamable-http-client-reqwest", "reqwest"] }
