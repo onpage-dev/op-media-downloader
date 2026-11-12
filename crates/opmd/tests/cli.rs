@@ -224,3 +224,67 @@ async fn reqwest_post(url: &str) -> u16 {
     let _ = stream.read_to_string(&mut answer).await;
     answer.split_whitespace().nth(1).and_then(|code| code.parse().ok()).unwrap_or(0)
 }
+
+/// What a script reads from opmd: exit codes, the token from the standard
+/// input, refusals without a person at the keyboard, wrong arguments
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn scripts_get_clear_answers_and_exit_codes() {
+    use tokio::io::AsyncWriteExt;
+
+    let fake = FakeOnPage::start(sample_project(5, 0, "script"), "script-token", 0).await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("data");
+    let folder = dir.path().join("Media");
+    std::fs::create_dir_all(&folder).unwrap();
+    let opmd = Opmd { data: &data, fake: &fake };
+
+    // The token from the standard input, as a secret manager pipes it
+    let mut add = tokio::process::Command::new(env!("CARGO_BIN_EXE_opmd"))
+        .args(["add", "--label", "Script", "--folder", &folder.display().to_string(), "--token-stdin"])
+        .env("OPMD_DATA_DIR", &data)
+        .env("OPMD_NO_KEYRING", "1")
+        .env("OPMD_API_DOMAIN", &fake.url)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    add.stdin.take().unwrap().write_all(format!("{}\n", fake.token).as_bytes()).await.unwrap();
+    let added = add.wait_with_output().await.unwrap();
+    assert!(added.status.success(), "{}", String::from_utf8_lossy(&added.stdout));
+    assert_eq!(opmd.ok(&["token", "Script"]).await.trim(), fake.token);
+
+    // A file that cannot be downloaded: done, with failed files (3), and they are listed
+    let gone = fake.with(|state| {
+        state.project.things.iter().find(|t| t.id == 1002).unwrap().files["galleria"].all()[0].token.clone()
+    });
+    fake.with(|state| {
+        state
+            .storage
+            .insert(gone.clone(), op_media_service::testing::StorageBehaviour { missing: true, ..Default::default() })
+    });
+    let partial = opmd.run(&["download", "Script"]).await;
+    let stdout = String::from_utf8_lossy(&partial.stdout);
+    assert_eq!(partial.status.code(), Some(3), "{stdout}");
+    assert!(stdout.contains("prodotto-2-retro.jpg") && stdout.contains("not_found"), "{stdout}");
+    fake.with(|state| state.storage.clear());
+    assert_eq!(opmd.run(&["retry", "Script"]).await.status.code(), Some(0));
+
+    // Wrong arguments, a missing variable, a deletion nobody confirmed
+    let wrong = opmd.run(&["settings", "concurrency"]).await;
+    assert_eq!(wrong.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&wrong.stderr).contains("KEY=VALUE"));
+    let missing = opmd.run(&["verify-token", "--token-env", "OPMD_TEST_NOT_SET"]).await;
+    assert_eq!(missing.status.code(), Some(1));
+    let unconfirmed = opmd.run(&["cleanup", "Script"]).await;
+    assert_eq!(unconfirmed.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&unconfirmed.stderr).contains("--yes"));
+    assert_eq!(opmd.run(&["sync"]).await.status.code(), Some(2), "a usage error is clap's 2");
+
+    // JSON for scripts, the same the MCP tools answer
+    let list = opmd.json(&["list"]).await;
+    assert_eq!(list[0]["label"], "Script");
+    assert_eq!(list[0]["runtime"]["last_result"]["outcome"], "completed");
+    let status = opmd.json(&["status"]).await;
+    assert_eq!(status["running_jobs"], 0);
+    fake.close();
+}

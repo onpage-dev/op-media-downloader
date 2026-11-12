@@ -569,12 +569,34 @@ fn write_atomic(file: &Path, data: &Map<String, Value>) -> std::io::Result<()> {
         handle.write_all(&text)?;
         handle.sync_all()?;
         drop(handle);
-        fs::rename(&temp, file)
+        rename_over(&temp, file)
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temp);
     }
     result
+}
+
+/// Renames over the settings file. On Windows an antivirus or the indexer
+/// holds a new file for a moment, and another program reading the old one
+/// can refuse the replacement: tried again for about 3 seconds
+fn rename_over(from: &Path, to: &Path) -> std::io::Result<()> {
+    let mut wait = std::time::Duration::from_millis(20);
+    for _ in 0..10 {
+        match fs::rename(from, to) {
+            Err(error) if cfg!(windows) && is_held(&error) => {
+                std::thread::sleep(wait);
+                wait = (wait * 2).min(std::time::Duration::from_millis(500));
+            }
+            other => return other,
+        }
+    }
+    fs::rename(from, to)
+}
+
+/// Access denied or a sharing violation: a lock that goes away (Windows)
+fn is_held(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::PermissionDenied || error.raw_os_error() == Some(32)
 }
 
 /// A project read back from the file; anything that is not one is left out

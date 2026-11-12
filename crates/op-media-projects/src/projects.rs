@@ -75,6 +75,8 @@ const FOLDER_CHECK: Duration = Duration::from_secs(10);
 const CHANGE_INTERVAL: Duration = Duration::from_millis(100);
 /// How often the settings file is looked at for another process's changes
 const STORE_WATCH: Duration = Duration::from_secs(1);
+/// A job whose result never comes (the service ignored it) ends anyway after this
+const RESULT_WAIT: Duration = Duration::from_secs(10);
 
 #[derive(Default)]
 struct State {
@@ -83,6 +85,11 @@ struct State {
     auto_retried: HashSet<String>,
     /// Removed projects whose files are being deleted: their folders stay taken meanwhile
     deleting: HashMap<ProjectId, ServiceProject>,
+    /// Jobs started here whose result has not come yet, each with its number: the
+    /// service sends a job's last state just before its result, and a job ends
+    /// with its result (whoever waits for it then reads how it ended)
+    results_pending: HashMap<ProjectId, u64>,
+    jobs_started: u64,
 }
 
 pub struct ProjectService {
@@ -590,14 +597,21 @@ impl ProjectService {
                     return self.removed_state(&project_id, Some(runtime));
                 };
                 let idle = runtime.phase == JobPhase::Idle;
+                // The last state of a job started here comes just before its result: it ends with the result
+                let pending = if idle { self.state.lock().results_pending.get(&project_id).copied() } else { None };
                 let runtime = ProjectRuntime {
                     // The app decides what counts as the last completed run (see handle_result)
                     last_result: self.runtime(&project).last_result,
+                    phase: if pending.is_some() { JobPhase::Finishing } else { runtime.phase },
                     ..runtime
                 };
-                self.state.lock().runtimes.insert(project_id, runtime.clone());
-                if idle {
-                    self.persist(&project, &runtime);
+                self.state.lock().runtimes.insert(project_id.clone(), runtime.clone());
+                match pending {
+                    Some(job) => self.expect_result(&project_id, job),
+                    None if idle => {
+                        self.persist(&project, &runtime);
+                    }
+                    None => {}
                 }
                 self.changed();
             }
@@ -636,7 +650,32 @@ impl ProjectService {
         self.changed();
     }
 
+    /// A job whose last state came: its result follows; if it never does
+    /// (the service ignored the job), the project is idle again anyway
+    fn expect_result(self: &Arc<Self>, id: &str, job: u64) {
+        let me = Arc::downgrade(self);
+        let id = id.to_string();
+        self.runtime.spawn(async move {
+            tokio::time::sleep(RESULT_WAIT).await;
+            let Some(me) = me.upgrade() else { return };
+            {
+                let mut state = me.state.lock();
+                if state.results_pending.get(&id) != Some(&job) {
+                    return;
+                }
+                state.results_pending.remove(&id);
+                if let Some(runtime) = state.runtimes.get_mut(&id) {
+                    runtime.phase = JobPhase::Idle;
+                    runtime.job = None;
+                }
+            }
+            me.changes.notify_waiters();
+            me.changed();
+        });
+    }
+
     fn handle_result(self: &Arc<Self>, id: &str, result: SyncResult) {
+        self.state.lock().results_pending.remove(id);
         let Some(mut project) = self.store.project(id) else {
             return;
         };
@@ -747,7 +786,13 @@ impl ProjectService {
         runtime.phase = JobPhase::Preparing;
         runtime.job = Some(job);
         runtime.issues.retain(|issue| issue.code != IssueCode::Interrupted);
-        self.state.lock().runtimes.insert(project.id.clone(), runtime);
+        {
+            let mut state = self.state.lock();
+            state.jobs_started += 1;
+            let job = state.jobs_started;
+            state.results_pending.insert(project.id.clone(), job);
+            state.runtimes.insert(project.id.clone(), runtime);
+        }
         self.changed_now();
     }
 
