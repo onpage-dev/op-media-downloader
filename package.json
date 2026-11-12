@@ -15,9 +15,11 @@
   "scripts": {
     "dev": "electron-vite dev --watch",
     "start": "electron-vite preview",
+    "predev": "node scripts/ensure-electron.mjs",
+    "prestart": "node scripts/ensure-electron.mjs",
     "build": "yarn run typecheck && node scripts/notices.mjs && electron-vite build",
     "build:win": "yarn run build && electron-builder --win --config",
-    "build:mac": "yarn run build && electron-builder --mac --config --$ARCH",
+    "build:mac": "yarn run build && node scripts/mac-pack.mjs",
     "build:linux": "yarn run build && electron-builder --linux --config",
     "typecheck": "yarn run typecheck:node && yarn run typecheck:web",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
@@ -30,7 +32,7 @@
     "test:watch": "vitest",
     "icons": "node scripts/pro-icons.mjs",
     "app-icons": "node scripts/app-icons.mjs",
-    "postinstall": "electron-builder install-app-deps && node scripts/pro-icons.mjs && node scripts/notices.mjs"
+    "postinstall": "node scripts/ensure-electron.mjs && electron-builder install-app-deps && node scripts/pro-icons.mjs && node scripts/notices.mjs"
   },
   "dependencies": {
     "electron-store": "^12.0.0",

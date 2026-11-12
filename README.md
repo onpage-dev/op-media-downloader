@@ -221,7 +221,7 @@ yarn test         # engine, main and renderer tests
 yarn typecheck
 yarn lint
 yarn format       # Prettier; CI runs yarn format:check
-yarn build:win    # or build:mac, build:linux: the installers go to dist/
+yarn build:win    # or build:mac, build:linux: the installers go to dist/. build:mac uses the icns icon when Xcode 26 is absent
 ```
 
 | Variable                                  | For development builds                                                                |
