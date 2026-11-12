@@ -6,7 +6,7 @@ import SettingsPanel from './components/SettingsPanel.vue'
 import ToastStack from './components/ToastStack.vue'
 import { closeWindow, init } from './store'
 
-const SECTIONS: SettingsSection[] = ['general', 'download', 'appearance', 'language', 'updates']
+const SECTIONS: SettingsSection[] = ['general', 'download', 'appearance', 'language', 'updates', 'agents']
 const asked = location.hash.split('/')[2] as SettingsSection | undefined
 const section = ref<SettingsSection>(asked && SECTIONS.includes(asked) ? asked : 'general')
 onMounted(() => void init({ live: false }))

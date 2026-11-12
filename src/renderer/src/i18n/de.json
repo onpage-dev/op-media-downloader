@@ -3,6 +3,10 @@
     "name": "On Page Media Downloader",
     "short": "Media Downloader"
   },
+  "window": {
+    "minimize": "Minimieren",
+    "maximize": "Maximieren"
+  },
   "common": {
     "cancel": "Abbrechen",
     "close": "Schließen",
@@ -47,7 +51,8 @@
     "never": "nie",
     "no_results": "Kein Projekt passt zu diesen Filtern",
     "show_all": "Alle anzeigen",
-    "label": "Projekte"
+    "label": "Projekte",
+    "resize": "Breite der Spalte {column} ändern"
   },
   "kind": {
     "local": "Lokaler Ordner",
@@ -278,6 +283,8 @@
     "variants": "{count} verschiedene Dateien",
     "chosen": "Heruntergeladen",
     "skipped": "Nicht heruntergeladen",
+    "more": "und {count} weitere Datei mit demselben Namen | und {count} weitere Dateien mit demselben Namen",
+    "show_more": "{count} weitere anzeigen | {count} weitere anzeigen",
     "empty": "Keine Namen mit verschiedenen Dateien",
     "search": "Namen suchen…",
     "no_results": "Kein Name gefunden",
@@ -452,7 +459,8 @@
       "download": "Downloads",
       "appearance": "Darstellung",
       "language": "Sprache",
-      "updates": "Aktualisierungen"
+      "updates": "Aktualisierungen",
+      "agents": "KI-Agenten"
     },
     "open_at_login": {
       "title": "Beim Systemstart öffnen",
@@ -468,6 +476,13 @@
     "notifications": {
       "title": "Benachrichtigungen",
       "text": "Am Ende einer Synchronisierung, bei fehlgeschlagenen Dateien und bei Fehlern."
+    },
+    "auto_sync": {
+      "title": "Automatisch synchronisieren",
+      "text": "Solange die App geöffnet ist, kommt, was sich auf On Page ändert, von selbst. Viele Entfernungen warten weiterhin auf „Bestätigen“.",
+      "off": "Aus",
+      "minutes": "{n} Min.",
+      "hours": "{n} Std."
     },
     "concurrency": {
       "title": "Gleichzeitige Downloads",
@@ -503,6 +518,20 @@
       "never": "Noch nicht geprüft.",
       "failed": "Die Prüfung ist fehlgeschlagen: Versuchen Sie es später erneut.",
       "licenses": "Open-Source-Lizenzen"
+    },
+    "agents": {
+      "title": "Zugriff für KI-Agenten und Terminal",
+      "text": "Solange die App geöffnet ist, können Agenten wie Claude und der Befehl opmd sie über MCP nutzen (Projekte, Synchronisierungen, Duplikate). Nur von diesem Computer aus.",
+      "address": "Adresse",
+      "starting": "Wird geöffnet…",
+      "copy": "Konfiguration für Claude Code kopieren",
+      "copied": "Befehl kopiert: im Terminal einfügen",
+      "terminal": "Im Terminal, auch bei geschlossener App, gibt es den Befehl opmd:",
+      "opmd_title": "Der Befehl opmd",
+      "opmd_text": "Funktioniert auch bei geschlossener App: im Terminal (opmd --help) oder von einem Agenten gestartet (opmd mcp).",
+      "opmd_copy": "Konfiguration mit opmd kopieren",
+      "opmd_link": "Um ihn in jedem Terminal zu nutzen, einmal verknüpfen:",
+      "copy_command": "Befehl kopieren"
     }
   },
   "tray": {

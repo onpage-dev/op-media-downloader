@@ -3,6 +3,10 @@
     "name": "On Page Media Downloader",
     "short": "Media Downloader"
   },
+  "window": {
+    "minimize": "Minimera",
+    "maximize": "Maximera"
+  },
   "common": {
     "cancel": "Avbryt",
     "close": "Stäng",
@@ -47,7 +51,8 @@
     "never": "aldrig",
     "no_results": "Inga projekt matchar de här filtren",
     "show_all": "Visa alla",
-    "label": "Projekt"
+    "label": "Projekt",
+    "resize": "Ändra bredden på kolumnen {column}"
   },
   "kind": {
     "local": "Lokal mapp",
@@ -278,6 +283,8 @@
     "variants": "{count} olika filer",
     "chosen": "Nedladdad",
     "skipped": "Inte nedladdad",
+    "more": "och {count} fil till med samma namn | och {count} filer till med samma namn",
+    "show_more": "Visa {count} till | Visa {count} till",
     "empty": "Inga namn med olika filer",
     "search": "Sök namn…",
     "no_results": "Inga namn hittades",
@@ -452,7 +459,8 @@
       "download": "Nedladdningar",
       "appearance": "Utseende",
       "language": "Språk",
-      "updates": "Uppdateringar"
+      "updates": "Uppdateringar",
+      "agents": "AI-agenter"
     },
     "open_at_login": {
       "title": "Starta vid systemstart",
@@ -468,6 +476,13 @@
     "notifications": {
       "title": "Meddelanden",
       "text": "I slutet av en synkronisering, för misslyckade filer och för fel."
+    },
+    "auto_sync": {
+      "title": "Synkronisera automatiskt",
+      "text": "Medan appen är öppen kommer det som ändras på On Page av sig självt. Många borttagningar väntar fortfarande på ”Bekräfta”.",
+      "off": "Av",
+      "minutes": "{n} min",
+      "hours": "{n} tim"
     },
     "concurrency": {
       "title": "Samtidiga nedladdningar",
@@ -503,6 +518,20 @@
       "never": "Inte kontrollerat än.",
       "failed": "Kontrollen misslyckades: försök igen senare.",
       "licenses": "Licenser för öppen källkod"
+    },
+    "agents": {
+      "title": "Åtkomst för AI-agenter och terminalen",
+      "text": "Medan appen är öppen kan agenter som Claude och kommandot opmd använda den (projekt, synkroniseringar, dubbletter) via MCP. Endast från den här datorn.",
+      "address": "Adress",
+      "starting": "Öppnar…",
+      "copy": "Kopiera inställning för Claude Code",
+      "copied": "Kommandot kopierat: klistra in det i en terminal",
+      "terminal": "I terminalen, även när appen är stängd, finns kommandot opmd:",
+      "opmd_title": "Kommandot opmd",
+      "opmd_text": "Fungerar även när appen är stängd: i terminalen (opmd --help) eller startat av en agent (opmd mcp).",
+      "opmd_copy": "Kopiera inställning med opmd",
+      "opmd_link": "För att använda det i alla terminaler, länka det en gång:",
+      "copy_command": "Kopiera kommandot"
     }
   },
   "tray": {

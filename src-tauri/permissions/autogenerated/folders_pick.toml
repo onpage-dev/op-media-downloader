@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-folders-pick"
+description = "Enables the folders_pick command without any pre-configured scope."
+commands.allow = ["folders_pick"]
+
+[[permission]]
+identifier = "deny-folders-pick"
+description = "Denies the folders_pick command without any pre-configured scope."
+commands.deny = ["folders_pick"]

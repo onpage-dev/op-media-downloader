@@ -300,7 +300,10 @@ export interface DuplicateVariant {
 export interface DuplicateGroup {
   /** The name as shown (case of the chosen variant) */
   name: string
+  /** The chosen one first; at most a few of them (generated files can share a name by the thousands) */
   variants: DuplicateVariant[]
+  /** The variants of the name not in `variants` */
+  more_variants?: number
 }
 
 /** Long lists (tens of thousands of entries) travel a page at a time */
@@ -309,6 +312,30 @@ export interface PageQuery {
   limit: number
   /** Part of the name, any case */
   query?: string
+  /**
+   * Duplicates: false answers at once with the labels of the things already
+   * known (`labels_pending` says some are missing); true (the default) reads
+   * them from On Page first
+   */
+  labels?: boolean
+}
+
+/** More files of one duplicate name (it can have thousands), after those shown */
+export interface VariantsQuery {
+  /** The name as the page gave it */
+  name: string
+  /** The files already shown */
+  offset: number
+  limit: number
+  /** As in `PageQuery` */
+  labels?: boolean
+}
+
+export interface DuplicateVariants {
+  variants: DuplicateVariant[]
+  /** The files of the name after these */
+  more_variants: number
+  labels_pending?: boolean
 }
 
 export interface DuplicatePage {
@@ -317,6 +344,8 @@ export interface DuplicatePage {
   /** Of all the groups: names whose files are one field of one item in different languages */
   language_variants: number
   groups: DuplicateGroup[]
+  /** Some things of the page have labels not read yet (asked with `labels: false`) */
+  labels_pending?: boolean
 }
 
 export interface FailedPage {
@@ -351,6 +380,8 @@ export interface AppSettings {
   concurrency: number
   /** Retry network failures once, a minute after the end of a download */
   auto_retry_failed: boolean
+  /** While the app is open, bring every project up to date this often, in minutes (0: never, else at least 15) */
+  auto_sync_minutes: number
   notifications: boolean
   /** Icon in the notification area; closing the window keeps the app running there */
   close_to_tray: boolean
@@ -358,6 +389,8 @@ export interface AppSettings {
   open_at_login: boolean
   /** Look for a new version on GitHub at start-up */
   check_updates: boolean
+  /** AI agents and the opmd command reach the app while it is open (its MCP server on 127.0.0.1) */
+  agent_access: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -365,10 +398,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   language: 'it',
   concurrency: 4,
   auto_retry_failed: false,
+  auto_sync_minutes: 0,
   notifications: true,
   close_to_tray: false,
   open_at_login: false,
   check_updates: true,
+  agent_access: true,
 }
 
 /* ------------------------------------------------------------------ App info */
@@ -388,4 +423,12 @@ export interface AppStatus {
   speed_bps: number
   total_files: number
   total_bytes: number
+}
+
+/** «Agenti AI»: whether the app's MCP server is open, and where (its secret never reaches the page) */
+export interface AgentAccess {
+  open: boolean
+  url?: string
+  /** `opmd` installed beside the app: its path (none in development) */
+  opmd?: string
 }

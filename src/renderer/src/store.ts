@@ -10,20 +10,24 @@ import { computed, markRaw, reactive, watch } from 'vue'
 import type {
   AppCommand,
   DesktopApi,
+  FolderDrag,
   InspectorTab,
   NewProjectInput,
   ProjectPatch,
   SettingsSection,
+  Unsubscribe,
 } from '@shared/desktop-api'
 import {
   DEFAULT_SETTINGS,
   type ActivityEntry,
+  type AgentAccess,
   type AppSettings,
   type AppStatus,
   type DestinationKind,
   type DuplicateGroup,
   type FailedEntry,
   type FolderInfo,
+  type PageQuery,
   type ProjectId,
   type ProjectView,
   type TokenCheck,
@@ -57,6 +61,8 @@ export interface PagedList<T> {
   query: string
   /** Bumped by every new search or reload: the answers of an older one are dropped */
   version: number
+  /** The project's data changed while the tab was not on screen: it loads again when it comes back */
+  stale?: boolean
   /** Duplicates only: names that are one field in different languages */
   language_variants?: number
 }
@@ -357,7 +363,8 @@ watch(
   },
 )
 
-async function loadTab(id: ProjectId, tab: InspectorTab): Promise<void> {
+/** `entering`: the tab (or the project) was just chosen, else the project's data changed */
+async function loadTab(id: ProjectId, tab: InspectorTab, entering: boolean): Promise<void> {
   if (tab == 'activity') {
     try {
       app.activity[id] = (await desktop().sync.getActivity(id, ACTIVITY_KEPT)).sort((a, b) => b.id - a.id)
@@ -365,7 +372,29 @@ async function loadTab(id: ProjectId, tab: InspectorTab): Promise<void> {
       fail('load activity', error)
     }
   }
-  if (tab == 'failed' || tab == 'duplicates') await loadPage(tab, id, true)
+  if (tab == 'failed' || tab == 'duplicates') {
+    // Back on the tab, what it showed is still right (a run marks it stale) and shows at once: its
+    // first page only, the tab starts at the top anyway (hundreds of rows drawn in the click would
+    // hold the window), the next ones come back from the service as the end comes near
+    const list: PagedList<FailedEntry | DuplicateGroup> | undefined = app[tab][id]
+    if (entering && list?.items.length && !list.stale && !list.error) {
+      // A page still on its way for the longer list is dropped when it comes (loadPage); the names
+      // opened with «Mostra altri» close again
+      const first = list.items.slice(0, PAGE_SIZE)
+      const closed = tab == 'duplicates' ? (first as DuplicateGroup[]).map(closeGroup) : first
+      if (list.items.length > PAGE_SIZE || closed.some((item, n) => item != first[n])) list.items = markRaw(closed)
+      return
+    }
+    await loadPage(tab, id, true)
+  }
+}
+
+/** The project's data changed: the long lists not on screen load again when their tab comes back */
+function markStale(id: ProjectId, shown: InspectorTab): void {
+  for (const kind of ['failed', 'duplicates'] as const) {
+    const list = app[kind][id]
+    if (list && kind != shown) list.stale = true
+  }
 }
 
 function pagedList<T>(lists: Record<ProjectId, PagedList<T>>, id: ProjectId): PagedList<T> {
@@ -381,20 +410,107 @@ async function loadPage(kind: PagedKind, id: ProjectId, reset: boolean): Promise
   const version = reset ? ++list.version : list.version
   list.loading = true
   list.error = false
+  if (reset) list.stale = false
+  const query = { offset: reset ? 0 : list.items.length, limit: PAGE_SIZE, query: list.query || undefined }
+  let labels = false
   try {
-    const query = { offset: reset ? 0 : list.items.length, limit: PAGE_SIZE, query: list.query || undefined }
     const page =
-      kind == 'failed' ? await desktop().sync.getFailed(id, query) : await desktop().sync.getDuplicates(id, query)
-    if (version != list.version) return
+      kind == 'failed'
+        ? await desktop().sync.getFailed(id, query)
+        : // The rows at once, from what the computer has: the labels of the things follow from On Page
+          await desktop().sync.getDuplicates(id, { ...query, labels: false })
+    // A new search, or the list cut back to its first page (back on the tab) since it was asked
+    if (version != list.version || query.offset != (reset ? 0 : list.items.length)) return
     const items = 'groups' in page ? page.groups : page.entries
     list.items = markRaw(reset ? items : [...list.items, ...items])
     list.total = page.total
-    if ('language_variants' in page) list.language_variants = page.language_variants
+    if ('language_variants' in page) {
+      list.language_variants = page.language_variants
+      labels = !!page.labels_pending
+    }
   } catch (error) {
     logError(`load ${kind}`, error, 'warn')
     if (version == list.version) list.error = true
   } finally {
     if (version == list.version) list.loading = false
+  }
+  if (labels) void fillLabels(id, query, version)
+}
+
+/** The same page again with the labels of its things, in place of its rows drawn without them */
+async function fillLabels(id: ProjectId, query: PageQuery, version: number): Promise<void> {
+  try {
+    const page = await desktop().sync.getDuplicates(id, { ...query, labels: true })
+    const list = app.duplicates[id]
+    if (!list || version != list.version) return
+    const { offset } = query
+    const shown = list.items.slice(offset, offset + page.groups.length)
+    // Rows cut away since (back on the tab): their labels come with them when they are asked again
+    if (shown.length != page.groups.length || shown.some((group, n) => group.name != page.groups[n].name)) return
+    // By file: a name opened with «Mostra altri» meanwhile keeps its other files
+    const labelled = shown.map((group, n) => withVariants(group, page.groups[n].variants))
+    list.items = markRaw([...list.items.slice(0, offset), ...labelled, ...list.items.slice(offset + labelled.length)])
+  } catch (error) {
+    logError('load duplicate labels', error, 'warn')
+  }
+}
+
+/** Files of a name the service gives at a time: as many as a page shows of each name, more with «Mostra altri» */
+const VARIANTS_SHOWN = 10
+const VARIANTS_STEP = 100
+
+/** «Mostra altri» on a name of «Duplicati»: its next files drawn at once, the labels of their things after */
+export async function showMoreVariants(id: ProjectId, name: string): Promise<void> {
+  const list = app.duplicates[id]
+  const group = list?.items.find(g => g.name == name)
+  if (!list || !group?.more_variants) return
+  const version = list.version
+  const query = { name, offset: group.variants.length, limit: VARIANTS_STEP }
+  try {
+    const more = await desktop().sync.getDuplicateVariants(id, { ...query, labels: false })
+    const added = changeGroup(id, version, name, current =>
+      // Asked twice (two clicks): once only
+      current.variants.length == query.offset
+        ? { ...current, variants: [...current.variants, ...more.variants], more_variants: more.more_variants }
+        : undefined,
+    )
+    if (!added || !more.labels_pending) return
+    const labelled = await desktop().sync.getDuplicateVariants(id, { ...query, labels: true })
+    changeGroup(id, version, name, current => withVariants(current, labelled.variants))
+  } catch (error) {
+    logError('load duplicate files', error, 'warn')
+  }
+}
+
+/** A name of the list in a new object (its rows alone draw again); false when the list or the name went */
+function changeGroup(
+  id: ProjectId,
+  version: number,
+  name: string,
+  change: (group: DuplicateGroup) => DuplicateGroup | undefined,
+): boolean {
+  const list = app.duplicates[id]
+  const at = list && list.version == version ? list.items.findIndex(g => g.name == name) : -1
+  const changed = at >= 0 ? change(list.items[at]) : undefined
+  if (!changed) return false
+  list.items = markRaw(list.items.map((group, n) => (n == at ? changed : group)))
+  return true
+}
+
+/** The same files of the name, those in `variants` (by token) as they come now */
+function withVariants(group: DuplicateGroup, variants: DuplicateGroup['variants']): DuplicateGroup {
+  const fresh = new Map(variants.map(variant => [variant.token, variant]))
+  return { ...group, variants: group.variants.map(variant => fresh.get(variant.token) ?? variant) }
+}
+
+/** A name opened with «Mostra altri» back to the files a page shows of it */
+function closeGroup(group: DuplicateGroup): DuplicateGroup {
+  const extra = group.variants.length - VARIANTS_SHOWN
+  if (extra <= 0) return group
+  return {
+    ...group,
+    variants: group.variants.slice(0, VARIANTS_SHOWN),
+    more_variants: (group.more_variants ?? 0) + extra,
   }
 }
 
@@ -414,8 +530,11 @@ watch(
     () => selected.value?.runtime.last_result?.ended_at,
     () => selected.value?.runtime.plan?.created_at,
   ],
-  ([id, tab]) => {
-    if (id) void loadTab(id, tab)
+  ([id, tab], [previous_id, previous_tab]) => {
+    if (!id) return
+    const entering = id != previous_id || tab != previous_tab
+    if (!entering) markStale(id, tab)
+    void loadTab(id, tab, entering)
   },
 )
 
@@ -439,6 +558,35 @@ export function retryFailed(id?: ProjectId): void {
 export function openFolder(id?: ProjectId): void {
   const project = target(id)
   if (project) void run('open folder', () => desktop().folders.openProject(project.id))
+}
+/** «Agenti AI»: whether the app's MCP server is open, and its address */
+export async function agentAccess(): Promise<AgentAccess> {
+  try {
+    return await desktop().app.agentAccess()
+  } catch (error) {
+    logError('agent access', error, 'warn')
+    return { open: false }
+  }
+}
+/** The command that adds the app to Claude Code, to the clipboard (with the secret, which the page never sees) */
+export async function copyAgentConfig(): Promise<boolean> {
+  try {
+    await desktop().app.copyAgentConfig()
+    return true
+  } catch (error) {
+    fail('copy agent config', error)
+    return false
+  }
+}
+/** Text to the clipboard (not a secret): true when it got there */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await desktop().app.copyText(text)
+    return true
+  } catch (error) {
+    fail('copy text', error)
+    return false
+  }
 }
 export function copyPath(id?: ProjectId): void {
   const project = target(id)
@@ -471,13 +619,11 @@ export const openWizard = (folder?: string): void => {
   app.wizard = { folder }
 }
 /** A folder dropped on the window: the new project with it */
-export function openDroppedFolder(file: File): void {
-  try {
-    openWizard(desktop().folders.pathForDroppedFile(file))
-  } catch (error) {
-    fail('dropped folder', error)
-  }
+export function openDroppedFolder(path: string): void {
+  openWizard(path)
 }
+/** Files and folders dragged over the window, as the system reports them */
+export const watchDrag = (listener: (drag: FolderDrag) => void): Unsubscribe => desktop().folders.onDrag(listener)
 export const openSettings = (section: SettingsSection = 'general'): void => {
   app.settings_open = section
 }
@@ -502,6 +648,8 @@ export const openLicenses = (): void => void run('open licenses', () => desktop(
 export const showMainWindow = (command?: AppCommand): void => desktop().app.showMainWindow(command)
 export const quit = (): void => desktop().app.quit()
 export const closeWindow = (): void => desktop().app.window.close()
+export const minimizeWindow = (): void => desktop().app.window.minimize()
+export const toggleMaximizeWindow = (): void => desktop().app.window.toggleMaximize()
 
 /* ------------------------------------------------------------------ What a form asks */
 

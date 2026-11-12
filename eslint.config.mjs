@@ -6,7 +6,18 @@ import globals from 'globals'
 
 /** Vue and TypeScript rules; formatting is Prettier's (`yarn format`), not the linter's */
 export default defineConfigWithVueTs(
-  { ignores: ['out/**', 'dist/**', 'build/**', 'bin/**', 'src/renderer/src/lib/icons/pro.generated.ts'] },
+  {
+    ignores: [
+      'out/**',
+      'dist/**',
+      'build/**',
+      'bin/**',
+      'target/**',
+      'src-tauri/**',
+      'crates/**',
+      'src/renderer/src/lib/icons/pro.generated.ts',
+    ],
+  },
   js.configs.recommended,
   pluginVue.configs['flat/recommended'],
   vueTsConfigs.recommendedTypeChecked,
@@ -41,7 +52,7 @@ export default defineConfigWithVueTs(
     },
   },
   {
-    files: ['**/*.test.ts', 'src/engine/testing/**'],
+    files: ['**/*.test.ts'],
     rules: { '@typescript-eslint/no-base-to-string': 'off' },
   },
   {

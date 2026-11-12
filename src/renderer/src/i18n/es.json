@@ -3,6 +3,10 @@
     "name": "On Page Media Downloader",
     "short": "Media Downloader"
   },
+  "window": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar"
+  },
   "common": {
     "cancel": "Cancelar",
     "close": "Cerrar",
@@ -47,7 +51,8 @@
     "never": "nunca",
     "no_results": "No hay proyectos con estos filtros",
     "show_all": "Mostrar todos",
-    "label": "Proyectos"
+    "label": "Proyectos",
+    "resize": "Cambiar el ancho de la columna {column}"
   },
   "kind": {
     "local": "Carpeta local",
@@ -278,6 +283,8 @@
     "variants": "{count} archivos distintos",
     "chosen": "Descargado",
     "skipped": "No descargado",
+    "more": "y {count} archivo más con el mismo nombre | y {count} archivos más con el mismo nombre",
+    "show_more": "Mostrar {count} más | Mostrar {count} más",
     "empty": "No hay nombres repetidos",
     "search": "Buscar un nombre…",
     "no_results": "No se ha encontrado ningún nombre",
@@ -452,7 +459,8 @@
       "download": "Descargas",
       "appearance": "Apariencia",
       "language": "Idioma",
-      "updates": "Actualizaciones"
+      "updates": "Actualizaciones",
+      "agents": "Agentes de IA"
     },
     "open_at_login": {
       "title": "Iniciar con el sistema",
@@ -468,6 +476,13 @@
     "notifications": {
       "title": "Notificaciones",
       "text": "Al final de una sincronización, para archivos fallidos y errores."
+    },
+    "auto_sync": {
+      "title": "Sincronizar automáticamente",
+      "text": "Con la app abierta, lo que cambia en On Page llega solo. Las eliminaciones numerosas siguen esperando a «Confirmar».",
+      "off": "No",
+      "minutes": "{n} min",
+      "hours": "{n} h"
     },
     "concurrency": {
       "title": "Descargas simultáneas",
@@ -503,6 +518,20 @@
       "never": "Aún no se ha comprobado.",
       "failed": "No se ha podido comprobar: vuelve a intentarlo más tarde.",
       "licenses": "Licencias de código abierto"
+    },
+    "agents": {
+      "title": "Acceso para agentes de IA y terminal",
+      "text": "Mientras la app está abierta, agentes como Claude y el comando opmd pueden usarla (proyectos, sincronizaciones, duplicados) mediante MCP. Solo desde este ordenador.",
+      "address": "Dirección",
+      "starting": "Abriendo…",
+      "copy": "Copiar configuración para Claude Code",
+      "copied": "Comando copiado: pégalo en un terminal",
+      "terminal": "Desde el terminal, también con la app cerrada, está el comando opmd:",
+      "opmd_title": "El comando opmd",
+      "opmd_text": "Funciona también con la app cerrada: desde el terminal (opmd --help) o iniciado por un agente (opmd mcp).",
+      "opmd_copy": "Copiar configuración con opmd",
+      "opmd_link": "Para usarlo desde cualquier terminal, enlázalo una vez:",
+      "copy_command": "Copiar el comando"
     }
   },
   "tray": {

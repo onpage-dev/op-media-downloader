@@ -1,0 +1,38 @@
+[package]
+name = "op-media-downloader"
+description = "Keeps a local or network folder in sync with the media files of an On Page project"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+default-run = "op-media-downloader"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+op-media-service.workspace = true
+op-media-projects.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+parking_lot.workspace = true
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "json", "macos-system-configuration"] }
+keepawake = "0.5"
+regex = "1"
+sys-locale = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Registry"] }
+
+[dev-dependencies]
+tempfile = "3"

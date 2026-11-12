@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-get-duplicates"
+description = "Enables the sync_get_duplicates command without any pre-configured scope."
+commands.allow = ["sync_get_duplicates"]
+
+[[permission]]
+identifier = "deny-sync-get-duplicates"
+description = "Denies the sync_get_duplicates command without any pre-configured scope."
+commands.deny = ["sync_get_duplicates"]

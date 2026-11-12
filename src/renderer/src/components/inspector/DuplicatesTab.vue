@@ -56,7 +56,7 @@ onBeforeUnmount(() => window.clearTimeout(typing))
       @more="loadMore('duplicates', project.id)"
       @retry="reloadList('duplicates', project.id)"
     >
-      <DuplicateRows :groups="items" />
+      <DuplicateRows :groups="items" :project-id="project.id" />
     </LongList>
   </div>
 </template>

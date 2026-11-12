@@ -35,7 +35,9 @@ import {
   selected,
   sync,
   syncAll,
+  watchDrag,
 } from './store'
+import type { FolderDrag, Unsubscribe } from '@shared/desktop-api'
 
 const { t } = useI18n()
 const mac = platform() == 'darwin'
@@ -97,36 +99,31 @@ function onKey(event: KeyboardEvent): void {
   action(event.shiftKey)
 }
 
-/** A folder dragged over the window: the veil, then the new project with it */
-const hasFiles = (event: DragEvent): boolean => !!event.dataTransfer?.types.includes('Files')
-function onDragOver(event: DragEvent): void {
-  if (!hasFiles(event) || overlay.value) return
-  event.preventDefault()
-  app.dropping = true
-}
-function onDragLeave(event: DragEvent): void {
-  if (!event.relatedTarget) app.dropping = false
-}
-function onDrop(event: DragEvent): void {
-  if (!hasFiles(event)) return
-  event.preventDefault()
+/** A folder dragged over the window: the veil, then the new project with the first one dropped */
+function onDrag(drag: FolderDrag): void {
+  if (drag.type == 'leave') {
+    app.dropping = false
+    return
+  }
+  if (overlay.value) return
+  if (drag.type == 'enter') {
+    app.dropping = true
+    return
+  }
   app.dropping = false
-  const file = event.dataTransfer?.files[0]
-  if (file) openDroppedFolder(file)
+  const path = drag.paths[0]
+  if (path) openDroppedFolder(path)
 }
 
+let stopDrag: Unsubscribe | undefined
 onMounted(() => {
   void init()
   window.addEventListener('keydown', onKey)
-  window.addEventListener('dragover', onDragOver)
-  window.addEventListener('dragleave', onDragLeave)
-  window.addEventListener('drop', onDrop)
+  stopDrag = watchDrag(onDrag)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
-  window.removeEventListener('dragover', onDragOver)
-  window.removeEventListener('dragleave', onDragLeave)
-  window.removeEventListener('drop', onDrop)
+  stopDrag?.()
 })
 </script>
 

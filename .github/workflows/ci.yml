@@ -12,6 +12,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+  # What Tauri, the tray, the notifications and the Secret Service need to build on Linux
+  LINUX_DEPS: >-
+    build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev
+    librsvg2-dev libdbus-1-dev patchelf file
+
 jobs:
   check:
     strategy:
@@ -19,7 +26,9 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # Windows is the slowest: Clippy and the tests take about 12 minutes each there, then the bundle builds the app
+    # and opmd with the release profile (fat LTO, one codegen unit)
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,6 +39,17 @@ jobs:
           node-version-file: .node-version
           cache: yarn
 
+      # rustup comes with the runners: no third-party action for the toolchain
+      - name: Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
+
       # With the secret the install generates the Pro light icons of the design system; forks build with Font Awesome Free
       - name: Install dependencies
         env:
@@ -38,7 +58,7 @@ jobs:
 
       # Once, on Linux: the advisories are the same everywhere. Whatever --level says, Yarn 1 adds 1, 2, 4, 8 and 16 to
       # its exit code for info, low, moderate, high and critical advisories, and exits with 1 when the audit fails
-      - name: Known vulnerabilities in the app's dependencies
+      - name: Known vulnerabilities in the page's dependencies
         if: runner.os == 'Linux'
         run: |
           status=0
@@ -54,15 +74,23 @@ jobs:
       - name: Formatting
         run: yarn format:check
 
-      - name: Test
+      - name: Test the page
         run: yarn test
 
-      - name: Build
-        run: yarn run build
+      - name: Rust formatting
+        run: cargo fmt --all --check
 
-      # bash on every system: PowerShell, the Windows default, splits `-c.mac.identity=null` at the dot
+      # The licences of the crates go into the notices the bundle carries
+      - name: Third-party notices
+        run: node scripts/notices.mjs
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Test the app and the service
+        run: cargo test --workspace --locked
+
+      # bash on every system, as the release; no signing identity: the bundles are unsigned. opmd goes in beside the app
       - name: Package (unsigned, not published)
         shell: bash
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder --dir --publish never -c.mac.identity=null
+        run: yarn tauri build --ci --config src-tauri/tauri.bundle.conf.json

@@ -18,7 +18,7 @@ import {
   formatWhen,
 } from '../../lib/format'
 import * as icons from '../../lib/icons'
-import { KIND_ICONS, kindOf, TONE_FG, TONE_SOFT } from '../../lib/status-view'
+import { inspectorCounts, KIND_ICONS, kindOf, TONE_FG, TONE_SOFT } from '../../lib/status-view'
 import { app, ask, edit, retryFailed, sync } from '../../store'
 import AppIcon from '../ui/AppIcon.vue'
 import AppLogo from '../ui/AppLogo.vue'
@@ -90,16 +90,7 @@ function actionsOf(issue: Issue): Action[] {
   }
 }
 
-const counts = computed(() => {
-  const progress = runtime.value.progress
-  const source = progress && progress.total > 0 ? progress : runtime.value.last_result
-  return {
-    downloaded: source?.downloaded ?? 0,
-    present: source?.already_present ?? 0,
-    failed: source?.failed ?? 0,
-    total: source?.total ?? runtime.value.plan?.remote_names,
-  }
-})
+const counts = computed(() => inspectorCounts(props.project))
 const narrow = computed(() => props.width < 800)
 const tiles = computed(() => {
   const c = counts.value

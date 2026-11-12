@@ -3,6 +3,10 @@
     "name": "On Page Media Downloader",
     "short": "Media Downloader"
   },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize"
+  },
   "common": {
     "cancel": "Cancel",
     "close": "Close",
@@ -47,7 +51,8 @@
     "never": "never",
     "no_results": "No project matches these filters",
     "show_all": "Show all",
-    "label": "Projects"
+    "label": "Projects",
+    "resize": "Resize the {column} column"
   },
   "kind": {
     "local": "Local folder",
@@ -278,6 +283,8 @@
     "variants": "{count} different files",
     "chosen": "Downloaded",
     "skipped": "Not downloaded",
+    "more": "and 1 more file with the same name | and {count} more files with the same name",
+    "show_more": "Show 1 more | Show {count} more",
     "empty": "No name with different files",
     "search": "Search a name…",
     "no_results": "No name found",
@@ -452,7 +459,8 @@
       "download": "Downloads",
       "appearance": "Appearance",
       "language": "Language",
-      "updates": "Updates"
+      "updates": "Updates",
+      "agents": "AI agents"
     },
     "open_at_login": {
       "title": "Start with the system",
@@ -468,6 +476,13 @@
     "notifications": {
       "title": "Notifications",
       "text": "At the end of a sync, for failed files and errors."
+    },
+    "auto_sync": {
+      "title": "Sync automatically",
+      "text": "While the app is open, what changes on On Page arrives by itself. Many removals still wait for «Confirm».",
+      "off": "Off",
+      "minutes": "{n} min",
+      "hours": "{n} h"
     },
     "concurrency": {
       "title": "Parallel downloads",
@@ -503,6 +518,20 @@
       "never": "Not checked yet.",
       "failed": "The check did not work: try again later.",
       "licenses": "Open source licenses"
+    },
+    "agents": {
+      "title": "Access for AI agents and the terminal",
+      "text": "While the app is open, agents such as Claude and the opmd command can use it (projects, syncs, duplicates) through MCP. From this computer only.",
+      "address": "Address",
+      "starting": "Opening…",
+      "copy": "Copy Claude Code setup",
+      "copied": "Command copied: paste it in a terminal",
+      "terminal": "From the terminal, also with the app closed, there is the opmd command:",
+      "opmd_title": "The opmd command",
+      "opmd_text": "Works with the app closed too: from the terminal (opmd --help) or started by an agent (opmd mcp).",
+      "opmd_copy": "Copy setup with opmd",
+      "opmd_link": "To use it from any terminal, link it once:",
+      "copy_command": "Copy the command"
     }
   },
   "tray": {

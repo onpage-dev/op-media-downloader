@@ -3,7 +3,7 @@
  * renderer runs alone in a browser (dev server, captures). It is installed only
  * when the preload did not expose the real API: never inside Electron.
  * URL parameters: `empty` (no projects), `duplicates` (Catalogo Piante 2026 with
- * names with different files), `freeze` (no live progress), `fail=<code>` (the
+ * names with different files; `duplicates=many`: 3,000 of them), `freeze` (no live progress), `fail=<code>` (the
  * commands reject with that code, as main does: `project_busy`, `engine_timeout`…),
  * `taken` (another computer synced the folder of Schede tecniche with another On
  * Page project). A folder with «Listino 2026» in its path is that other
@@ -390,6 +390,25 @@ const duplicates: Record<string, DuplicateGroup[]> = {
     },
   ],
 }
+/**
+ * `duplicates=many`: thousands of names, as a big real project has (the tab under load), the
+ * first one with 15,000 files (generated catalogs that all have the same name)
+ */
+if (params.get('duplicates') == 'many') {
+  duplicates.piante = Array.from({ length: 3000 }, (_, g): DuplicateGroup => ({
+    name: `pianta-${g + 1}.jpg`,
+    variants: Array.from({ length: g ? 2 + (g % 2) : 15_000 }, (_, v) => ({
+      token: `many-${g}-${v}`,
+      size: 200_000 + g * 37 + v,
+      width: 1200,
+      height: 900,
+      chosen: v == 0,
+      uses: Array.from({ length: 4 + ((g + v) % 17) }, (_, u) =>
+        use('Prodotti', u % 2 ? 'Galleria' : 'Foto principale', `Pianta ${g + 1}`, 100_000 + g * 20 + u),
+      ),
+    })),
+  }))
+}
 
 /* ------------------------------------------------------------------ Events */
 
@@ -566,15 +585,28 @@ const desktop: DesktopApi = {
       return clone({ total: all.length, entries: all.slice(page.offset, page.offset + page.limit) })
     },
     getDuplicates: async (id, page) => {
-      // A big project reads its listing cache first: the tab shows that it is loading
-      await later(400)
+      // The rows come from the computer at once; the labels of the things from On Page, slowly
+      const labels = page.labels ?? true
+      await later(labels ? 1500 : 30)
       const query = page.query?.toLowerCase()
       const all = (duplicates[id] ?? []).filter(g => !query || g.name.toLowerCase().includes(query))
-      return clone({
-        total: all.length,
-        language_variants: 0,
-        groups: all.slice(page.offset, page.offset + page.limit),
-      })
+      // As the service: the first 10 files of a name, and how many more it has
+      const groups = clone(
+        all
+          .slice(page.offset, page.offset + page.limit)
+          .map(g => ({ ...g, variants: g.variants.slice(0, 10), more_variants: Math.max(0, g.variants.length - 10) })),
+      )
+      if (!labels) for (const use of groups.flatMap(g => g.variants).flatMap(v => v.uses)) delete use.thing_label
+      return { total: all.length, language_variants: 0, groups, labels_pending: !labels && groups.length > 0 }
+    },
+    getDuplicateVariants: async (id, query) => {
+      const labels = query.labels ?? true
+      await later(labels ? 1500 : 30)
+      const all = (duplicates[id] ?? []).find(g => g.name == query.name)?.variants ?? []
+      const end = Math.min(all.length, query.offset + query.limit)
+      const variants = clone(all.slice(query.offset, end))
+      if (!labels) for (const use of variants.flatMap(v => v.uses)) delete use.thing_label
+      return { variants, more_variants: all.length - end, labels_pending: !labels && variants.length > 0 }
     },
   },
   folders: {
@@ -584,7 +616,32 @@ const desktop: DesktopApi = {
       return inspect(path, projectId)
     },
     openProject: () => command(async () => undefined),
-    pathForDroppedFile: file => `D:\\Media\\${file.name}`,
+    // The browser's own drag and drop, with a made-up path for the name of what was dropped
+    onDrag: listener => {
+      const files = (event: DragEvent): boolean => !!event.dataTransfer?.types.includes('Files')
+      const over = (event: DragEvent): void => {
+        if (!files(event)) return
+        event.preventDefault()
+        listener({ type: 'enter' })
+      }
+      const leave = (event: DragEvent): void => {
+        if (!event.relatedTarget) listener({ type: 'leave' })
+      }
+      const drop = (event: DragEvent): void => {
+        if (!files(event)) return
+        event.preventDefault()
+        const names = Array.from(event.dataTransfer?.files ?? [], file => `D:\\Media\\${file.name}`)
+        listener({ type: 'drop', paths: names })
+      }
+      window.addEventListener('dragover', over)
+      window.addEventListener('dragleave', leave)
+      window.addEventListener('drop', drop)
+      return () => {
+        window.removeEventListener('dragover', over)
+        window.removeEventListener('dragleave', leave)
+        window.removeEventListener('drop', drop)
+      }
+    },
   },
   tokens: {
     async verify(token) {
@@ -635,6 +692,18 @@ const desktop: DesktopApi = {
     copyText: async text => navigator.clipboard?.writeText(text),
     onCommand: listener => commands.add(listener),
     openLicenses: () => command(async () => undefined),
+    agentAccess: async () =>
+      settings.agent_access
+        ? {
+            open: true,
+            url: 'http://127.0.0.1:47821/mcp',
+            opmd: 'C:\\Program Files\\On Page Media Downloader\\opmd.exe',
+          }
+        : { open: false, opmd: 'C:\\Program Files\\On Page Media Downloader\\opmd.exe' },
+    copyAgentConfig: async () =>
+      void navigator.clipboard?.writeText(
+        'claude mcp add --transport http op-media-downloader http://127.0.0.1:47821/mcp',
+      ),
     log: (level, message) => console[level](message),
     // In a browser the panel and the window are one page: the command runs here
     showMainWindow: command => command && commands.emit(command),

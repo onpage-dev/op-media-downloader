@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = ["crates/op-media-service", "crates/op-media-projects", "crates/opmd", "src-tauri"]
+
+[workspace.package]
+version = "2.0.0"
+edition = "2024"
+license = "MIT"
+authors = ["On Page®"]
+repository = "https://github.com/onpage-dev/op-media-downloader"
+rust-version = "1.90"
+
+[workspace.dependencies]
+op-media-service = { path = "crates/op-media-service" }
+op-media-projects = { path = "crates/op-media-projects" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "time", "sync", "io-util", "net"] }
+tokio-util = "0.7"
+futures = "0.3"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+uuid = { version = "1", features = ["v4"] }
+parking_lot = "0.12"
+tracing = "0.1"
+
+# `yarn dev`: the dependencies (JSON, gzip, HTTP, Tauri) at full speed, so that a development run of a
+# real project is not ten times slower than the app; the workspace's own crates stay quick to rebuild
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "unwind"
+strip = true

@@ -3,6 +3,10 @@
     "name": "On Page Media Downloader",
     "short": "Media Downloader"
   },
+  "window": {
+    "minimize": "最小化",
+    "maximize": "最大化"
+  },
   "common": {
     "cancel": "取消",
     "close": "关闭",
@@ -47,7 +51,8 @@
     "never": "从未",
     "no_results": "没有符合这些筛选条件的项目",
     "show_all": "显示全部",
-    "label": "项目"
+    "label": "项目",
+    "resize": "调整“{column}”列的宽度"
   },
   "kind": {
     "local": "本地文件夹",
@@ -278,6 +283,8 @@
     "variants": "{count} 个不同文件",
     "chosen": "已下载",
     "skipped": "未下载",
+    "more": "以及另外 {count} 个同名文件",
+    "show_more": "再显示 {count} 个",
     "empty": "没有重名文件",
     "search": "搜索名称…",
     "no_results": "未找到匹配的名称",
@@ -452,7 +459,8 @@
       "download": "下载",
       "appearance": "外观",
       "language": "语言",
-      "updates": "更新"
+      "updates": "更新",
+      "agents": "AI 智能体"
     },
     "open_at_login": {
       "title": "随系统启动",
@@ -468,6 +476,13 @@
     "notifications": {
       "title": "通知",
       "text": "同步结束时，以及有文件下载失败或出错时。"
+    },
+    "auto_sync": {
+      "title": "自动同步",
+      "text": "应用打开期间，On Page 上的更改会自动同步过来。大量删除仍需点击“确认”。",
+      "off": "关闭",
+      "minutes": "{n} 分钟",
+      "hours": "{n} 小时"
     },
     "concurrency": {
       "title": "同时下载数",
@@ -503,6 +518,20 @@
       "never": "尚未检查。",
       "failed": "无法检查：请稍后重试。",
       "licenses": "开源许可"
+    },
+    "agents": {
+      "title": "允许 AI 智能体和终端访问",
+      "text": "应用打开时，Claude 等智能体和 opmd 命令可以通过 MCP 使用它（项目、同步、重复项）。仅限本机。",
+      "address": "地址",
+      "starting": "正在打开…",
+      "copy": "复制 Claude Code 配置",
+      "copied": "命令已复制：粘贴到终端中运行",
+      "terminal": "在终端中，即使应用已关闭，也可以使用 opmd 命令：",
+      "opmd_title": "opmd 命令",
+      "opmd_text": "应用关闭时也可使用：在终端中（opmd --help）或由智能体启动（opmd mcp）。",
+      "opmd_copy": "复制 opmd 配置",
+      "opmd_link": "要在任何终端中使用，请先创建一次链接：",
+      "copy_command": "复制命令"
     }
   },
   "tray": {

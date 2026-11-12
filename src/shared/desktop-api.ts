@@ -1,22 +1,26 @@
 /**
- * The API the preload exposes to the renderer as `window.desktop`.
- * The renderer never sees Node, `ipcRenderer` or API tokens in clear (except
- * when the user asks to show the token in the project settings). Main never
- * trusts what comes from here: a folder is opened by project id, a stored
- * token is verified in main. Calls reject with an `Error` whose message is a
- * code (`project_busy`, `engine_timeout`, `open_failed`, …) or `code:detail`.
+ * The API the renderer sees as `window.desktop`, implemented on the app's
+ * Tauri commands and events by `src/renderer/src/desktop/tauri.ts`.
+ * The renderer never sees API tokens in clear (except when the user asks to
+ * show the token in the project settings). The app never trusts what comes
+ * from here (`src-tauri/src/validate.rs`): a folder is opened by project id,
+ * a stored token is verified by the app. Calls reject with an `Error` whose
+ * message is a code (`project_busy`, `open_failed`, …) or `code:detail`.
  */
 import {
   ActivityEntry,
+  AgentAccess,
   AppSettings,
   AppStatus,
   DuplicatePage,
+  DuplicateVariants,
   FailedPage,
   FolderInfo,
   PageQuery,
   ProjectId,
   ProjectView,
   TokenCheck,
+  VariantsQuery,
   VersionInfo,
 } from './models'
 
@@ -57,9 +61,11 @@ export type AppCommand =
   | { type: 'focus_search' }
 
 export type InspectorTab = 'general' | 'activity' | 'failed' | 'duplicates' | 'settings'
-export type SettingsSection = 'general' | 'download' | 'appearance' | 'language' | 'updates'
+export type SettingsSection = 'general' | 'download' | 'appearance' | 'language' | 'updates' | 'agents'
 
 export type Unsubscribe = () => void
+
+export type FolderDrag = { type: 'enter' } | { type: 'leave' } | { type: 'drop'; paths: string[] }
 
 export interface DesktopApi {
   platform: 'win32' | 'darwin' | 'linux'
@@ -87,6 +93,8 @@ export interface DesktopApi {
     onActivity(listener: (id: ProjectId, entries: ActivityEntry[]) => void): Unsubscribe
     getFailed(id: ProjectId, page: PageQuery): Promise<FailedPage>
     getDuplicates(id: ProjectId, page: PageQuery): Promise<DuplicatePage>
+    /** «Mostra altri»: the next files of one name of «Duplicati» */
+    getDuplicateVariants(id: ProjectId, query: VariantsQuery): Promise<DuplicateVariants>
   }
 
   folders: {
@@ -95,8 +103,12 @@ export interface DesktopApi {
     inspect(path: string, project_id?: ProjectId): Promise<FolderInfo>
     /** The folder of a project, as main has it recorded */
     openProject(id: ProjectId): Promise<void>
-    /** Path of a folder dropped on the window (File from a drop event) */
-    pathForDroppedFile(file: File): string
+    /**
+     * Files and folders dragged over the window: `enter` while they are over it,
+     * `leave` when they go, `drop` with their paths (the system's drag and drop:
+     * the page's own drop events carry no path)
+     */
+    onDrag(listener: (drag: FolderDrag) => void): Unsubscribe
   }
 
   tokens: {
@@ -124,6 +136,10 @@ export interface DesktopApi {
     onCommand(listener: (command: AppCommand) => void): Unsubscribe
     /** The third-party notices shipped with the app */
     openLicenses(): Promise<void>
+    /** «Agenti AI»: the MCP server for AI agents and opmd */
+    agentAccess(): Promise<AgentAccess>
+    /** Copies the command that adds the app to Claude Code, its secret included (main writes the clipboard) */
+    copyAgentConfig(): Promise<void>
     /** Errors of the page, written to main's log */
     log(level: 'warn' | 'error', message: string): void
     /**

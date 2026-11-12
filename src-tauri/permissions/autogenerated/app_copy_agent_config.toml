@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-copy-agent-config"
+description = "Enables the app_copy_agent_config command without any pre-configured scope."
+commands.allow = ["app_copy_agent_config"]
+
+[[permission]]
+identifier = "deny-app-copy-agent-config"
+description = "Denies the app_copy_agent_config command without any pre-configured scope."
+commands.deny = ["app_copy_agent_config"]
