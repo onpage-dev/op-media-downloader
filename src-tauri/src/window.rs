@@ -26,8 +26,6 @@ pub const TRAY_PANEL: &str = "tray";
 
 const DEFAULT_SIZE: (f64, f64) = (1100.0, 720.0);
 pub const MIN_SIZE: (f64, f64) = (860.0, 560.0);
-#[cfg(target_os = "macos")]
-pub const TITLE_BAR_HEIGHT: f64 = 32.0;
 
 /// The backdrop of the title row (`src/shared/window-chrome.ts`): the window's colour before the page paints
 const LIGHT_BACKGROUND: Color = Color(0xf2, 0xf2, 0xf2, 0xff);
@@ -126,12 +124,12 @@ impl MainWindow {
         } else {
             builder = builder.center();
         }
+        // The traffic lights stay where macOS puts them. A position of our own (`traffic_light_position`) is not
+        // one from the top: wry sets the title bar's height to the buttons' plus y and leaves the buttons where
+        // macOS had them in its own bar: with a bar taller than ours (macOS 26) they went against the top edge
         #[cfg(target_os = "macos")]
         {
-            builder = builder
-                .title_bar_style(tauri::TitleBarStyle::Overlay)
-                .hidden_title(true)
-                .traffic_light_position(tauri::LogicalPosition::new(12.0, (TITLE_BAR_HEIGHT - 14.0) / 2.0));
+            builder = builder.title_bar_style(tauri::TitleBarStyle::Overlay).hidden_title(true);
         }
         #[cfg(not(target_os = "macos"))]
         {
