@@ -523,3 +523,31 @@ async fn on_page_calls_bring_its_projects_up_to_date() {
     assert!(!seen.join("\n").contains(secret));
     fake.close();
 }
+
+/// A round leaves a shared folder to the computer that just brought it up to
+/// date (`data/synced.json`), and brings the others up to date in one job each
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_round_leaves_a_shared_folder_to_the_computer_that_just_synced_it() {
+    let fake = FakeOnPage::start(sample_project(4, 0, "shared"), "shared-token", 0).await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("data");
+    let opmd = Opmd { data: &data, fake: &fake };
+    let (uno, due) = (dir.path().join("Uno"), dir.path().join("Due"));
+    for (label, folder) in [("Uno", &uno), ("Due", &due)] {
+        opmd.ok(&["add", "--label", label, "--folder", &folder.display().to_string(), "--token-env", "TEST_TOKEN"])
+            .await;
+    }
+    std::fs::create_dir_all(uno.join("data")).unwrap();
+    let at = op_media_service::iso_ms(op_media_service::now_ms());
+    let synced = format!(r#"{{"at":"{at}","instance_id":"another-app","host":"pc-di-luca"}}"#);
+    std::fs::write(uno.join("data").join("synced.json"), synced).unwrap();
+
+    let out = opmd.ok(&["run", "--every", "1h", "--rounds", "1"]).await;
+    assert!(out.contains("Uno: left to pc-di-luca, which brought its shared folder up to date just now"), "{out}");
+    assert!(out.contains("Due: download completed"), "{out}");
+    assert!(due.join("prodotto-1.jpg").exists() && !uno.join("prodotto-1.jpg").exists());
+    // A download asked by a person is not left to anybody
+    assert!(opmd.ok(&["download", "--all"]).await.contains("Uno: download completed"));
+    assert!(uno.join("prodotto-1.jpg").exists());
+    fake.close();
+}

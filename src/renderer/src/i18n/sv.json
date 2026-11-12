@@ -477,6 +477,13 @@
       "title": "Meddelanden",
       "text": "I slutet av en synkronisering, för misslyckade filer och för fel."
     },
+    "auto_sync": {
+      "title": "Synkronisera automatiskt",
+      "text": "Medan appen är öppen kommer det som ändras på On Page av sig självt. Många borttagningar väntar fortfarande på ”Bekräfta”.",
+      "off": "Av",
+      "minutes": "{n} min",
+      "hours": "{n} tim"
+    },
     "concurrency": {
       "title": "Samtidiga nedladdningar",
       "text": "Hur många filer som laddas ner samtidigt, från 1 till 10."

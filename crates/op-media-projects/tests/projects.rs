@@ -304,3 +304,63 @@ async fn tokens_are_checked_without_leaving_the_app() {
     assert!(!app.projects.verify_token("wrong").await.ok);
     assert!(!app.projects.verify_token("  ").await.ok);
 }
+
+/// The app's automatic syncs: the projects whose last job is older than the
+/// interval are brought up to date, one job each, once per interval; a shared
+/// folder another computer synced within it is left alone; off, nothing
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn automatic_syncs_bring_the_projects_up_to_date_once_per_interval() {
+    let app = App::new().await;
+    let uno = app.create("Uno", &app.folder("Uno")).await.unwrap();
+    let due = app.create("Due", &app.folder("Due")).await.unwrap();
+    assert!(app.projects.auto_sync().await.started.is_empty(), "off by default");
+    let saved = app.projects.set_settings(&SettingsPatch { auto_sync_minutes: Some(60), ..SettingsPatch::default() });
+    assert_eq!(saved.auto_sync_minutes, 60);
+
+    // Another computer brought Due's folder up to date ten minutes ago
+    let data = std::path::Path::new(&due.folder).join("data");
+    std::fs::create_dir_all(&data).unwrap();
+    let at = op_media_service::iso_ms(op_media_service::now_ms() - 600_000);
+    let synced = format!(r#"{{"at":"{at}","instance_id":"another-app","host":"pc-di-luca"}}"#);
+    std::fs::write(data.join("synced.json"), synced).unwrap();
+
+    let round = app.projects.auto_sync().await;
+    assert_eq!(round.started, vec![uno.id.clone()]);
+    let skipped = &round.skipped[0];
+    assert_eq!(
+        (skipped.project.as_str(), skipped.reason, skipped.host.as_str()),
+        (due.id.as_str(), "synced", "pc-di-luca")
+    );
+    assert_eq!(skipped.minutes_ago, Some(10));
+    // One job: listed and downloaded
+    let view = app.projects.wait_job(&uno.id, Duration::from_secs(60)).await.unwrap();
+    let result = view.runtime.last_result.unwrap();
+    assert_eq!((result.job, result.outcome), (JobKind::Download, SyncOutcome::Completed));
+    assert!(result.downloaded > 0 && std::path::Path::new(&uno.folder).join("prodotto-1.jpg").exists());
+    // It says so for the other computers
+    assert!(std::path::Path::new(&uno.folder).join("data").join("synced.json").exists());
+
+    // Within the hour nothing again: Uno just ended a job, Due was tried
+    let again = app.projects.auto_sync().await;
+    assert!(again.started.is_empty() && again.skipped.is_empty(), "{again:?}");
+}
+
+#[test]
+fn an_automatic_sync_waits_the_interval_after_a_job_or_a_try() {
+    use op_media_projects::projects::auto_sync_due;
+    use op_media_projects::validate::auto_sync;
+    let hour = Duration::from_secs(3600);
+    let now = 10 * 3_600_000;
+    assert!(auto_sync_due(now, None, None, hour), "never synced");
+    assert!(!auto_sync_due(now, Some(now - 1_800_000), None, hour), "a job half an hour ago");
+    assert!(auto_sync_due(now, Some(now - 3_600_000), None, hour));
+    assert!(!auto_sync_due(now, Some(now - 7_200_000), Some(now - 60_000), hour), "tried a minute ago");
+    // The minutes as people and agents give them: 0 is never, else 15 minutes to a week
+    let minutes = |value: serde_json::Value| auto_sync(Some(&value));
+    assert_eq!(minutes(serde_json::json!(0)), Some(0));
+    assert_eq!(minutes(serde_json::json!(5)), Some(15));
+    assert_eq!(minutes(serde_json::json!(60.4)), Some(60));
+    assert_eq!(minutes(serde_json::json!(100_000)), Some(10_080));
+    assert_eq!(minutes(serde_json::json!(-3)), Some(0));
+    assert_eq!(minutes(serde_json::json!("60")), None);
+}

@@ -300,6 +300,33 @@ pub const OPERATIONS: &[Operation] = &[
         schema: || object(&[], &[]),
     },
     Operation {
+        name: "update_projects",
+        title: "Bring projects up to date",
+        description: "Brings projects up to date, one job each: lists what changed on On Page and downloads, links \
+                      and removes (within the safety limit) what the folder needs, as `sync_project` and \
+                      `download_project` together. The projects named, or every project; one already running is \
+                      left to its job. With `skip_synced_within_minutes` a folder another computer is syncing, or \
+                      synced that recently, is left alone (a shared folder needs one of them). Answers at once with \
+                      the projects `started` and `skipped`: follow each with `wait_for_project`.",
+        read_only: false,
+        destructive: false,
+        schema: || {
+            object(
+                &[
+                    (
+                        "projects",
+                        json!({ "type": "array", "items": project_ref(), "description": "Only these projects" }),
+                    ),
+                    (
+                        "skip_synced_within_minutes",
+                        integer("Leave alone the folders another computer synced this recently, or syncs now"),
+                    ),
+                ],
+                &[],
+            )
+        },
+    },
+    Operation {
         name: "update_settings",
         title: "Change settings",
         description: "Changes some settings; the others stay. Answers all of them.",
@@ -312,6 +339,13 @@ pub const OPERATIONS: &[Operation] = &[
                     ("language", enumeration(&["it", "en", "de", "es", "fr", "ru", "sv", "zh"])),
                     ("concurrency", integer("Parallel downloads per project, 1 to 10")),
                     ("auto_retry_failed", boolean("Retry network failures once, a minute after a download")),
+                    (
+                        "auto_sync_minutes",
+                        integer(
+                            "While the app is open, bring every project up to date this often, in minutes (0: \
+                             never; at least 15, at most 10080)",
+                        ),
+                    ),
                     ("notifications", boolean("System notifications at the end of a job")),
                     ("close_to_tray", boolean("Keep running in the notification area when the window closes")),
                     ("open_at_login", boolean("Start with the system")),
@@ -367,6 +401,23 @@ pub async fn call(projects: &Arc<ProjectService>, name: &str, args: &Value) -> R
         "sync_all" => {
             projects.sync_all();
             ok()
+        }
+        "update_projects" => {
+            let only = match field("projects") {
+                Value::Null => None,
+                Value::Array(references) => Some(
+                    references
+                        .iter()
+                        .map(|reference| Ok(projects.find(reference.as_str().ok_or("invalid_input")?)?.id))
+                        .collect::<Result<Vec<_>, String>>()?,
+                ),
+                _ => return Err("invalid_input".into()),
+            };
+            let within = field("skip_synced_within_minutes")
+                .as_u64()
+                .filter(|minutes| *minutes > 0)
+                .map(|minutes| Duration::from_secs(minutes.min(validate::AUTO_SYNC_LONGEST as u64) * 60));
+            answer(projects.round(only.as_deref(), within).await)
         }
         "download_project" => job(projects, &project()?, JobKind::Download),
         "retry_failed" => job(projects, &project()?, JobKind::RetryFailed),

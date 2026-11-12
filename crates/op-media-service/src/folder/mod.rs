@@ -15,3 +15,4 @@ pub mod link;
 pub mod lock;
 pub mod manifest;
 pub mod scan;
+pub mod synced;

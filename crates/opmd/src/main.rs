@@ -399,7 +399,7 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
         }
         Command::Download { project, all, wait } => {
             if *all {
-                let (ends, interrupted) = update_projects(backend, None, wait).await?;
+                let Updated { ends, interrupted, .. } = update_projects(backend, None, None, wait).await?;
                 if cli.json {
                     let views: Vec<&Value> = ends.iter().map(|(end, _)| end).collect();
                     println!("{}", serde_json::to_string_pretty(&views).unwrap_or_default());
@@ -539,61 +539,52 @@ async fn job(
     Ok(exit_code(&end, ended, interrupted))
 }
 
-/// Every project (or `only` these) brought up to date and followed to the
-/// end: a «Sincronizza» (what changed on On Page: a «Scarica» alone would
-/// reuse a listing of the last 30 minutes, which a long-running process or the
-/// app may hold), then a «Scarica» where files are missing. Each project as it
-/// ended, and whether its jobs left a result; whether the user or the system
-/// stopped them
+/// What `update_projects` ends with
+struct Updated {
+    /// Each project followed, as it ended, and whether its job left a result
+    ends: Vec<(Value, bool)>,
+    /// The projects whose shared folder another computer had in hand (as `update_projects` answers them)
+    skipped: Vec<Value>,
+    /// The user or the system stopped them
+    interrupted: bool,
+}
+
+/// Every project (or `only` these) brought up to date, one job each (the
+/// operation `update_projects`: what changed on On Page, then what the folder
+/// needs, as the app's automatic syncs), followed to the end. `skip_within`:
+/// a shared folder another computer synced that recently is left to it
 async fn update_projects(
     backend: &Backend,
     only: Option<&[String]>,
+    skip_within: Option<Duration>,
     wait: &WaitArgs,
-) -> Result<(Vec<(Value, bool)>, bool), String> {
+) -> Result<Updated, String> {
     let projects = backend.call("list_projects", json!({})).await?;
-    let mut ids = Vec::new();
-    let mut before: HashMap<String, Value> = HashMap::new();
-    for project in projects.as_array().into_iter().flatten() {
-        let Some(id) = project["id"].as_str() else { continue };
-        if only.is_some_and(|only| !only.iter().any(|chosen| chosen == id)) {
-            continue;
-        }
-        before.insert(id.to_string(), project["runtime"]["last_result"]["ended_at"].clone());
-        ids.push(id.to_string());
-    }
-    let start = async |operation: &str, ids: &[String]| -> Result<(), String> {
-        for id in ids {
-            // A project removed meanwhile is left out; one already running is followed as it is
-            match backend.call(operation, json!({ "project": id })).await {
-                Ok(_) => {}
-                Err(error) if error == "project_not_found" => {}
-                Err(error) => return Err(error),
-            }
-        }
-        Ok(())
-    };
-    start("sync_project", &ids).await?;
-    let (synced, mut interrupted) = follow(backend, &ids, wait).await?;
-    let mut ends: Vec<Value> = synced;
-    let missing: Vec<String> = ends
-        .iter()
-        .filter(|view| {
-            let runtime = &view["runtime"];
-            let failed = runtime["issues"].as_array().into_iter().flatten().any(|issue| issue["severity"] == "error");
-            !failed && runtime["plan"]["to_download_names"].as_u64().unwrap_or(0) > 0
+    let before: HashMap<String, Value> = projects
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|project| {
+            Some((project["id"].as_str()?.to_string(), project["runtime"]["last_result"]["ended_at"].clone()))
         })
-        .filter_map(|view| view["id"].as_str().map(str::to_string))
         .collect();
-    if !interrupted && !missing.is_empty() {
-        start("download_project", &missing).await?;
-        let (downloaded, stopped) = follow(backend, &missing, wait).await?;
-        interrupted = stopped;
-        for view in downloaded {
-            if let Some(slot) = ends.iter_mut().find(|end| end["id"] == view["id"]) {
-                *slot = view;
-            }
-        }
+    // A project removed meanwhile is left out
+    let only: Option<Vec<&String>> = only.map(|only| only.iter().filter(|id| before.contains_key(*id)).collect());
+    if only.as_ref().is_some_and(Vec::is_empty) {
+        return Ok(Updated { ends: Vec::new(), skipped: Vec::new(), interrupted: false });
     }
+    let mut args = json!({});
+    if let Some(only) = &only {
+        args["projects"] = json!(only);
+    }
+    if let Some(within) = skip_within {
+        args["skip_synced_within_minutes"] = json!((within.as_secs() / 60).max(1));
+    }
+    let round = backend.call("update_projects", args).await?;
+    let started: Vec<String> =
+        round["started"].as_array().into_iter().flatten().filter_map(|id| id.as_str().map(str::to_string)).collect();
+    let skipped = round["skipped"].as_array().cloned().unwrap_or_default();
+    let (ends, interrupted) = follow(backend, &started, wait).await?;
     let ends = ends
         .into_iter()
         .map(|end| {
@@ -602,7 +593,7 @@ async fn update_projects(
             (end, ended)
         })
         .collect();
-    Ok((ends, interrupted))
+    Ok(Updated { ends, skipped, interrupted })
 }
 
 async fn sync_all(cli: &Cli, backend: &Backend, wait: &WaitArgs) -> Result<i32, String> {

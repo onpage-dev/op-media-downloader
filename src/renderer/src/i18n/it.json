@@ -477,6 +477,13 @@
       "title": "Notifiche",
       "text": "Alla fine di una sincronizzazione, per i file falliti e gli errori."
     },
+    "auto_sync": {
+      "title": "Sincronizza in automatico",
+      "text": "Mentre l’app è aperta, quello che cambia su On Page arriva da sé. Le rimozioni numerose aspettano comunque «Conferma».",
+      "off": "No",
+      "minutes": "{n} min",
+      "hours": "{n} h"
+    },
     "concurrency": {
       "title": "Download contemporanei",
       "text": "Quanti file scaricare insieme, da 1 a 10."

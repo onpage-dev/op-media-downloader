@@ -28,17 +28,17 @@ Give the app an On Page [API token](https://app.onpage.it/#/help/advanced-tools/
 - **One download per file, one computer per folder.** A file used by many items is downloaded once and linked under all its names; a lock keeps two computers from syncing a folder together.
 - **Network friendly.** The system proxy, retries with backoff, On Page's rate limits respected, 1 to 10 parallel downloads, a Stop that really stops.
 - **Scriptable, for servers and AI agents.** `opmd` does from a terminal everything the window does, with or without the app, keeps a [server's folders](#on-a-server) up to date on its own, and gives AI agents the same operations through [MCP](#ai-agents-mcp).
-- **A proper desktop app.** Notification area panel, notifications, taskbar and Dock progress, start at login, shortcuts, drag and drop. Light and dark, in eight languages.
+- **A proper desktop app.** Notification area panel, notifications, taskbar and Dock progress, start at login, automatic syncs, shortcuts, drag and drop. Light and dark, in eight languages.
 
 ## Screenshots
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/activity-dark.png" alt="The Activity tab of a running download, in the dark theme" /></td>
+    <td width="50%"><img src="docs/screenshots/activity.png" alt="The Activity tab of a running download" /></td>
     <td width="50%"><img src="docs/screenshots/duplicates.png" alt="The Duplicates tab: names used by more than one file on On Page" /></td>
   </tr>
   <tr>
-    <td align="center"><b>Activity</b>: every file as it is downloaded, linked or relinked, here in the dark theme</td>
+    <td align="center"><b>Activity</b>: every file as it is downloaded, linked or relinked</td>
     <td align="center"><b>Duplicates</b>: names used by more than one file on On Page; the first one is downloaded</td>
   </tr>
   <tr>
@@ -80,7 +80,7 @@ flowchart LR
 2. **Download** carries it out: each file once into `data/` (4 at a time, up to 10), then linked under all its names. **Stop** halts it; the next **Download** goes on from there.
 3. **Confirm** appears only when a sync would remove more than 50 files and more than a quarter of those the app created. You see the count first.
 
-Syncs start when you ask (**Sync**, **Sync all**, the notification area panel, the macOS menu, `opmd` or an AI agent) or, on a server, on their own ([`opmd run`](#on-a-server)).
+Syncs start when you ask (**Sync**, **Sync all**, the notification area panel, the macOS menu, `opmd` or an AI agent) or on their own: in the app with _Settings › Downloads › Sync automatically_ (see _Automatic syncs_ under [Good to know](#good-to-know)), on a server with [`opmd run`](#on-a-server).
 
 ## Install
 
@@ -111,6 +111,7 @@ Catalogo piante/
 ├── data/                  the app's own folder: leave it as it is
 │   ├── 8f3c2a…            one file per content, named by its On Page token
 │   ├── manifest.json      what the app created, and for which On Page project
+│   ├── synced.json        when, and by which computer, it was last brought up to date
 │   └── .lock              which computer is syncing the folder right now
 ├── aloe-vera.jpg          every file under its On Page name, side by side:
 ├── begonia.jpg            hard links to data/, or copies where the folder
@@ -144,6 +145,15 @@ A wrong token, a View that changed or a project read only in part must not empty
 <summary><b>"Some collections were not read"</b></summary>
 
 Part of the project could not be read, for instance because of the network. The new files of the rest are downloaded, but nothing is removed until a sync reads everything.
+
+</details>
+
+<details>
+<summary><b>Automatic syncs</b></summary>
+
+With _Settings › Downloads › Sync automatically_ (every 15 minutes, 1, 6 or 24 hours; off at first), while the app is open, a project whose last sync is older than that is brought up to date in one go: what changed on On Page is read and downloaded. A sync you start yourself counts too, and one that failed waits as long before the next try. Many removals still wait for **Confirm**. To keep it going with the window closed: _Icon in the notification area_ and _Start with the system_.
+
+A network folder shared by several computers needs only one of them: an app that finds the folder being synced by another computer, or brought up to date by it within the interval (`data/synced.json`), leaves it alone. [`opmd run`](#on-a-server) does the same.
 
 </details>
 
@@ -241,7 +251,7 @@ Without the app, `opmd` keeps projects of its own: `--data-dir DIR` (or `OPMD_DA
 - **Once**, for instance from cron: `opmd download --all`.
 - **On its own:** `opmd run` does it at every round, every hour by default (`--every 6h`, at least `15m`: each round asks On Page about every project) until Ctrl+C, `systemctl stop` or `docker stop` (SIGTERM), which end the running jobs cleanly. Only one `opmd run` works on a data folder.
 
-Each round writes a line per project to the output and to `logs/opmd.log`. A round that fails (On Page out of reach, a folder that does not answer) only writes a `WARNING`: the next one tries again. Large removals still wait for a person: the log names the command that confirms them (`opmd cleanup PROJECT --yes`).
+Each round writes a line per project to the output and to `logs/opmd.log`; a shared folder another computer brought up to date within the interval is left to it, as in the app. A round that fails (On Page out of reach, a folder that does not answer) only writes a `WARNING`: the next one tries again. Large removals still wait for a person: the log names the command that confirms them (`opmd cleanup PROJECT --yes`).
 
 ```ini
 # /etc/systemd/system/opmd.service, then: systemctl enable --now opmd

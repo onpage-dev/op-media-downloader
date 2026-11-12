@@ -92,6 +92,8 @@ pub fn setup(app: &AppHandle) -> Result<(), String> {
     shell.status.update_tray(app, &projects.views());
     let refresh = projects.clone();
     tauri::async_runtime::spawn(async move { refresh.refresh_folders().await });
+    // Settings › Downloads › Sync automatically: off until chosen
+    projects.start_auto_sync();
 
     let argv: Vec<String> = std::env::args().collect();
     let start_hidden = argv.iter().any(|arg| arg == "--hidden") && settings.close_to_tray;

@@ -5,8 +5,13 @@
 //!   when nothing needs downloading, the links and the removals within the
 //!   threshold are applied at once and the job ends as a completed sync.
 //! - «Scarica» and «Riprova i falliti» (`run_download`): the listing of the
-//!   last «Sincronizza» when it is fresh (a new one otherwise), a new compare,
-//!   then the whole plan, or only the names that failed.
+//!   last «Sincronizza» when it is fresh (a new one otherwise, or always for
+//!   an update: the automatic syncs), a new compare, then the whole plan, or
+//!   only the names that failed.
+//!
+//! A job that lists everything and carries out the whole plan with no file
+//! to try again writes `data/synced.json`: the other computers' automatic
+//! syncs leave the folder alone for a while.
 //! - «Conferma» (`run_cleanup`): the removals the plan held back when the
 //!   user saw it, and only those; downloads and links wait for «Scarica».
 
@@ -383,21 +388,28 @@ async fn sync_in(ctx: &JobContext, session: &FolderSession, full: bool) -> Resul
         return Ok(stopped(ctx, &plan, session, &executed));
     }
     ctx.slot.set_plan(summary_after(&plan, executed.linked, executed.downloaded, executed.conflicts));
+    mark_synced(ctx, session, &listed).await;
     Ok(result_of(ctx, SyncOutcome::Completed))
 }
 
-pub async fn run_download(ctx: Arc<JobContext>, only_failed: bool) -> Result<SyncResult> {
+/// `fresh`: a listing made now, never one kept from the last «Sincronizza»
+pub async fn run_download(ctx: Arc<JobContext>, only_failed: bool, fresh: bool) -> Result<SyncResult> {
     let ctx = &*ctx;
     let retry: Option<HashSet<String>> =
         only_failed.then(|| ctx.slot.failed.lock().retryable().into_iter().map(|e| e.name).collect());
     let session = open_folder(ctx).await?;
-    let result = download_in(ctx, &session, retry).await;
+    let result = download_in(ctx, &session, retry, fresh).await;
     session.close(&ctx.engine.registries).await;
     result
 }
 
-async fn download_in(ctx: &JobContext, session: &FolderSession, retry: Option<HashSet<String>>) -> Result<SyncResult> {
-    let listed = list(ctx, false, true).await?;
+async fn download_in(
+    ctx: &JobContext,
+    session: &FolderSession,
+    retry: Option<HashSet<String>>,
+    fresh: bool,
+) -> Result<SyncResult> {
+    let listed = list(ctx, false, !fresh).await?;
     let plan = compare(ctx, session, &listed, None).await?;
     let part = match &retry {
         Some(names) => only_names(&plan, names),
@@ -413,7 +425,18 @@ async fn download_in(ctx: &JobContext, session: &FolderSession, retry: Option<Ha
         Some(_) => summary_left(&plan, &session.manifest, executed.conflicts),
         None => summary_after(&plan, executed.linked, executed.downloaded, executed.conflicts),
     });
+    if retry.is_none() {
+        mark_synced(ctx, session, &listed).await;
+    }
     Ok(result_of(ctx, SyncOutcome::Completed))
+}
+
+/// The folder is up to date (everything listed, the whole plan carried out,
+/// no file to try again): `data/synced.json` says so to the other computers
+async fn mark_synced(ctx: &JobContext, session: &FolderSession, listed: &Listed) {
+    if listed.listing.complete && ctx.slot.failed.lock().retryable().is_empty() && session.guard().is_ok() {
+        crate::folder::synced::write(&session.data_dir, &ctx.engine.instance_id).await;
+    }
 }
 
 pub async fn run_cleanup(ctx: Arc<JobContext>, confirmed: HashSet<String>) -> Result<SyncResult> {

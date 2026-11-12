@@ -172,6 +172,21 @@ pub fn concurrency(value: Option<&Value>) -> Option<u32> {
     value.and_then(Value::as_f64).filter(|n| n.is_finite()).map(|n| n.round().clamp(1.0, 10.0) as u32)
 }
 
+/// The shortest interval of the automatic syncs, in minutes: each one asks On Page about every project
+pub const AUTO_SYNC_SHORTEST: u32 = 15;
+/// The longest: a week
+pub const AUTO_SYNC_LONGEST: u32 = 7 * 24 * 60;
+
+/// Minutes between automatic syncs: 0 (never), else rounded into 15 minutes..a week
+pub fn auto_sync(value: Option<&Value>) -> Option<u32> {
+    let minutes = value.and_then(Value::as_f64).filter(|n| n.is_finite())?;
+    Some(if minutes < 1.0 {
+        0
+    } else {
+        minutes.round().clamp(AUTO_SYNC_SHORTEST as f64, AUTO_SYNC_LONGEST as f64) as u32
+    })
+}
+
 fn flag(value: &Map<String, Value>, name: &str) -> Option<bool> {
     value.get(name).and_then(Value::as_bool)
 }
@@ -186,6 +201,7 @@ pub fn settings_patch(value: &Value) -> Checked<SettingsPatch> {
         language: language(patch.get("language")),
         concurrency: concurrency(patch.get("concurrency")),
         auto_retry_failed: flag(patch, "auto_retry_failed"),
+        auto_sync_minutes: auto_sync(patch.get("auto_sync_minutes")),
         notifications: flag(patch, "notifications"),
         close_to_tray: flag(patch, "close_to_tray"),
         open_at_login: flag(patch, "open_at_login"),
@@ -203,6 +219,7 @@ pub fn clean_settings(value: Option<&Value>, fallback: &AppSettings) -> AppSetti
         language: language(settings.get("language")).unwrap_or(fallback.language),
         concurrency: concurrency(settings.get("concurrency")).unwrap_or(fallback.concurrency),
         auto_retry_failed: flag(settings, "auto_retry_failed").unwrap_or(fallback.auto_retry_failed),
+        auto_sync_minutes: auto_sync(settings.get("auto_sync_minutes")).unwrap_or(fallback.auto_sync_minutes),
         notifications: flag(settings, "notifications").unwrap_or(fallback.notifications),
         close_to_tray: flag(settings, "close_to_tray").unwrap_or(fallback.close_to_tray),
         open_at_login: flag(settings, "open_at_login").unwrap_or(fallback.open_at_login),
@@ -218,6 +235,8 @@ pub fn apply_settings(current: &AppSettings, patch: &SettingsPatch) -> AppSettin
         language: patch.language.unwrap_or(current.language),
         concurrency: patch.concurrency.unwrap_or(current.concurrency).clamp(1, 10),
         auto_retry_failed: patch.auto_retry_failed.unwrap_or(current.auto_retry_failed),
+        auto_sync_minutes: auto_sync(patch.auto_sync_minutes.map(Value::from).as_ref())
+            .unwrap_or(current.auto_sync_minutes),
         notifications: patch.notifications.unwrap_or(current.notifications),
         close_to_tray: patch.close_to_tray.unwrap_or(current.close_to_tray),
         open_at_login: patch.open_at_login.unwrap_or(current.open_at_login),

@@ -120,6 +120,9 @@ pub struct Texts {
     failed_body: Plural,
     error_title: &'static str,
     pub error_body: ErrorBodies,
+    /// Removals that wait for «Conferma»: `{label}`; `{n}` files
+    confirm_title: &'static str,
+    confirm_body: Plural,
     delete_failed_title: &'static str,
     pub delete_failed_body: &'static str,
     pub delete_other_project_body: &'static str,
@@ -161,6 +164,12 @@ impl Texts {
     }
     pub fn error_title(&self, label: &str) -> String {
         self.error_title.replace("{label}", label)
+    }
+    pub fn confirm_title(&self, label: &str) -> String {
+        self.confirm_title.replace("{label}", label)
+    }
+    pub fn confirm_body(&self, count: u64) -> String {
+        plural(self.language, count, &self.confirm_body)
     }
     /// The text of an issue's code in a notification
     pub fn error_body(&self, code: Option<&str>) -> &'static str {
@@ -229,6 +238,11 @@ static IT: Texts = Texts {
         "1 file non è stato scaricato. Apri per riprovare.",
         "{n} file non sono stati scaricati. Apri per riprovare.",
     ),
+    confirm_title: "{label}: file da togliere",
+    confirm_body: forms(
+        "1 file non è più su On Page: apri l’app per confermare che va tolto.",
+        "{n} file non sono più su On Page: apri l’app per confermare che vanno tolti.",
+    ),
     error_title: "{label}: sincronizzazione non riuscita",
     error_body: ErrorBodies {
         token_invalid: "Il token API non è valido.",
@@ -285,6 +299,11 @@ static EN: Texts = Texts {
     done_body: forms("1 file downloaded in {duration}", "{n} files downloaded in {duration}"),
     failed_title: "{label}: files not downloaded",
     failed_body: forms("1 file was not downloaded. Open to retry.", "{n} files were not downloaded. Open to retry."),
+    confirm_title: "{label}: files to remove",
+    confirm_body: forms(
+        "1 file is no longer on On Page: open the app to confirm its removal.",
+        "{n} files are no longer on On Page: open the app to confirm their removal.",
+    ),
     error_title: "{label}: sync failed",
     error_body: ErrorBodies {
         token_invalid: "The API token is not valid.",
@@ -343,6 +362,11 @@ static DE: Texts = Texts {
     failed_body: forms(
         "{n} Datei wurde nicht heruntergeladen. Zum Wiederholen öffnen.",
         "{n} Dateien wurden nicht heruntergeladen. Zum Wiederholen öffnen.",
+    ),
+    confirm_title: "{label}: Dateien zu entfernen",
+    confirm_body: forms(
+        "1 Datei ist nicht mehr auf On Page: Öffnen Sie die App, um das Entfernen zu bestätigen.",
+        "{n} Dateien sind nicht mehr auf On Page: Öffnen Sie die App, um das Entfernen zu bestätigen.",
     ),
     error_title: "{label}: Synchronisierung fehlgeschlagen",
     error_body: ErrorBodies {
@@ -403,6 +427,11 @@ static ES: Texts = Texts {
         "{n} archivo no se ha descargado. Abre la app para reintentar.",
         "{n} archivos no se han descargado. Abre la app para reintentar.",
     ),
+    confirm_title: "{label}: archivos por eliminar",
+    confirm_body: forms(
+        "1 archivo ya no está en On Page: abre la app para confirmar que se elimine.",
+        "{n} archivos ya no están en On Page: abre la app para confirmar que se eliminen.",
+    ),
     error_title: "{label}: sincronización fallida",
     error_body: ErrorBodies {
         token_invalid: "El token de API no es válido.",
@@ -461,6 +490,11 @@ static FR: Texts = Texts {
     failed_body: forms(
         "{n} fichier n’a pas été téléchargé. Ouvrez l’app pour réessayer.",
         "{n} fichiers n’ont pas été téléchargés. Ouvrez l’app pour réessayer.",
+    ),
+    confirm_title: "{label}\u{a0}: fichiers à supprimer",
+    confirm_body: forms(
+        "{n} fichier n’est plus sur On Page\u{a0}: ouvrez l’app pour confirmer sa suppression.",
+        "{n} fichiers ne sont plus sur On Page\u{a0}: ouvrez l’app pour confirmer leur suppression.",
     ),
     error_title: "{label}\u{a0}: échec de la synchronisation",
     error_body: ErrorBodies {
@@ -530,6 +564,12 @@ static RU: Texts = Texts {
         "Не удалось скачать {n} файла. Откройте, чтобы повторить попытку.",
         "Не удалось скачать {n} файлов. Откройте, чтобы повторить попытку.",
     ),
+    confirm_title: "{label}: файлы к удалению",
+    confirm_body: slavic(
+        "Их больше нет на On Page: откройте приложение, чтобы подтвердить удаление {n} файла.",
+        "Их больше нет на On Page: откройте приложение, чтобы подтвердить удаление {n} файлов.",
+        "Их больше нет на On Page: откройте приложение, чтобы подтвердить удаление {n} файлов.",
+    ),
     error_title: "{label}: синхронизация не удалась",
     error_body: ErrorBodies {
         token_invalid: "Неверный API-токен.",
@@ -590,6 +630,11 @@ static SV: Texts = Texts {
         "{n} fil laddades inte ner. Öppna för att försöka igen.",
         "{n} filer laddades inte ner. Öppna för att försöka igen.",
     ),
+    confirm_title: "{label}: filer att ta bort",
+    confirm_body: forms(
+        "{n} fil finns inte längre på On Page: öppna appen för att bekräfta att den tas bort.",
+        "{n} filer finns inte längre på On Page: öppna appen för att bekräfta att de tas bort.",
+    ),
     error_title: "{label}: synkroniseringen misslyckades",
     error_body: ErrorBodies {
         token_invalid: "Projektets API-token är ogiltig.",
@@ -646,6 +691,8 @@ static ZH: Texts = Texts {
     done_body: same("已下载 {n} 个文件，用时 {duration}"),
     failed_title: "{label}：文件未下载",
     failed_body: same("{n} 个文件未能下载。打开即可重试。"),
+    confirm_title: "{label}：有文件待删除",
+    confirm_body: same("{n} 个文件已不在 On Page 上：打开应用确认删除。"),
     error_title: "{label}：同步失败",
     error_body: ErrorBodies {
         token_invalid: "API 令牌无效。",

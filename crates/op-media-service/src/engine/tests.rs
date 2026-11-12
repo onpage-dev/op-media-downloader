@@ -790,3 +790,44 @@ async fn large_project_phases() {
     eprintln!("download after a restart (nothing to do): {:.1?}", started.elapsed());
     timings(from);
 }
+
+/// An update lists On Page now, where a «Scarica» reuses the listing of the
+/// last «Sincronizza»; a job that brought the folder up to date says so in
+/// `data/synced.json`, one that left work behind does not
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_update_lists_now_and_marks_the_folder_synced() {
+    use crate::folder::synced::{SYNCED_FILE, read};
+    let h = Harness::new(5, 0).await;
+    let folder = h.folder("Aggiorna");
+    let data = folder.join(DATA_DIR);
+    // A sync that leaves files to download has not brought the folder up to date
+    h.run(|s| s.sync(h.project(&folder), false)).await;
+    assert!(!data.join(SYNCED_FILE).exists());
+    h.run(|s| s.download(h.project(&folder))).await;
+    let downloaded = read(&data).await.expect("written");
+    assert_eq!(downloaded.instance_id, "test-instance");
+    assert!(crate::folder::data_dir::is_own_data_entry(SYNCED_FILE));
+
+    // A product leaves On Page: a «Scarica» reuses the listing it had, an update sees it
+    h.fake.with(|state| state.project.things.retain(|t| t.id != 1003));
+    let result = h.run(|s| s.download(h.project(&folder))).await;
+    assert_eq!(result.removed, 0);
+    assert!(folder.join("prodotto-3.jpg").exists());
+    tokio::time::sleep(Duration::from_millis(5)).await;
+    let result = h.run(|s| s.update(h.project(&folder))).await;
+    assert_eq!(
+        (result.job, result.outcome, result.removed),
+        (JobKind::Download, SyncOutcome::Completed, 3),
+        "{result:?}"
+    );
+    assert!(!folder.join("prodotto-3.jpg").exists());
+    let updated = read(&data).await.unwrap();
+    assert!(updated.at > downloaded.at, "{updated:?}");
+
+    // A collection not read: nothing is said
+    h.fake.with(|state| state.api.fail_resource = Some("schede".into()));
+    tokio::time::sleep(Duration::from_millis(5)).await;
+    h.run(|s| s.update(h.project(&folder))).await;
+    assert!(h.issue_codes().contains(&IssueCode::ListingIncomplete));
+    assert_eq!(read(&data).await.unwrap(), updated);
+}

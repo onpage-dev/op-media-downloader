@@ -42,6 +42,7 @@ const os = platform()
 const forOs = (key: string): string => (te(`${key}_${os}`) ? t(`${key}_${os}`) : t(key))
 const uid = useId()
 const themeTitle = `${uid}-theme`
+const autoSyncTitle = `${uid}-auto-sync`
 const languageTitle = `${uid}-language`
 
 const SECTIONS: [SettingsSection, icons.IconDefinition][] = [
@@ -64,6 +65,19 @@ const concurrency = computed({
     const n = Math.round(Number(value))
     if (n >= 1 && n <= 10) set('concurrency', n)
   },
+})
+/** The intervals offered, in minutes; one set elsewhere (opmd, an agent) shows among them */
+const AUTO_SYNC = [0, 15, 60, 360, 1440]
+const interval = (minutes: number): string =>
+  minutes == 0
+    ? t('settings.auto_sync.off')
+    : minutes % 60 == 0
+      ? t('settings.auto_sync.hours', { n: minutes / 60 })
+      : t('settings.auto_sync.minutes', { n: minutes })
+const autoSync = computed(() => {
+  const chosen = s.value.auto_sync_minutes
+  const values = AUTO_SYNC.includes(chosen) ? AUTO_SYNC : [...AUTO_SYNC, chosen].sort((a, b) => a - b)
+  return values.map(minutes => ({ value: String(minutes), label: interval(minutes) }))
 })
 const themes = computed(() =>
   (['system', 'light', 'dark'] as ThemeSetting[]).map(value => ({ value, label: t(`settings.theme.${value}`) })),
@@ -170,7 +184,19 @@ const v = (version: string): string => `v${bare(version)}`
             </div>
           </template>
           <template v-if="section == 'download'">
-            <div class="flex items-center gap-lg py-lg first:pt-0">
+            <div class="flex flex-wrap items-center gap-x-lg gap-y-md py-lg first:pt-0">
+              <div class="min-w-60 flex-1">
+                <div :id="autoSyncTitle" class="font-medium">{{ t('settings.auto_sync.title') }}</div>
+                <div class="text-secondary">{{ t('settings.auto_sync.text') }}</div>
+              </div>
+              <UiSegmented
+                :model-value="String(s.auto_sync_minutes)"
+                :options="autoSync"
+                :aria-labelledby="autoSyncTitle"
+                @update:model-value="set('auto_sync_minutes', Number($event))"
+              />
+            </div>
+            <div class="flex items-center gap-lg py-lg">
               <div class="min-w-0 flex-1">
                 <div class="font-medium">{{ t('settings.concurrency.title') }}</div>
                 <div class="text-secondary">{{ t('settings.concurrency.text') }}</div>

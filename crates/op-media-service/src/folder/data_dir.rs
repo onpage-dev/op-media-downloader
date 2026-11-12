@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use regex::Regex;
 
 use super::manifest::{LINK_JSON_FILE, LOCK_FILE, MANIFEST_FILE, TEMP_PREFIX};
+use super::synced::SYNCED_FILE;
 use crate::error::Result;
 use crate::sync::queue::run_queue;
 
@@ -24,11 +25,12 @@ static TOKEN_LIKE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)^[0-9a-f]{24,64}(\.[A-Za-z0-9]{1,10})?(\.download|\.tmp)?$").expect("valid"));
 
 pub fn is_own_data_entry(name: &str) -> bool {
-    [MANIFEST_FILE, LINK_JSON_FILE, LOCK_FILE].contains(&name)
+    [MANIFEST_FILE, LINK_JSON_FILE, LOCK_FILE, SYNCED_FILE].contains(&name)
         || name.starts_with(TEMP_PREFIX)
-        // Temporary copies of the manifest and of the lock (a write cut by a crash or a dropped share)
+        // Temporary copies of the manifest, the lock and synced.json (a write cut by a crash or a dropped share)
         || name.starts_with(&format!("{MANIFEST_FILE}."))
         || name.starts_with(&format!("{LOCK_FILE}."))
+        || name.starts_with(&format!("{SYNCED_FILE}."))
         || TOKEN_LIKE.is_match(name)
 }
 

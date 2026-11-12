@@ -477,6 +477,13 @@
       "title": "Benachrichtigungen",
       "text": "Am Ende einer Synchronisierung, bei fehlgeschlagenen Dateien und bei Fehlern."
     },
+    "auto_sync": {
+      "title": "Automatisch synchronisieren",
+      "text": "Solange die App geöffnet ist, kommt, was sich auf On Page ändert, von selbst. Viele Entfernungen warten weiterhin auf „Bestätigen“.",
+      "off": "Aus",
+      "minutes": "{n} Min.",
+      "hours": "{n} Std."
+    },
     "concurrency": {
       "title": "Gleichzeitige Downloads",
       "text": "Wie viele Dateien gleichzeitig heruntergeladen werden, von 1 bis 10."

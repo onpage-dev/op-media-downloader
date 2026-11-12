@@ -380,6 +380,8 @@ export interface AppSettings {
   concurrency: number
   /** Retry network failures once, a minute after the end of a download */
   auto_retry_failed: boolean
+  /** While the app is open, bring every project up to date this often, in minutes (0: never, else at least 15) */
+  auto_sync_minutes: number
   notifications: boolean
   /** Icon in the notification area; closing the window keeps the app running there */
   close_to_tray: boolean
@@ -396,6 +398,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   language: 'it',
   concurrency: 4,
   auto_retry_failed: false,
+  auto_sync_minutes: 0,
   notifications: true,
   close_to_tray: false,
   open_at_login: false,

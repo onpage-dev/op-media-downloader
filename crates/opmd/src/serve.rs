@@ -26,7 +26,7 @@ use tokio::time::Instant;
 
 use crate::backend::Backend;
 use crate::webhook::{self, Pending};
-use crate::{FAILED, OK, WaitArgs, render, stop, update_projects};
+use crate::{FAILED, OK, Updated, WaitArgs, render, stop, update_projects};
 
 /// The shortest interval: each round asks On Page about every project, and
 /// media change seldom; a round every few minutes would only load On Page
@@ -135,7 +135,7 @@ pub async fn serve(
                 // The round brings every project up to date: the calls before it are answered
                 pending.clear();
                 let started = Instant::now();
-                match update(backend, None).await {
+                match update(backend, None, Some(every)).await {
                     Ok(lines) => report(lines),
                     Err(error) => warn(&format!(
                         "Round {round} ended early: {} (the next round tries again)",
@@ -204,7 +204,7 @@ async fn on_calls(backend: &Backend, pending: &Pending, schemas: &[Option<i64>])
         .filter(|project| project["runtime"]["phase"] != "idle")
         .map(|project| project["onpage_project"]["id"].as_i64())
         .collect();
-    match update(backend, Some(&ids)).await {
+    match update(backend, Some(&ids), None).await {
         Ok(lines) => report(lines),
         Err(error) => {
             warn(&format!("The sync On Page asked for ended early: {} (tried again soon)", error_message(&error)));
@@ -221,10 +221,18 @@ fn report(lines: Vec<(String, bool)>) {
     }
 }
 
-/// These projects (`None`: every one) up to date: a line each, and the warnings of those that need a person
-async fn update(backend: &Backend, only: Option<&[String]>) -> Result<Vec<(String, bool)>, String> {
-    let (ends, _) = update_projects(backend, only, &WaitArgs { timeout: None }).await?;
-    if ends.is_empty() {
+/// These projects (`None`: every one) up to date: a line each, and the
+/// warnings of those that need a person. `skip_within`: the rounds leave a
+/// shared folder to the computer that synced it that recently; a call of On
+/// Page never does (something changed since)
+async fn update(
+    backend: &Backend,
+    only: Option<&[String]>,
+    skip_within: Option<Duration>,
+) -> Result<Vec<(String, bool)>, String> {
+    let Updated { ends, skipped, .. } =
+        update_projects(backend, only, skip_within, &WaitArgs { timeout: None }).await?;
+    if ends.is_empty() && skipped.is_empty() {
         return Ok(vec![("No projects: add one with opmd add".into(), false)]);
     }
     let mut lines = Vec::new();
@@ -235,6 +243,21 @@ async fn update(backend: &Backend, only: Option<&[String]>) -> Result<Vec<(Strin
         if let Some(attention) = attention(end) {
             lines.push((format!("{label}: {attention}"), true));
         }
+    }
+    for skipped in &skipped {
+        let label = skipped["label"].as_str().unwrap_or("");
+        let host = skipped["host"].as_str().unwrap_or("another computer");
+        lines.push((
+            match skipped["minutes_ago"].as_u64() {
+                Some(0) => format!("{label}: left to {host}, which brought its shared folder up to date just now"),
+                Some(minutes) => format!(
+                    "{label}: left to {host}, which brought its shared folder up to date {} ago",
+                    words(Duration::from_secs(minutes * 60))
+                ),
+                None => format!("{label}: left to {host}, which is syncing its shared folder now"),
+            },
+            false,
+        ));
     }
     Ok(lines)
 }

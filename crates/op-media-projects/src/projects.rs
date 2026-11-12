@@ -64,6 +64,10 @@ const BLOCKING_PROBLEMS: &[FolderProblem] =
     &[FolderProblem::Protected, FolderProblem::UsedByOtherProject, FolderProblem::ForeignData];
 
 const AUTO_RETRY_DELAY: Duration = Duration::from_secs(60);
+/// The automatic syncs look at the projects this often…
+const AUTO_SYNC_TICK: Duration = Duration::from_secs(60);
+/// …the first time this long after the start: the window first
+const AUTO_SYNC_FIRST: Duration = Duration::from_secs(60);
 /// How long the job of a removed project gets to stop
 const STOP_WAIT: Duration = Duration::from_secs(90);
 /// The service answers these while the job still stops: the deletion is tried again
@@ -90,6 +94,32 @@ struct State {
     /// with its result (whoever waits for it then reads how it ended)
     results_pending: HashMap<ProjectId, u64>,
     jobs_started: u64,
+    /// When the automatic syncs last tried each project (ms): a failure waits the interval too
+    auto_tried: HashMap<ProjectId, i64>,
+}
+
+/// What a round started (or found running: its job is followed) and what it left alone
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct Round {
+    pub started: Vec<ProjectId>,
+    pub skipped: Vec<Skipped>,
+}
+
+/// A project whose shared folder another computer has in hand
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Skipped {
+    pub project: ProjectId,
+    pub label: String,
+    /// `busy`: that computer's job runs in the folder now; `synced`: it brought the folder up to date `minutes_ago`
+    pub reason: &'static str,
+    pub host: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minutes_ago: Option<u64>,
+}
+
+/// An automatic sync is due when neither the project's last job nor the last try is within the interval
+pub fn auto_sync_due(now: i64, last_job: Option<i64>, tried: Option<i64>, every: Duration) -> bool {
+    last_job.max(tried).is_none_or(|at| now - at >= every.as_millis() as i64)
 }
 
 pub struct ProjectService {
@@ -378,6 +408,26 @@ impl ProjectService {
         full_listing: bool,
         take_over_folder: bool,
     ) -> Result<(), String> {
+        self.start_with(id, job, take_over_folder, |service, target| match job {
+            JobKind::Sync => service.sync(target, full_listing),
+            JobKind::Download => service.download(target),
+            JobKind::RetryFailed => service.retry_failed(target),
+            JobKind::Cleanup => service.confirm_cleanup(target),
+        })
+    }
+
+    /// An update: a «Sincronizza» and a «Scarica» in one job, on a listing made now
+    pub fn start_update(self: &Arc<Self>, id: &str) -> Result<(), String> {
+        self.start_with(id, JobKind::Download, false, |service, target| service.update(target))
+    }
+
+    fn start_with(
+        self: &Arc<Self>,
+        id: &str,
+        job: JobKind,
+        take_over_folder: bool,
+        run: impl FnOnce(&MediaService, ServiceProject),
+    ) -> Result<(), String> {
         let mut project = self.require(id)?;
         if self.runtime(&project).phase != JobPhase::Idle {
             return Ok(());
@@ -387,13 +437,103 @@ impl ProjectService {
         }
         self.mark_starting(&project, job);
         let target = self.service_project(&project);
-        match job {
-            JobKind::Sync => self.service.sync(target, full_listing),
-            JobKind::Download => self.service.download(target),
-            JobKind::RetryFailed => self.service.retry_failed(target),
-            JobKind::Cleanup => self.service.confirm_cleanup(target),
-        }
+        run(&self.service, target);
         Ok(())
+    }
+
+    /// Brings projects up to date (`only` these, else every one), an update
+    /// job each: what `opmd run` and the app's automatic syncs do. A project
+    /// already running is left to its job (and counted as started: it is
+    /// followed). `skip_within`: a folder another computer is syncing, or
+    /// synced that recently (`data/synced.json`), is left alone
+    pub async fn round(self: &Arc<Self>, only: Option<&[ProjectId]>, skip_within: Option<Duration>) -> Round {
+        let mut round = Round::default();
+        for project in self.store.projects() {
+            if only.is_some_and(|only| !only.contains(&project.id)) {
+                continue;
+            }
+            if self.runtime(&project).phase != JobPhase::Idle {
+                round.started.push(project.id.clone());
+                continue;
+            }
+            if let Some(within) = skip_within
+                && let Some(elsewhere) = self.service.elsewhere(&project.folder, within).await
+            {
+                use op_media_service::folder::synced::Elsewhere;
+                let (reason, host, minutes_ago) = match elsewhere {
+                    Elsewhere::Busy { host } => ("busy", host, None),
+                    Elsewhere::Synced { host, ago } => ("synced", host, Some(ago.as_secs() / 60)),
+                };
+                info!("Project {} left to {host} ({reason}): its folder is shared", project.id);
+                round.skipped.push(Skipped {
+                    project: project.id.clone(),
+                    label: project.label.clone(),
+                    reason,
+                    host,
+                    minutes_ago,
+                });
+                continue;
+            }
+            // Removed meanwhile: nothing to do
+            if self.start_update(&project.id).is_ok() {
+                round.started.push(project.id.clone());
+            }
+        }
+        round
+    }
+
+    /// The app's automatic syncs (`auto_sync_minutes`): every minute, the
+    /// idle projects whose last job (or last try) is older than the interval
+    /// are brought up to date, the folders another computer synced within it
+    /// left alone. Only the app starts them: `opmd` has its own rounds
+    pub fn start_auto_sync(self: &Arc<Self>) {
+        let me = self.clone();
+        self.runtime.spawn(async move {
+            let mut tick = tokio::time::interval_at(tokio::time::Instant::now() + AUTO_SYNC_FIRST, AUTO_SYNC_TICK);
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                tick.tick().await;
+                me.auto_sync().await;
+            }
+        });
+    }
+
+    /// One look at the projects: those due are brought up to date
+    pub async fn auto_sync(self: &Arc<Self>) -> Round {
+        let minutes = self.store.settings().auto_sync_minutes;
+        if minutes == 0 {
+            return Round::default();
+        }
+        let every = Duration::from_secs(u64::from(minutes) * 60);
+        let now = op_media_service::now_ms();
+        let due: Vec<ProjectId> = self
+            .store
+            .projects()
+            .iter()
+            .filter(|project| {
+                let runtime = self.runtime(project);
+                let last_job =
+                    runtime.last_result.as_ref().and_then(|result| op_media_service::parse_iso_ms(&result.ended_at));
+                let tried = self.state.lock().auto_tried.get(&project.id).copied();
+                // Without a token there is nothing to sync with: the window asks for one
+                runtime.phase == JobPhase::Idle
+                    && self.store.has_token(project)
+                    && auto_sync_due(now, last_job, tried, every)
+            })
+            .map(|project| project.id.clone())
+            .collect();
+        if due.is_empty() {
+            return Round::default();
+        }
+        {
+            let mut state = self.state.lock();
+            for id in &due {
+                state.auto_tried.insert(id.clone(), now);
+            }
+        }
+        let round = self.round(Some(&due), Some(every)).await;
+        info!("Automatic sync: {} started, {} left to another computer", round.started.len(), round.skipped.len());
+        round
     }
 
     pub fn sync_all(self: &Arc<Self>) {

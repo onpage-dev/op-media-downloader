@@ -14,6 +14,11 @@ pub fn now_iso() -> IsoDate {
     iso(chrono::Utc::now())
 }
 
+/// Now, in milliseconds since the epoch
+pub fn now_ms() -> i64 {
+    chrono::Utc::now().timestamp_millis()
+}
+
 pub fn iso(date: chrono::DateTime<chrono::Utc>) -> IsoDate {
     date.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }

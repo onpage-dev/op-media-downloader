@@ -252,12 +252,28 @@ impl MediaService {
 
     /// «Scarica»: execute the plan (re-planning first when it is stale)
     pub fn download(&self, project: ServiceProject) {
-        self.start(project, JobKind::Download, Box::new(|ctx| run_download(ctx, false).boxed()));
+        self.start(project, JobKind::Download, Box::new(|ctx| run_download(ctx, false, false).boxed()));
+    }
+
+    /// A «Sincronizza» and a «Scarica» in one job: a «Scarica» on a listing
+    /// made now (not one of the last 30 minutes). What the automatic syncs
+    /// and `opmd run` do: the project is never idle between the two
+    pub fn update(&self, project: ServiceProject) {
+        self.start(project, JobKind::Download, Box::new(|ctx| run_download(ctx, false, true).boxed()));
     }
 
     /// Download again only the files that failed in the last run
     pub fn retry_failed(&self, project: ServiceProject) {
-        self.start(project, JobKind::RetryFailed, Box::new(|ctx| run_download(ctx, true).boxed()));
+        self.start(project, JobKind::RetryFailed, Box::new(|ctx| run_download(ctx, true, false).boxed()));
+    }
+
+    /// Another app is bringing the folder up to date now, or did within
+    /// `within` (`data/synced.json`): an automatic sync leaves it alone
+    pub async fn elsewhere(&self, folder: &str, within: Duration) -> Option<crate::folder::synced::Elsewhere> {
+        let folder = std::path::PathBuf::from(folder);
+        let ask = crate::folder::synced::elsewhere(&folder, &self.engine.instance_id, within, crate::models::now_ms());
+        // A share that does not answer: the job will say so
+        tokio::time::timeout(Duration::from_secs(10), ask).await.ok().flatten()
     }
 
     /// Apply the removals above the safety threshold the user confirmed: the

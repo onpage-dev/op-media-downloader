@@ -477,6 +477,13 @@
       "title": "Notifications",
       "text": "À la fin d’une synchronisation, pour les fichiers en échec et les erreurs."
     },
+    "auto_sync": {
+      "title": "Synchroniser automatiquement",
+      "text": "Tant que l’app est ouverte, ce qui change sur On Page arrive tout seul. Les suppressions nombreuses attendent toujours « Confirmer ».",
+      "off": "Non",
+      "minutes": "{n} min",
+      "hours": "{n} h"
+    },
     "concurrency": {
       "title": "Téléchargements simultanés",
       "text": "Nombre de fichiers à télécharger en même temps, de 1 à 10."

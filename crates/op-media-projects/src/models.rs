@@ -65,6 +65,8 @@ pub struct AppSettings {
     pub concurrency: u32,
     /// Retry network failures once, a minute after the end of a download
     pub auto_retry_failed: bool,
+    /// While the app is open, bring every project up to date this often, in minutes (0: never, else at least 15)
+    pub auto_sync_minutes: u32,
     pub notifications: bool,
     /// Icon in the notification area; closing the window keeps the app running there
     pub close_to_tray: bool,
@@ -81,6 +83,7 @@ pub const DEFAULT_SETTINGS: AppSettings = AppSettings {
     language: AppLanguage::It,
     concurrency: 4,
     auto_retry_failed: false,
+    auto_sync_minutes: 0,
     notifications: true,
     close_to_tray: false,
     open_at_login: false,
@@ -155,6 +158,7 @@ pub struct SettingsPatch {
     pub language: Option<AppLanguage>,
     pub concurrency: Option<u32>,
     pub auto_retry_failed: Option<bool>,
+    pub auto_sync_minutes: Option<u32>,
     pub notifications: Option<bool>,
     pub close_to_tray: Option<bool>,
     pub open_at_login: Option<bool>,

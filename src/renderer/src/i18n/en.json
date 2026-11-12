@@ -477,6 +477,13 @@
       "title": "Notifications",
       "text": "At the end of a sync, for failed files and errors."
     },
+    "auto_sync": {
+      "title": "Sync automatically",
+      "text": "While the app is open, what changes on On Page arrives by itself. Many removals still wait for «Confirm».",
+      "off": "Off",
+      "minutes": "{n} min",
+      "hours": "{n} h"
+    },
     "concurrency": {
       "title": "Parallel downloads",
       "text": "How many files to download at once, 1 to 10."
