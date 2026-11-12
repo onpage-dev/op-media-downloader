@@ -830,7 +830,6 @@ impl ProjectService {
             last_result: if finished { Some(result.clone()) } else { runtime.last_result.clone() },
             ..runtime
         };
-        self.state.lock().runtimes.insert(id.to_string(), next.clone());
         // The folder's registry names this project's On Page project now: the choice of the folder is done
         if let Some(onpage) = &result.onpage_project
             && let Some(patched) = self.store.patch_project(id, |p| {
@@ -841,7 +840,6 @@ impl ProjectService {
             project = patched;
         }
         let saved = self.persist(&project, &next);
-        self.changed();
         info!(
             "Project {id} {} {:?}: {} downloaded, {} linked, {} removed, {} failed",
             result.job.as_str(),
@@ -851,7 +849,12 @@ impl ProjectService {
             result.removed,
             result.failed
         );
-        (self.notify)(ProjectsEvent::Result(Box::new(self.to_view(&saved)), Box::new(result.clone())));
+        // Saved and told before the project shows idle: whoever waits for the job (opmd, an agent, a removal
+        // right after it) gets the project back with its result, and nothing of the job writes after that
+        let view = ProjectView { runtime: next.clone(), ..self.to_view(&saved) };
+        (self.notify)(ProjectsEvent::Result(Box::new(view), Box::new(result.clone())));
+        self.state.lock().runtimes.insert(id.to_string(), next);
+        self.changed();
         self.schedule_auto_retry(id, &result);
         let me = self.clone();
         let id = id.to_string();

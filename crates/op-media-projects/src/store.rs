@@ -267,11 +267,25 @@ impl AppStore {
 
     /// Changes a project as it is now; None when there is no such project
     pub fn patch_project(&self, id: &str, patch: impl FnOnce(&mut StoredProject)) -> Option<StoredProject> {
-        let mut project = self.project(id)?;
-        patch(&mut project);
-        project.id = id.to_string();
-        self.save_project(&project).ok()?;
-        Some(project)
+        self.project(id)?;
+        // Read and written in one write: a project removed meanwhile (here, or by another process) stays removed
+        let mut patched = None;
+        self.write(|data| {
+            let Some(slot) = data.get_mut("projects").and_then(Value::as_object_mut).and_then(|map| map.get_mut(id))
+            else {
+                return;
+            };
+            let Some(mut project) = read_project(id, slot) else {
+                return;
+            };
+            patch(&mut project);
+            project.id = id.to_string();
+            if let Ok(value) = serde_json::to_value(&project) {
+                *slot = value;
+                patched = Some(project);
+            }
+        });
+        patched
     }
 
     pub fn remove_project(&self, id: &str) {
