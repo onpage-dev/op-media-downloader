@@ -32,7 +32,9 @@ const { t } = useI18n()
       <h3 :id="titleId" class="font-title text-2xl font-bold">{{ title }}</h3>
       <p v-if="subtitle" class="text-secondary">{{ subtitle }}</p>
     </header>
-    <div class="-mx-[14px] min-h-0 flex-1 overflow-auto px-[14px]"><slot /></div>
+    <!-- Room for the fields' halos all round; the one below also takes the fraction of a pixel a last line of
+         12px text (14.4px high) sticks out, which alone made a scrollbar for nothing -->
+    <div class="-mx-[14px] -my-xs min-h-0 flex-1 overflow-auto px-[14px] py-xs"><slot /></div>
     <footer v-if="$slots.footer" class="flex items-center gap-sm"><slot name="footer" /></footer>
   </UiOverlay>
 </template>
