@@ -228,9 +228,34 @@ opmd --help                                 # every command; --json for scripts
 
 - **App open:** `opmd` hands each command to it, so the window shows the job.
 - **App closed:** `opmd` works on its own, on the same projects and tokens. Both can run at once: the settings file and each folder's lock keep them apart.
-- **Server without the app:** `--data-dir DIR` (or `OPMD_DATA_DIR`) gives it projects of its own; `OPMD_NO_KEYRING=1` keeps the tokens in that folder's settings file (owner-only) where there is no credential store. Schedule `opmd sync --all` and `opmd download`.
+- **Server without the app:** `--data-dir DIR` (or `OPMD_DATA_DIR`) gives it projects of its own; `OPMD_NO_KEYRING=1` keeps the tokens in that folder's settings file (owner-only) where there is no credential store. `opmd download --all` brings every project up to date once (for cron); `opmd run --every 30m` keeps doing it, a round at a time, until it is stopped ([below](#a-server-that-keeps-folders-up-to-date)).
 - **Exit codes:** `0` done, `1` failed, `3` done with failed files, `130` stopped.
 - **Where it is:** on the PATH on Windows (set by the installer), in `/usr/bin` with the .deb, inside the app on macOS (_Settings › AI agents_ shows the one-time link to `/usr/local/bin`). From the sources: `cargo build --release -p opmd`.
+
+#### A server that keeps folders up to date
+
+`opmd run --every 30m` (at least `1m`) brings every project up to date at each round: what changed on On Page is read, what is missing is downloaded, renames and removals within the safety limit are applied, failed files are tried again. One line per project and round goes to the output and to `logs/opmd.log`. A round that fails (On Page out of reach, a folder that does not answer) only writes a `WARNING`: the next one tries again. Large removals still wait for a person: the log says which command confirms them (`opmd cleanup PROJECT --yes`). Ctrl+C, `systemctl stop` or `docker stop` (SIGTERM) end the running jobs cleanly. Only one `opmd run` works on a data folder.
+
+```ini
+# /etc/systemd/system/opmd.service, then: systemctl enable --now opmd
+[Unit]
+Description=On Page Media Downloader
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=opmd
+# systemd creates /var/lib/opmd for that user
+StateDirectory=opmd
+Environment=OPMD_DATA_DIR=/var/lib/opmd OPMD_NO_KEYRING=1
+ExecStart=/usr/local/bin/opmd run --every 30m
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Create the user once (`useradd --system opmd`), start the service (it creates the data folder), then add the projects with the same data folder: `sudo -u opmd OPMD_DATA_DIR=/var/lib/opmd OPMD_NO_KEYRING=1 opmd add --label NAME --folder /srv/media/NAME --token-stdin`.
 
 **AI agents (MCP).** While the app is open it serves MCP on this computer only, with a secret (_Settings › AI agents_, on by default; **Copy Claude Code setup** gives the command). Or let the agent start `opmd mcp`, which works with the app open or closed (**Copy setup with opmd** gives it with the full path, for where `opmd` is not on the PATH):
 

@@ -288,3 +288,82 @@ async fn scripts_get_clear_answers_and_exit_codes() {
     assert_eq!(status["running_jobs"], 0);
     fake.close();
 }
+
+/// A server: `download --all` once, then `run` round after round; On Page
+/// failing in the middle of it only puts a warning in the log, the next
+/// round ends the work; a second `run` on the same data is refused
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_server_keeps_every_project_up_to_date_round_after_round() {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
+    let fake = FakeOnPage::start(sample_project(6, 0, "server"), "server-token", 0).await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("data");
+    let opmd = Opmd { data: &data, fake: &fake };
+    let folders = [dir.path().join("Uno"), dir.path().join("Due")];
+    for (label, folder) in ["Uno", "Due"].iter().zip(&folders) {
+        opmd.ok(&["add", "--label", label, "--folder", &folder.display().to_string(), "--token-env", "TEST_TOKEN"])
+            .await;
+    }
+
+    let all = opmd.ok(&["download", "--all"]).await;
+    assert!(all.contains("Uno: download completed") && all.contains("Due: download completed"), "{all}");
+    for folder in &folders {
+        assert!(folder.join("prodotto-3.jpg").exists());
+    }
+
+    let mut server = tokio::process::Command::new(env!("CARGO_BIN_EXE_opmd"))
+        .args(["run", "--every", "2s", "--rounds", "3"])
+        .env("OPMD_DATA_DIR", &data)
+        .env("OPMD_NO_KEYRING", "1")
+        .env("OPMD_API_DOMAIN", &fake.url)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut lines = BufReader::new(server.stdout.take().unwrap()).lines();
+    let mut seen: Vec<String> = Vec::new();
+    let mut until = async |what: &str, seen: &mut Vec<String>| {
+        tokio::time::timeout(std::time::Duration::from_secs(60), async {
+            while let Some(line) = lines.next_line().await.unwrap() {
+                seen.push(line.clone());
+                if line.contains(what) {
+                    return;
+                }
+            }
+            panic!("opmd run ended before «{what}»: {seen:#?}");
+        })
+        .await
+        .unwrap_or_else(|_| panic!("no «{what}»: {seen:#?}"));
+    };
+
+    until("Round 1 done", &mut seen).await;
+    // A second server on the same data is refused
+    let second = opmd.run(&["run", "--every", "1m"]).await;
+    assert_eq!(second.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&second.stderr).contains("another `opmd run`"));
+
+    // On Page fails during the second round, and a product leaves it meanwhile
+    fake.with(|state| {
+        state.api.fail_times = 10_000;
+        state.project.things.retain(|thing| thing.id != 1003);
+    });
+    until("Round 2 done", &mut seen).await;
+    fake.with(|state| state.api.fail_times = 0);
+    until("Stopped", &mut seen).await;
+    let status = tokio::time::timeout(std::time::Duration::from_secs(30), server.wait()).await.unwrap().unwrap();
+    assert_eq!(status.code(), Some(0), "{seen:#?}");
+
+    let log = seen.join("\n");
+    assert!(log.contains("WARNING Uno: needs attention") && log.contains("WARNING Due: needs attention"), "{log}");
+    assert!(log.contains("Round 3 done"), "{log}");
+    // The third round ended the work: the product's files left both folders
+    for folder in &folders {
+        assert!(!folder.join("prodotto-3.jpg").exists(), "{log}");
+        assert!(folder.join("prodotto-1.jpg").exists());
+    }
+    // The rounds are in opmd's log too
+    let file = std::fs::read_to_string(data.join("logs").join("opmd.log")).unwrap();
+    assert!(file.contains("Round 2 done") && file.contains("needs attention"));
+    fake.close();
+}

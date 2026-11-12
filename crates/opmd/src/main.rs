@@ -12,8 +12,11 @@
 
 mod backend;
 mod render;
+mod serve;
+mod stop;
 mod user_path;
 
+use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -114,9 +117,12 @@ enum Command {
         #[command(flatten)]
         wait: WaitArgs,
     },
-    /// «Scarica»: download what the folder lacks
+    /// «Scarica»: download what the folder lacks; --all brings every project up to date (lists On Page, then downloads)
     Download {
-        project: String,
+        #[arg(required_unless_present = "all")]
+        project: Option<String>,
+        #[arg(long, conflicts_with = "project")]
+        all: bool,
         #[command(flatten)]
         wait: WaitArgs,
     },
@@ -189,6 +195,16 @@ enum Command {
     /// MCP server on stdin/stdout for AI agents (e.g. claude mcp add opmd -- opmd mcp): the same
     /// operations, run in the app when it is open, else here
     Mcp,
+    /// Keeps every project up to date, a round every --every, until Ctrl+C or a stop of the
+    /// service (systemd, docker stop): for a server
+    Run {
+        /// How often: 30m, 2h, 1d… (at least 1m)
+        #[arg(long, default_value = "30m", value_parser = serve::parse_every, value_name = "INTERVAL")]
+        every: Duration,
+        /// Stop after this many rounds
+        #[arg(long, hide = true)]
+        rounds: Option<u32>,
+    },
     /// The Windows installer: puts opmd's folder on the user's PATH, or takes it off
     #[command(hide = true)]
     Path {
@@ -249,7 +265,8 @@ fn main() {
 }
 
 async fn run(cli: Cli, paths: AppPaths) -> i32 {
-    let keep_looking = matches!(cli.command, Command::Mcp);
+    // Long-running: they notice the app opening or closing on the same data
+    let keep_looking = matches!(cli.command, Command::Mcp | Command::Run { .. });
     let backend = match Backend::open(paths.clone(), keep_looking).await {
         Ok(backend) => Arc::new(backend),
         Err(error) => fail(&error),
@@ -262,6 +279,7 @@ async fn run(cli: Cli, paths: AppPaths) -> i32 {
                 Err(error) => fail(&error),
             };
         }
+        Command::Run { every, rounds } => return serve::serve(&backend, &paths.data, *every, *rounds).await,
         _ => {}
     }
     match execute(&cli, &backend).await {
@@ -351,8 +369,29 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
             let args = json!({ "full_listing": full, "take_over_folder": take_over_folder });
             return job(cli, backend, project.as_deref().unwrap_or(""), "sync_project", args, wait).await;
         }
-        Command::Download { project, wait } => {
-            return job(cli, backend, project, "download_project", json!({}), wait).await;
+        Command::Download { project, all, wait } => {
+            if *all {
+                let (ends, interrupted) = update_all(backend, wait).await?;
+                if cli.json {
+                    let views: Vec<&Value> = ends.iter().map(|(end, _)| end).collect();
+                    println!("{}", serde_json::to_string_pretty(&views).unwrap_or_default());
+                } else if ends.is_empty() {
+                    println!("No projects: add one with opmd add");
+                }
+                for (end, ended) in &ends {
+                    if !cli.json {
+                        let label = end["label"].as_str().unwrap_or("");
+                        let what = if *ended {
+                            render::result_line(&end["runtime"]["last_result"])
+                        } else {
+                            render::state(end)
+                        };
+                        println!("{label}: {what}");
+                    }
+                }
+                return Ok(ends.iter().map(|(end, ended)| exit_code(end, *ended, interrupted)).max().unwrap_or(OK));
+            }
+            return job(cli, backend, project.as_deref().unwrap_or(""), "download_project", json!({}), wait).await;
         }
         Command::Retry { project, wait } => return job(cli, backend, project, "retry_failed", json!({}), wait).await,
         Command::Cleanup { project, yes, wait } => {
@@ -428,7 +467,7 @@ async fn execute(cli: &Cli, backend: &Backend) -> Result<i32, String> {
             print(&settings, &render::settings);
         }
         Command::Status => print(&backend.call("get_status", json!({})).await?, &render::status),
-        Command::Info | Command::Mcp | Command::Path { .. } => unreachable!("answered before"),
+        Command::Info | Command::Mcp | Command::Run { .. } | Command::Path { .. } => unreachable!("answered before"),
     }
     Ok(OK)
 }
@@ -470,6 +509,64 @@ async fn job(
     Ok(exit_code(&end, ended, interrupted))
 }
 
+/// Every project brought up to date and followed to the end: a «Sincronizza»
+/// (what changed on On Page: a «Scarica» alone would reuse a listing of the
+/// last 30 minutes, which a long-running process or the app may hold), then a
+/// «Scarica» where files are missing. Each project as it ended, and whether
+/// its jobs left a result; whether the user or the system stopped them
+async fn update_all(backend: &Backend, wait: &WaitArgs) -> Result<(Vec<(Value, bool)>, bool), String> {
+    let projects = backend.call("list_projects", json!({})).await?;
+    let mut ids = Vec::new();
+    let mut before: HashMap<String, Value> = HashMap::new();
+    for project in projects.as_array().into_iter().flatten() {
+        let Some(id) = project["id"].as_str() else { continue };
+        before.insert(id.to_string(), project["runtime"]["last_result"]["ended_at"].clone());
+        ids.push(id.to_string());
+    }
+    let start = async |operation: &str, ids: &[String]| -> Result<(), String> {
+        for id in ids {
+            // A project removed meanwhile is left out; one already running is followed as it is
+            match backend.call(operation, json!({ "project": id })).await {
+                Ok(_) => {}
+                Err(error) if error == "project_not_found" => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    };
+    start("sync_project", &ids).await?;
+    let (synced, mut interrupted) = follow(backend, &ids, wait).await?;
+    let mut ends: Vec<Value> = synced;
+    let missing: Vec<String> = ends
+        .iter()
+        .filter(|view| {
+            let runtime = &view["runtime"];
+            let failed = runtime["issues"].as_array().into_iter().flatten().any(|issue| issue["severity"] == "error");
+            !failed && runtime["plan"]["to_download_names"].as_u64().unwrap_or(0) > 0
+        })
+        .filter_map(|view| view["id"].as_str().map(str::to_string))
+        .collect();
+    if !interrupted && !missing.is_empty() {
+        start("download_project", &missing).await?;
+        let (downloaded, stopped) = follow(backend, &missing, wait).await?;
+        interrupted = stopped;
+        for view in downloaded {
+            if let Some(slot) = ends.iter_mut().find(|end| end["id"] == view["id"]) {
+                *slot = view;
+            }
+        }
+    }
+    let ends = ends
+        .into_iter()
+        .map(|end| {
+            let was = before.get(end["id"].as_str().unwrap_or(""));
+            let ended = was.is_none_or(|was| end["runtime"]["last_result"]["ended_at"] != *was);
+            (end, ended)
+        })
+        .collect();
+    Ok((ends, interrupted))
+}
+
 async fn sync_all(cli: &Cli, backend: &Backend, wait: &WaitArgs) -> Result<i32, String> {
     backend.call("sync_all", json!({})).await?;
     let ids: Vec<String> = backend
@@ -494,15 +591,24 @@ async fn sync_all(cli: &Cli, backend: &Backend, wait: &WaitArgs) -> Result<i32, 
 async fn follow(backend: &Backend, ids: &[String], wait: &WaitArgs) -> Result<(Vec<Value>, bool), String> {
     let tty = std::io::stderr().is_terminal();
     let deadline = wait.timeout.map(|seconds| tokio::time::Instant::now() + Duration::from_secs(seconds));
-    let mut ctrl_c = std::pin::pin!(tokio::signal::ctrl_c());
+    // Ctrl+C, or the system stopping opmd (SIGTERM, a shutdown), stops the jobs cleanly
+    stop::listen();
+    let mut ids: Vec<String> = ids.to_vec();
     let mut interrupted = false;
     let mut last_line = String::new();
     let mut last_print = tokio::time::Instant::now();
     loop {
         let mut views = Vec::new();
-        for id in ids {
-            views.push(backend.call("get_project", json!({ "project": id })).await?);
+        let mut gone = Vec::new();
+        for id in &ids {
+            match backend.call("get_project", json!({ "project": id })).await {
+                Ok(view) => views.push(view),
+                // Removed meanwhile (the app, another opmd): nothing more to follow
+                Err(error) if error == "project_not_found" => gone.push(id.clone()),
+                Err(error) => return Err(error),
+            }
         }
+        ids.retain(|id| !gone.contains(id));
         let running: Vec<&Value> = views.iter().filter(|v| v["runtime"]["phase"] != "idle").collect();
         if running.is_empty() {
             if tty && !last_line.is_empty() {
@@ -529,10 +635,10 @@ async fn follow(backend: &Backend, ids: &[String], wait: &WaitArgs) -> Result<(V
         last_line = line;
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_millis(500)) => {}
-            _ = &mut ctrl_c, if !interrupted => {
+            _ = stop::stopped(), if !interrupted => {
                 interrupted = true;
                 eprintln!("\nStopping (what is done stays done)…");
-                for id in ids {
+                for id in &ids {
                     let _ = backend.call("stop_project", json!({ "project": id })).await;
                 }
             }

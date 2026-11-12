@@ -450,6 +450,13 @@ pub fn error_message(code: &str) -> String {
         "folder_unreachable" => "The folder cannot be reached.",
         "folder_not_writable" => "The folder cannot be written.",
         "token_invalid" => "The On Page token is not valid.",
+        "offline" => "On Page cannot be reached.",
+        "rate_limited" => "On Page asks to slow down: the next run goes on.",
+        "project_unavailable" => "On Page could not load the project.",
+        "listing_failed" => "The file list could not be read from On Page.",
+        "folder_locked" => "Another computer is syncing the folder.",
+        "folder_other_project" => "The folder belongs to another On Page project.",
+        "disk_full" => "The disk is full.",
         "unexpected" => "Something unexpected happened: see the log.",
         _ => "",
     };
@@ -521,7 +528,11 @@ mod tests {
             error_message("project_busy"),
             "The project is running a job: stop it or wait for it to end. (project_busy)"
         );
-        assert_eq!(error_message("listing_failed: 500"), "listing_failed: 500");
+        assert_eq!(
+            error_message("listing_failed: 500"),
+            "The file list could not be read from On Page. (listing_failed: 500)"
+        );
+        assert_eq!(error_message("brand_new: 500"), "brand_new: 500");
         assert_eq!(error_message("something_new"), "something_new");
     }
 }
