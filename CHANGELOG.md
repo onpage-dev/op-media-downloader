@@ -62,7 +62,7 @@ A new app: a desktop sync manager for On Page media, written in Rust with Tauri 
 ### Development
 
 - Rust with Tauri 2.12 (the app) and Tokio (the download service); Vite 8, Vue 3.5, Tailwind CSS 4, TypeScript 6, ESLint 10, Vitest 5 for the interface.
-- Clippy with warnings as errors, strict types (no implicit `any`) and type-aware lint: a promise nobody handles is an error. 135 tests: the download service (15 end to end against the fake On Page), the app and the interface.
+- Clippy with warnings as errors, strict types (no implicit `any`) and type-aware lint: a promise nobody handles is an error. 200 tests: the download service (40 end to end against the fake On Page, among them a disk fault for every row of the fault table: disk full mid-write, a share that drops, read-only folders, an antivirus…), the projects (editing, stopping, removing, a restart, another process), `opmd` and its MCP server (the secret, web pages and foreign hosts refused), the app, and the interface's state (pages, item names, «Show more», searches overtaking each other).
 - CI on Windows, macOS and Linux: dependency audit, typecheck, lint, rustfmt and Prettier, Clippy, tests, build and an unsigned package. Rust stable and Node 24; actions pinned by commit, Dependabot for dependencies and actions.
 - Releases from a tag `vX.Y.Z`: Windows, macOS (signed and notarized) and Linux installers with SHA-256 checksums and build provenance, published only once every installer is attached; secrets reach only the steps that need them.
 - Third-party notices (`THIRD_PARTY_NOTICES.txt`, with the Rust crates and the fonts' OFL) are generated at build time and shipped with the app.

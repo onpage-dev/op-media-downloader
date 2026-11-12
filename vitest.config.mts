@@ -6,6 +6,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@shared': resolve('src/shared'),
+      // The free icons, in git: the tests are the same with or without the Pro ones
+      '#icons': resolve('src/renderer/src/lib/icons/free.ts'),
     },
   },
   test: {

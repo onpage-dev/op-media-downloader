@@ -5,6 +5,7 @@
     "composite": true,
     "types": ["node"],
     "paths": {
+      "#icons": ["./src/renderer/src/lib/icons/free.ts"],
       "@shared/*": ["./src/shared/*"]
     }
   }
