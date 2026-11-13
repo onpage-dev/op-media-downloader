@@ -17,12 +17,12 @@ chrono.workspace = true
 uuid.workspace = true
 parking_lot.workspace = true
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
-dirs = "6"
-base64 = "0.22"
+dirs = "7"
+base64 = "0.23"
 regex = "1"
-aes = "0.8"
-aes-gcm = "0.10"
-cbc = "0.1"
+aes = "0.9"
+aes-gcm = "0.11"
+cbc = "0.2"
 pbkdf2 = { version = "0.13", default-features = false, features = ["hmac"] }
 sha1 = "0.11"
 url = "2"
