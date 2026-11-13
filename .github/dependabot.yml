@@ -1,27 +1,25 @@
+# One pull request a month with every update, majors included (npm, crates,
+# actions): each pull request runs CI on Windows, macOS and Linux, and GitHub
+# Free runs 5 macOS jobs at a time, so separate ones queue for hours. Updates
+# that need each other (pbkdf2 and sha1, digest and sha2) arrive together.
 version: 2
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: monthly
+
 updates:
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      dependencies:
-        patterns: ['*']
-        update-types: [minor, patch]
+    patterns: ['*']
+    multi-ecosystem-group: dependencies
 
   - package-ecosystem: cargo
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      crates:
-        patterns: ['*']
-        update-types: [minor, patch]
+    patterns: ['*']
+    multi-ecosystem-group: dependencies
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      actions:
-        patterns: ['*']
+    patterns: ['*']
+    multi-ecosystem-group: dependencies

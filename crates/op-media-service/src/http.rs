@@ -4,7 +4,7 @@
 use std::future::Future;
 use std::time::Duration;
 
-use rand::Rng;
+use rand::RngExt;
 use tokio_util::sync::CancellationToken;
 
 use crate::error::{Error, Result};
