@@ -1,25 +1,37 @@
-# One pull request a month with every update, majors included (npm, crates,
-# actions): each pull request runs CI on Windows, macOS and Linux, and GitHub
-# Free runs 5 macOS jobs at a time, so separate ones queue for hours. Updates
-# that need each other (pbkdf2 and sha1, digest and sha2) arrive together.
+# Security fixes only: when a dependency has a known vulnerability, Dependabot
+# opens a pull request with the fixes, one per ecosystem. No routine version
+# updates (`open-pull-requests-limit: 0` stops those and leaves security updates
+# alone): they are done by hand, all together and checked on every system first,
+# since majors such as TypeScript 7 (no JavaScript API for vue-tsc) or the
+# RustCrypto crates of os_crypt need code changes.
 version: 2
-multi-ecosystem-groups:
-  dependencies:
-    schedule:
-      interval: monthly
-
 updates:
   - package-ecosystem: npm
     directory: /
-    patterns: ['*']
-    multi-ecosystem-group: dependencies
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ['*']
 
   - package-ecosystem: cargo
     directory: /
-    patterns: ['*']
-    multi-ecosystem-group: dependencies
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ['*']
 
   - package-ecosystem: github-actions
     directory: /
-    patterns: ['*']
-    multi-ecosystem-group: dependencies
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ['*']
